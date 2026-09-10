@@ -1,0 +1,42 @@
+# Dockerfile for building DSH Desktop deb package
+FROM node:22-bookworm
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    clang \
+    cmake \
+    git \
+    python3 \
+    libgtk-3-dev \
+    libnotify-dev \
+    libnss3-dev \
+    libxss-dev \
+    libxtst-dev \
+    libatspi2.0-dev \
+    libuuid-dev \
+    libsecret-1-dev \
+    rpm \
+    fakeroot \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY package.json yarn.lock ./
+COPY dsh-plugin-desktop/package.json dsh-plugin-desktop/
+
+# Install dependencies
+RUN corepack enable && corepack prepare yarn@4.18.0 --activate
+RUN yarn install --immutable
+
+# Copy source code
+COPY . .
+
+# Build and package
+RUN cd dsh-plugin-desktop && yarn dist:linux-deb
+
+# Output directory
+VOLUME /output
+CMD ["cp", "-r", "/app/dsh-plugin-desktop/dist/*.deb", "/output/"]

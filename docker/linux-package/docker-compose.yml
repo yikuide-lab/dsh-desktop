@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  build-deb:
+    build:
+      context: ../..
+      dockerfile: docker/linux-package/Dockerfile.ubuntu
+    volumes:
+      - ./output:/output
+    command: cp -r /app/dsh-plugin-desktop/dist/*.deb /output/
+
+  build-rpm:
+    build:
+      context: ../..
+      dockerfile: docker/linux-package/Dockerfile.fedora
+    volumes:
+      - ./output:/output
+    command: cp -r /app/dsh-plugin-desktop/dist/*.rpm /output/
+
+  build-appimage:
+    build:
+      context: ../..
+      dockerfile: docker/linux-package/Dockerfile.appimage
+    volumes:
+      - ./output:/output
+    command: cp -r /app/dsh-plugin-desktop/dist/*.AppImage /output/
+
+  build-all:
+    build:
+      context: ../..
+      dockerfile: docker/linux-package/Dockerfile.appimage
+    volumes:
+      - ./output:/output
+    command: |
+      sh -c "cd dsh-plugin-desktop && \
+             yarn dist:linux-deb && \
+             yarn dist:linux-rpm && \
+             yarn dist:linux-appimage && \
+             cp -r dist/*.deb dist/*.rpm dist/*.AppImage /output/"
