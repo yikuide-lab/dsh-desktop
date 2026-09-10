@@ -1,0 +1,63 @@
+apiVersion: wfwise.io/v1
+kind: Workflow
+metadata:
+  name: code-review
+  title: Automated Code Review
+  description: Review code changes, run tests, and generate report
+spec:
+  trigger:
+    type: event
+    source: git
+    on: push
+  max_concurrency: 4
+  steps:
+    - id: checkout
+      type: script
+      run: git checkout $BRANCH
+      env:
+        CI: "true"
+
+    - id: lint
+      type: script
+      deps: [checkout]
+      run: npm run lint
+      timeout: 300
+
+    - id: test
+      type: script
+      deps: [checkout]
+      run: npm test
+      timeout: 600
+
+    - id: review
+      type: task
+      deps: [lint, test]
+      inputs:
+        files: "src/**/*.ts"
+        focus: "security,performance"
+      outputs:
+        - "REVIEW.md"
+      acceptance:
+        - "All security issues documented"
+        - "Performance suggestions provided"
+      role: review
+
+    - id: approve
+      type: approval
+      deps: [review]
+      question: "Approve code review report?"
+      options:
+        - approved
+        - rejected
+        - needs-changes
+
+    - id: report
+      type: llm
+      deps: [approve]
+      prompt: |
+        Generate a summary report including:
+        1. Lint results
+        2. Test coverage
+        3. Key review findings
+        Format as markdown.
+      role: summary

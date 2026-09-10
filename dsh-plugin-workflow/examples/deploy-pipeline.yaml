@@ -1,0 +1,120 @@
+apiVersion: wfwise.io/v1
+kind: Workflow
+metadata:
+  name: deploy-pipeline
+  title: Deployment Pipeline
+  description: Build, test, and deploy to staging/production
+spec:
+  max_concurrency: 2
+  resources:
+    - name: build-agent
+      type: compute
+      limit: 2
+    - name: deploy-token
+      type: secret
+  steps:
+    - id: build
+      type: script
+      run: |
+        echo "Building application..."
+        npm run build
+      env:
+        NODE_ENV: production
+      timeout: 300
+
+    - id: security-scan
+      type: task
+      deps: [build]
+      inputs:
+        path: "./dist"
+        rules: "OWASP-top-10"
+      outputs:
+        - "security-report.json"
+      acceptance:
+        - "No critical vulnerabilities"
+        - "All findings documented"
+      role: research
+
+    - id: unit-tests
+      type: script
+      deps: [build]
+      run: npm run test:unit
+      timeout: 300
+
+    - id: integration-tests
+      type: script
+      deps: [build]
+      run: npm run test:integration
+      timeout: 600
+      on_failure: compensate
+      compensation:
+        run: echo "Cleaning up test environment"
+
+    - id: deploy-staging
+      type: script
+      deps: [security-scan, unit-tests, integration-tests]
+      run: |
+        echo "Deploying to staging..."
+        ./scripts/deploy.sh staging
+      env:
+        DEPLOY_ENV: staging
+
+    - id: smoke-test
+      type: task
+      deps: [deploy-staging]
+      inputs:
+        url: "https://staging.example.com"
+        checks: ["health", "api", "ui"]
+      outputs:
+        - "smoke-report.json"
+      acceptance:
+        - "All smoke tests pass"
+        - "Response time < 2s"
+      role: execute
+
+    - id: approve-prod
+      type: approval
+      deps: [smoke-test]
+      question: "Deploy to production?"
+      options:
+        - approved
+        - rejected
+        - rollback
+
+    - id: deploy-production
+      type: script
+      deps: [approve-prod]
+      run: |
+        echo "Deploying to production..."
+        ./scripts/deploy.sh production
+      env:
+        DEPLOY_ENV: production
+
+    - id: verify-deploy
+      type: task
+      deps: [deploy-production]
+      inputs:
+        url: "https://example.com"
+        checks: ["health", "api", "ui", "performance"]
+      outputs:
+        - "deploy-verify.json"
+      acceptance:
+        - "All checks pass"
+        - "No error rate increase"
+      role: execute
+
+    - id: notify
+      type: llm
+      deps: [verify-deploy]
+      prompt: |
+        Generate deployment summary:
+        - Version deployed
+        - Key metrics
+        - Any issues found
+        Format as Slack message.
+      role: summary
+
+    - id: sub-deploy-monitor
+      type: sub_workflow
+      deps: [deploy-production]
+      ref: monitoring-setup
