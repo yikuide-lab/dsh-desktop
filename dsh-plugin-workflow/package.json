@@ -15,6 +15,9 @@
       "default": "./lib/engine/models.js"
     }
   },
+  "bin": {
+    "dsh-workflow": "lib/mcp/server.js"
+  },
   "files": [
     "lib/**/*.js",
     "lib/**/*.map",
@@ -25,7 +28,8 @@
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mcp": "node lib/mcp/server.js"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"

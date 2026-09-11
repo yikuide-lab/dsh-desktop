@@ -98,6 +98,71 @@ npm run typecheck
 npm test
 ```
 
+## MCP Integration
+
+The workflow engine exposes 26 MCP tools for AI agent integration:
+
+```bash
+# Start MCP server in stdio mode
+dsh-workflow
+
+# Or via npm
+npm run mcp
+```
+
+### Available MCP Tools
+
+| Category | Tools |
+|----------|-------|
+| **Workflow** | `workflow_validate`, `workflow_save`, `workflow_list`, `workflow_get`, `workflow_delete` |
+| **Run** | `run_create`, `run_list`, `run_get`, `run_stop` |
+| **Gate** | `gate_resolve`, `gate_list` |
+| **Stats** | `stats_get` |
+
+### Example MCP Call
+
+```json
+{
+  "method": "tools/call",
+  "params": {
+    "name": "run_create",
+    "arguments": {
+      "workflow": "code-review",
+      "params": { "branch": "main" }
+    }
+  }
+}
+```
+
+## Triggers
+
+### Cron Triggers
+
+```typescript
+plugin.addTrigger({
+  type: 'cron',
+  schedule: '0 9 * * *',  // Every day at 9am
+  workflowName: 'daily-report',
+});
+```
+
+### Event Triggers
+
+```typescript
+plugin.addTrigger({
+  type: 'event',
+  source: 'git',
+  on: 'push',
+  workflowName: 'code-review',
+});
+```
+
+### Manual Triggers
+
+```typescript
+plugin.fireEvent('manual', 'deploy', { version: '1.0.0' });
+```
+
 ## Architecture
 
 ```
@@ -108,11 +173,18 @@ dsh-plugin-workflow/
 │   │   ├── engine.ts      # State transitions
 │   │   ├── coordinator.ts # Execution coordinator
 │   │   └── store.ts       # File persistence
-│   ├── plugin.ts          # DSH plugin entry
-│   └── hooks/             # React hooks (future)
+│   ├── mcp/
+│   │   ├── server.ts      # MCP server
+│   │   ├── tools.ts       # Tool definitions
+│   │   └── index.ts       # Entry point
+│   ├── triggers/
+│   │   └── trigger.ts     # Cron/Event triggers
+│   └── plugin.ts          # DSH plugin entry
 ├── ui/
 │   ├── workflow-panel.html
-│   └── app.js
+│   ├── app.js
+│   ├── designer.html      # Visual designer
+│   └── designer.js
 └── examples/
     ├── code-review.yaml
     └── deploy-pipeline.yaml
