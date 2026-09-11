@@ -145,46 +145,8 @@ const views = {
     title: 'Visual Designer',
     render() {
       return `
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">Create Workflow</h3>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Workflow Name</label>
-            <input type="text" class="form-input" id="wf-name" placeholder="my-workflow">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Description</label>
-            <input type="text" class="form-input" id="wf-desc" placeholder="Optional description">
-          </div>
-          <div class="form-group">
-            <label class="form-label">YAML Definition</label>
-            <textarea class="form-input" id="wf-yaml" placeholder="apiVersion: wfwise.io/v1
-kind: Workflow
-metadata:
-  name: my-workflow
-  title: My Workflow
-spec:
-  max_concurrency: 4
-  steps:
-    - id: step1
-      type: script
-      run: echo hello
-    - id: step2
-      type: llm
-      deps: [step1]
-      prompt: Summarize the result"></textarea>
-          </div>
-          <button class="btn btn-primary" onclick="createWorkflow()">Create Workflow</button>
-        </div>
-
-        <div class="card">
-          <div class="card-header">
-            <h3 class="card-title">DAG Preview</h3>
-          </div>
-          <div class="dag-container">
-            <svg class="dag-canvas" id="dag-preview"></svg>
-          </div>
+        <div style="height: calc(100vh - 120px);">
+          <iframe src="designer.html" style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
         </div>
       `;
     },

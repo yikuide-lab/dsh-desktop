@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DSH Workflow Designer</title>
+  <style>
+    :root {
+      --primary: #3b82f6;
+      --primary-hover: #2563eb;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --bg: #0f172a;
+      --bg-card: #1e293b;
+      --bg-hover: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --node-script: #8b5cf6;
+      --node-task: #3b82f6;
+      --node-llm: #10b981;
+      --node-approval: #f59e0b;
+      --node-sub: #ec4899;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .designer {
+      display: flex;
+      height: 100vh;
+    }
+
+    /* Palette */
+    .palette {
+      width: 200px;
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .palette-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .palette-items {
+      padding: 8px;
+      flex: 1;
+      overflow-y: auto;
+    }
+
+    .palette-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: grab;
+      margin-bottom: 4px;
+      transition: all 0.15s;
+      border: 1px solid transparent;
+    }
+
+    .palette-item:hover {
+      background: var(--bg-hover);
+      border-color: var(--border);
+    }
+
+    .palette-item:active {
+      cursor: grabbing;
+    }
+
+    .palette-item .icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+    }
+
+    .palette-item.script .icon { background: var(--node-script); }
+    .palette-item.task .icon { background: var(--node-task); }
+    .palette-item.llm .icon { background: var(--node-llm); }
+    .palette-item.approval .icon { background: var(--node-approval); }
+    .palette-item.sub .icon { background: var(--node-sub); }
+
+    /* Canvas */
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-toolbar {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .canvas-toolbar button {
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+
+    .canvas-toolbar button:hover {
+      background: var(--bg-hover);
+    }
+
+    .canvas-toolbar button.active {
+      background: var(--primary);
+      border-color: var(--primary);
+    }
+
+    #dag-canvas {
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(circle, var(--border) 1px, transparent 1px);
+      background-size: 20px 20px;
+    }
+
+    /* Properties Panel */
+    .properties {
+      width: 300px;
+      background: var(--bg-card);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .properties-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+    }
+
+    .properties-content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+    }
+
+    .properties-empty {
+      color: var(--text-muted);
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .form-input {
+      width: 100%;
+      padding: 8px 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+
+    .form-input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    textarea.form-input {
+      min-height: 80px;
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    select.form-input {
+      cursor: pointer;
+    }
+
+    .deps-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .dep-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    .dep-tag button {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 0;
+      font-size: 14px;
+    }
+
+    .dep-tag button:hover {
+      color: var(--error);
+    }
+
+    /* SVG Nodes */
+    .node {
+      cursor: move;
+    }
+
+    .node rect {
+      rx: 8;
+      ry: 8;
+      stroke-width: 2;
+      transition: filter 0.15s;
+    }
+
+    .node:hover rect {
+      filter: brightness(1.2);
+    }
+
+    .node.selected rect {
+      stroke: white;
+      stroke-width: 3;
+    }
+
+    .node text {
+      fill: white;
+      font-size: 12px;
+      font-weight: 500;
+      pointer-events: none;
+    }
+
+    .node .type-badge {
+      font-size: 10px;
+      fill: rgba(255,255,255,0.7);
+    }
+
+    /* Edges */
+    .edge {
+      stroke: var(--border);
+      stroke-width: 2;
+      fill: none;
+      marker-end: url(#arrowhead);
+    }
+
+    .edge:hover {
+      stroke: var(--primary);
+      stroke-width: 3;
+    }
+
+    /* Ports */
+    .port {
+      fill: var(--bg-card);
+      stroke: var(--border);
+      stroke-width: 2;
+      cursor: crosshair;
+    }
+
+    .port:hover {
+      fill: var(--primary);
+      stroke: var(--primary);
+    }
+
+    .port.input { cx: 0; }
+    .port.output { cx: 100%; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .modal {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      width: 500px;
+      max-height: 80vh;
+      overflow: auto;
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .modal-body {
+      padding: 20px;
+    }
+
+    .modal-footer {
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-secondary { background: var(--bg-hover); color: var(--text); }
+
+    /* Connection Line */
+    .connection-line {
+      stroke: var(--primary);
+      stroke-width: 2;
+      stroke-dasharray: 5,5;
+      fill: none;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="designer">
+    <!-- Palette -->
+    <aside class="palette">
+      <div class="palette-header">Components</div>
+      <div class="palette-items">
+        <div class="palette-item script" draggable="true" data-type="script">
+          <div class="icon">⚙️</div>
+          <div>
+            <div style="font-weight: 500;">Script</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Shell command</div>
+          </div>
+        </div>
+        <div class="palette-item task" draggable="true" data-type="task">
+          <div class="icon">🤖</div>
+          <div>
+            <div style="font-weight: 500;">Task</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Code agent</div>
+          </div>
+        </div>
+        <div class="palette-item llm" draggable="true" data-type="llm">
+          <div class="icon">🧠</div>
+          <div>
+            <div style="font-weight: 500;">LLM</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Model call</div>
+          </div>
+        </div>
+        <div class="palette-item approval" draggable="true" data-type="approval">
+          <div class="icon">✋</div>
+          <div>
+            <div style="font-weight: 500;">Approval</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Human gate</div>
+          </div>
+        </div>
+        <div class="palette-item sub" draggable="true" data-type="sub_workflow">
+          <div class="icon">📦</div>
+          <div>
+            <div style="font-weight: 500;">Sub-workflow</div>
+            <div style="font-size: 11px; color: var(--text-muted);">Nested flow</div>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Canvas -->
+    <div class="canvas-container">
+      <div class="canvas-toolbar">
+        <button id="btn-zoom-in">+</button>
+        <button id="btn-zoom-out">-</button>
+        <button id="btn-zoom-fit">Fit</button>
+        <button id="btn-auto-layout">Auto Layout</button>
+        <button id="btn-export-yaml">Export YAML</button>
+        <button id="btn-import-yaml">Import YAML</button>
+        <button id="btn-save">Save</button>
+      </div>
+      <svg id="dag-canvas">
+        <defs>
+          <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="var(--border)" />
+          </marker>
+        </defs>
+        <g id="canvas-group">
+          <g id="edges-layer"></g>
+          <g id="nodes-layer"></g>
+          <path id="connection-preview" class="connection-line" d="" />
+        </g>
+      </svg>
+    </div>
+
+    <!-- Properties -->
+    <aside class="properties">
+      <div class="properties-header">Properties</div>
+      <div class="properties-content" id="properties-content">
+        <div class="properties-empty">
+          <p>Select a node to edit its properties</p>
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Modal -->
+  <div id="modal-container"></div>
+
+  <script src="designer.js"></script>
+</body>
+</html>
