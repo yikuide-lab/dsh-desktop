@@ -60,12 +60,13 @@ export interface WorkflowMetadata {
   description?: string;
   version?: string;
   labels?: Record<string, string>;
+  /** Capability negotiation (AWF twin DSL): step types / features this workflow needs. */
+  requires?: string[];
 }
 
 export interface Trigger {
   type: TriggerType;
   schedule?: string;     // 5-field cron expression
-  timezone?: string;
   source?: string;       // event source
   on?: string;           // event name
   filter?: string;       // filter expression
@@ -76,11 +77,16 @@ export interface Compensation {
   env?: Record<string, string>;
 }
 
+/** Policy applied after a step exhausts its retry budget. */
+export type OnFailurePolicy = 'fail' | 'skip' | 'compensate';
+
 export interface Step {
   id: string;            // [a-z0-9-]+, <=63 chars, unique within workflow
   type: StepType;
   deps?: string[];       // dependency step IDs
-  on_failure?: 'fail' | 'compensate';
+  /** Extra attempts after the first failure. Omit to use global defaultRetries. */
+  retries?: number;
+  on_failure?: OnFailurePolicy;
   compensation?: Compensation;
 
   // Script step
@@ -102,9 +108,17 @@ export interface Step {
   // Approval step
   question?: string;
   options?: string[];
+  /**
+   * Decisions that complete the approval gate successfully.
+   * Defaults to `['approved']` when present in options, otherwise `[options[0]]`.
+   */
+  pass?: string[];
 
   // Sub-workflow step
   ref?: string;
+
+  /** Optional canvas layout hint preserved across YAML round-trips. */
+  ui?: { x: number; y: number };
 }
 
 export interface Resource {
@@ -136,6 +150,8 @@ export interface Dispatch {
   stepId: string;
   status: DispatchStatus;
   attempt: number;
+  /** Normal step work vs post-failure compensation script. */
+  phase?: 'execute' | 'compensate';
   startedAt?: string;
   completedAt?: string;
   result?: unknown;
@@ -159,6 +175,8 @@ export interface Gate {
   stepId: string;
   question: string;
   options: string[];
+  /** Decisions that mark the gate task completed (see Step.pass). */
+  pass?: string[];
   resolved?: string;
   resolvedBy?: string;
   resolvedAt?: string;
@@ -172,11 +190,22 @@ export interface Run {
   params?: Record<string, unknown>;
   tasks: Record<string, Task>;
   gates: Record<string, Gate>;
+  /** Persisted shared-vision blackboard for resume. */
+  shared?: Record<string, unknown>;
   startedAt: string;
   completedAt?: string;
   error?: string;
   coordinatorId?: string;
+  /** Parent run id when this run was started by a sub_workflow step. */
+  parentRunId?: string;
+  /** Root ancestor run id for nested sub_workflow chains. */
+  rootRunId?: string;
+  /** Document schema version for forward-compatible loaders. */
+  schemaVersion?: number;
 }
+
+/** Current on-disk Run JSON schema version written by this package. */
+export const RUN_SCHEMA_VERSION = 1
 
 export interface WorkflowState {
   workflow: Workflow;
@@ -194,6 +223,8 @@ export interface ValidationError {
   path: string;
   message: string;
   severity: 'error' | 'warning';
+  /** Machine-readable classification, e.g. capability_missing for requires gating. */
+  code?: string;
 }
 
 export interface ValidationResult {
@@ -211,6 +242,12 @@ export interface ExecutionContext {
   workflow: Workflow;
   stateDir: string;
   env?: Record<string, string>;
+  /** Optional run parameters for prompt substitution. */
+  params?: Record<string, unknown>;
+  /** Completed dependency step outputs keyed by step id. */
+  stepOutputs?: Record<string, unknown>;
+  /** Run-level blackboard merged from step results (shared vision). */
+  shared?: Record<string, unknown>;
 }
 
 export interface StepResult {
@@ -220,20 +257,130 @@ export interface StepResult {
   cost?: number;
 }
 
+/** Canonical workflow document version accepted by the parser. */
+export const WORKFLOW_API_VERSION = 'workflow-wise/v1'
+
+/** Legacy aliases normalized to {@link WORKFLOW_API_VERSION}. */
+export const WORKFLOW_API_VERSION_ALIASES = ['wfwise.io/v1'] as const
+
 export interface Executor {
-  submit(step: Step, context: ExecutionContext): Promise<string>;  // returns dispatch ID
-  poll(dispatchId: string): Promise<Dispatch>;
-  abort(dispatchId: string): Promise<void>;
+  /** Begin work for an already-allocated dispatch id. */
+  submit(dispatchId: string, step: Step, context: ExecutionContext): Promise<void>
+  poll(dispatchId: string): Promise<Dispatch>
+  abort(dispatchId: string): Promise<void>
 }
 
 // ============================================================================
 // DSL Parser
 // ============================================================================
 
-export function parseWorkflow(yaml: string): Workflow {
-  // Dynamic import for YAML parsing
-  // Will be implemented with js-yaml
-  throw new Error('Not implemented');
+export async function parseWorkflow(content: string): Promise<Workflow> {
+  // Dynamic import for YAML parsing (ESM compatible)
+  const yaml = await import('js-yaml');
+  const doc = yaml.default.load(content);
+
+  if (doc === null || typeof doc !== 'object' || Array.isArray(doc)) {
+    throw new Error('Workflow document must be a YAML mapping');
+  }
+
+  const root = doc as Record<string, unknown>;
+
+  // Validate apiVersion (accept legacy alias used by early examples/UI)
+  const apiVersion = typeof root.apiVersion === 'string' ? root.apiVersion : ''
+  const normalizedApiVersion = (WORKFLOW_API_VERSION_ALIASES as readonly string[]).includes(apiVersion)
+    ? WORKFLOW_API_VERSION
+    : apiVersion
+  if (normalizedApiVersion !== WORKFLOW_API_VERSION) {
+    throw new Error(`Unsupported apiVersion: ${root.apiVersion}`)
+  }
+
+  // Validate kind
+  if (root.kind !== 'Workflow') {
+    throw new Error(`Unsupported kind: ${root.kind}`);
+  }
+
+  // Parse metadata
+  if (!root.metadata || typeof root.metadata !== 'object') {
+    throw new Error('metadata is required');
+  }
+  const meta = root.metadata as Record<string, unknown>;
+  if (typeof meta.name !== 'string') {
+    throw new Error('metadata.name is required and must be a string');
+  }
+
+  // Parse spec
+  if (!root.spec || typeof root.spec !== 'object') {
+    throw new Error('spec is required');
+  }
+  const spec = root.spec as Record<string, unknown>;
+  if (!Array.isArray(spec.steps) || spec.steps.length === 0) {
+    throw new Error('spec.steps must be a non-empty array');
+  }
+
+  // Parse steps
+  const steps: Step[] = spec.steps.map((raw: Record<string, unknown>) => {
+    if (typeof raw.id !== 'string') {
+      throw new Error('Each step must have an "id" string');
+    }
+    if (typeof raw.type !== 'string') {
+      throw new Error(`Step "${raw.id}" must have a "type" string`);
+    }
+    if (!Object.values(StepType).includes(raw.type as StepType)) {
+      throw new Error(`Step "${raw.id}" has invalid type: ${raw.type}`);
+    }
+    const step = raw as unknown as Step
+    if (raw.ui && typeof raw.ui === 'object' && !Array.isArray(raw.ui)) {
+      const ui = raw.ui as Record<string, unknown>
+      if (typeof ui.x === 'number' && typeof ui.y === 'number') {
+        step.ui = { x: ui.x, y: ui.y }
+      }
+    }
+    return step
+  });
+
+  // Build Workflow object
+  const workflow: Workflow = {
+    apiVersion: normalizedApiVersion,
+    kind: root.kind as string,
+    metadata: {
+      name: meta.name as string,
+      ...(typeof meta.title === 'string' ? { title: meta.title } : {}),
+      ...(typeof meta.description === 'string' ? { description: meta.description } : {}),
+      ...(typeof meta.version === 'string' ? { version: meta.version } : {}),
+      ...(meta.labels && typeof meta.labels === 'object' ? { labels: meta.labels as Record<string, string> } : {}),
+      ...(Array.isArray(meta.requires)
+        ? { requires: meta.requires.filter((r): r is string => typeof r === 'string') }
+        : {}),
+    },
+    spec: {
+      ...(spec.trigger && typeof spec.trigger === 'object' ? { trigger: spec.trigger as Trigger } : {}),
+      ...(typeof spec.max_concurrency === 'number' ? { max_concurrency: spec.max_concurrency } : {}),
+      ...(Array.isArray(spec.resources) ? { resources: spec.resources as Resource[] } : {}),
+      steps,
+    },
+  };
+
+  return workflow;
+}
+
+/** Serialize a workflow document to canonical YAML. */
+export async function serializeWorkflow(workflow: Workflow): Promise<string> {
+  const yaml = await import('js-yaml')
+  const doc: Workflow = {
+    ...workflow,
+    apiVersion: WORKFLOW_API_VERSION,
+    kind: 'Workflow',
+  }
+  return yaml.default.dump(doc, { lineWidth: 100, noRefs: true })
+}
+
+/** Local engine capability set — the preflight source for requires gating. */
+export function engineCapabilities(): { dslVersion: string; stepTypes: string[]; features: string[] } {
+  return {
+    dslVersion: WORKFLOW_API_VERSION,
+    stepTypes: Object.values(StepType) as string[],
+    features: ['gate', 'compensation', 'sub_workflow', 'triggers'],
+  }
 }
 
 export function validateWorkflow(workflow: Workflow): ValidationResult {
@@ -250,10 +397,24 @@ export function validateWorkflow(workflow: Workflow): ValidationResult {
     errors.push({ path: 'metadata.name', message: 'Name must be <= 63 chars', severity: 'error' });
   }
 
+  // Capability negotiation: requires must be satisfiable by this engine.
+  // Unknown capabilities fail loudly (capability_missing) — never silently skip.
+  const available = engineCapabilities();
+  for (const cap of workflow.metadata?.requires ?? []) {
+    if (!available.stepTypes.includes(cap) && !available.features.includes(cap)) {
+      errors.push({
+        path: 'metadata.requires',
+        message: `Capability not available on this engine: ${cap} (platform-only types may still sync to AWF; see workflow_capabilities / the AWF /api/dsl/capabilities endpoint)`,
+        severity: 'error',
+        code: 'capability_missing',
+      });
+    }
+  }
+
   // Check steps
   if (!workflow.spec?.steps || workflow.spec.steps.length === 0) {
     errors.push({ path: 'spec.steps', message: 'At least one step is required', severity: 'error' });
-    return { ok: errors.length === 0, errors, order };
+    return { ok: errors.every((error) => error.severity !== 'error'), errors, order };
   }
 
   // Check for duplicate step IDs
@@ -314,7 +475,7 @@ export function validateWorkflow(workflow: Workflow): ValidationResult {
     validateStep(step, errors);
   }
 
-  return { ok: errors.length === 0, errors, order };
+  return { ok: errors.every((error) => error.severity !== 'error'), errors, order };
 }
 
 function validateStep(step: Step, errors: ValidationError[]): void {
@@ -365,6 +526,23 @@ function validateStep(step: Step, errors: ValidationError[]): void {
         errors.push({ path: `${path}.ref`, message: 'Sub-workflow step requires "ref"', severity: 'error' });
       }
       break;
+  }
+
+  if (step.retries !== undefined) {
+    if (typeof step.retries !== 'number' || !Number.isInteger(step.retries) || step.retries < 0) {
+      errors.push({ path: `${path}.retries`, message: 'retries must be a non-negative integer', severity: 'error' });
+    }
+  }
+
+  if (step.on_failure !== undefined
+    && step.on_failure !== 'fail'
+    && step.on_failure !== 'skip'
+    && step.on_failure !== 'compensate') {
+    errors.push({
+      path: `${path}.on_failure`,
+      message: 'on_failure must be fail, skip, or compensate',
+      severity: 'error',
+    });
   }
 
   // Validate compensation

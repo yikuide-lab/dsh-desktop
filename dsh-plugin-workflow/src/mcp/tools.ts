@@ -1,9 +1,9 @@
 /**
  * MCP Tools for Workflow Engine
- * Provides 26 tools for workflow lifecycle management
+ * Provides 27 tools for workflow lifecycle management
  */
 
-import type { WorkflowPlugin } from '../plugin.ts';
+import type { WorkflowPlugin } from '../plugin.js';
 
 // ============================================================================
 // Tool Definitions
@@ -14,6 +14,14 @@ export interface MCPTool {
   description: string;
   inputSchema: Record<string, unknown>;
   handler: (args: Record<string, unknown>, plugin: WorkflowPlugin) => Promise<unknown>;
+}
+
+function assertDangerousMcp(plugin: WorkflowPlugin): void {
+  if (!plugin.areDangerousMcpToolsEnabled()) {
+    throw new Error(
+      'Dangerous MCP tools are disabled. Set mcpDangerousToolsEnabled: true or WORKFLOW_MCP_DANGEROUS=1',
+    );
+  }
 }
 
 // ============================================================================
@@ -31,9 +39,9 @@ export const workflowTools: MCPTool[] = [
       },
       required: ['yaml'],
     },
-    async handler(args, plugin) {
-      const { parseWorkflow, validateWorkflow } = await import('../engine/models.ts');
-      const workflow = parseWorkflow(args.yaml as string);
+    async handler(args, _plugin) {
+      const { parseWorkflow, validateWorkflow } = await import('../engine/models.js');
+      const workflow = await parseWorkflow(args.yaml as string);
       const result = validateWorkflow(workflow);
       return { valid: result.ok, errors: result.errors, order: result.order };
     },
@@ -93,7 +101,7 @@ export const workflowTools: MCPTool[] = [
 
   {
     name: 'workflow_delete',
-    description: 'Delete a workflow',
+    description: 'Delete a workflow (requires mcpDangerousToolsEnabled)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -102,6 +110,7 @@ export const workflowTools: MCPTool[] = [
       required: ['name'],
     },
     async handler(args, plugin) {
+      assertDangerousMcp(plugin);
       const deleted = await plugin.deleteWorkflow(args.name as string);
       return { deleted };
     },
@@ -174,7 +183,7 @@ export const runTools: MCPTool[] = [
 
   {
     name: 'run_stop',
-    description: 'Stop a running workflow',
+    description: 'Stop a running workflow (requires mcpDangerousToolsEnabled)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -183,6 +192,7 @@ export const runTools: MCPTool[] = [
       required: ['runId'],
     },
     async handler(args, plugin) {
+      assertDangerousMcp(plugin);
       const run = await plugin.stopRun(args.runId as string);
       return { id: run.id, status: run.status };
     },
@@ -196,7 +206,7 @@ export const runTools: MCPTool[] = [
 export const gateTools: MCPTool[] = [
   {
     name: 'gate_resolve',
-    description: 'Resolve an approval gate',
+    description: 'Resolve an approval gate (requires mcpDangerousToolsEnabled)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -209,6 +219,7 @@ export const gateTools: MCPTool[] = [
       required: ['runId', 'stepId', 'decision', 'resolvedBy', 'token'],
     },
     async handler(args, plugin) {
+      assertDangerousMcp(plugin);
       await plugin.resolveGate(
         args.runId as string,
         args.stepId as string,
@@ -222,7 +233,7 @@ export const gateTools: MCPTool[] = [
 
   {
     name: 'gate_list',
-    description: 'List pending gates for a run',
+    description: 'List pending gates for a run (tokens redacted)',
     inputSchema: {
       type: 'object',
       properties: {
@@ -231,19 +242,15 @@ export const gateTools: MCPTool[] = [
       required: ['runId'],
     },
     async handler(args, plugin) {
-      const run = await plugin.getRun(args.runId as string);
-      if (!run) return { error: 'Run not found' };
-
-      const pendingGates = Object.entries(run.gates)
-        .filter(([, gate]) => !gate.resolved)
-        .map(([stepId, gate]) => ({
-          stepId,
-          question: gate.question,
-          options: gate.options,
-          token: gate.token,
-        }));
-
-      return pendingGates;
+      const gates = await plugin.listPendingGates(args.runId as string);
+      return gates.map((gate) => ({
+        runId: gate.runId,
+        stepId: gate.stepId,
+        question: gate.question,
+        options: gate.options,
+        ...(gate.pass ? { pass: gate.pass } : {}),
+        token: '[redacted]',
+      }));
     },
   },
 ];
@@ -259,6 +266,17 @@ export const statsTools: MCPTool[] = [
     inputSchema: { type: 'object', properties: {} },
     async handler(_args, plugin) {
       return plugin.getStats();
+    },
+  },
+  {
+    name: 'workflow_capabilities',
+    description:
+      'List local engine capabilities (step types, features, DSL version) for requires preflight. '
+      + 'Platform extension types live on the AWF side — fetch GET /api/dsl/capabilities there.',
+    inputSchema: { type: 'object', properties: {} },
+    async handler() {
+      const { engineCapabilities } = await import('../engine/models.js');
+      return engineCapabilities();
     },
   },
 ];
