@@ -55,6 +55,10 @@
       "types": "./lib/types/desktop-plugins.d.ts",
       "default": "./lib/desktop-plugins.js"
     },
+    "./workflow": {
+      "types": "./lib/types/workflow.d.ts",
+      "default": "./lib/workflow.js"
+    },
     "./profiles": {
       "types": "./lib/types/profiles.d.ts",
       "default": "./lib/profiles.js"
@@ -282,8 +286,10 @@
     "@deepseek-ai/dsh-workflow": "0.1.5-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.5-rc.1",
     "@deepseek-ai/schemastery": "^3.18.2",
+    "@xyflow/react": "^12.8.2",
     "adm-zip": "^0.6.0",
     "dsh-community-market": "0.1.0-dev.0",
+    "dsh-plugin-workflow": "0.1.0",
     "dshmarket": "1.38.1",
     "fs-ext": "2.1.1",
     "koffi": "3.1.5",
@@ -435,48 +441,43 @@
         "build/tray-icon-blue@1.25x.png",
         "build/tray-icon-blue@1.5x.png",
         "build/tray-icon-blue@2x.png",
-        "node_modules/@agents-anywhere/dsh-bridge-next/lib/bundled-connector/**"
+        "node_modules/@agents-anywhere/dsh-bridge-next/lib/bundled-connector/**",
+        "node_modules/@img/sharp-libvips-linux-x64/**",
+        "node_modules/@img/sharp-linux-x64/**"
       ],
       "target": [
         "deb",
         "rpm",
         "AppImage"
       ],
-      "icon": "build/icons",
+      "icon": "build/app-icon.png",
       "category": "Development",
       "executableName": "dsh-desktop",
-      "desktop": {
-        "Name": "DSH Desktop",
-        "Comment": "DeepSeek Harness Desktop Client",
-        "StartupWMClass": "dsh-desktop",
-        "Keywords": "deepseek;harness;ai;agent;",
-        "Actions": "NewWindow;"
-      },
-      "deb": {
-        "depends": [
-          "libgtk-3-0",
-          "libnotify4",
-          "libnss3",
-          "libxss1",
-          "libxtst6",
-          "libatspi2.0-0",
-          "libuuid1",
-          "libsecret-1-0"
-        ]
-      },
-      "rpm": {
-        "depends": [
-          "gtk3",
-          "libnotify",
-          "nss",
-          "libXScrnSaver",
-          "libXtst",
-          "atspi2-lib",
-          "libuuid",
-          "libsecret"
-        ]
-      },
       "artifactName": "DSH-Desktop-${version}-${arch}.${ext}"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0"
+      ]
+    },
+    "rpm": {
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "libXScrnSaver",
+        "libXtst",
+        "atspi2-lib",
+        "libuuid",
+        "libsecret"
+      ]
     },
     "npmRebuild": false
   }
