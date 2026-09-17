@@ -1,6 +1,15 @@
 # DSH Workflow 插件 × AWF 平台：客户端侧实施计划（文件级）
 
 > 日期：2026-09-17 · 对应 AWF 仓库 beads：awf-9zy（C-P1）/ awf-0bx（C-P2）/ awf-66p（C-P3）/ awf-a3c（C-P4 部分）
+>
+> **进度（2026-09-17）：**
+> - ✅ C-P1 核心：`desktop-awf-settings.ts` + `desktop-awf-client.ts` + `tests/awf-client.spec.ts`（10 用例）已落地；
+>   controller/UI 接线与服务化向导待做（bead awf-9zy 保持 open）
+> - ✅ C-P3 引擎核心：`metadata.requires` 门禁（capability_missing）+ `engineCapabilities()` + MCP `workflow_capabilities`
+>   （46 用例全绿）；designer 阻断 UX 与模板标签待做
+> - ✅ 三轮上线 loop：①远程审批语义对齐（auto_approve 默认 false）②gate 路径段编码/凭据暴露面审计
+>   ③真实平台 e2e（`tests/awf-e2e.spec.ts`，AWF_E2E_BASE_URL 环环回守卫，实测 4/4）
+>
 > 总模式与双端路线图见 AWF 仓库 `docs/DSH_CLIENT_PLAN.md`（集成模式 §1、能力不变式、平台轨道已落地：
 > `GET /api/dsl/capabilities`、`POST /api/sync/validate`、sub_workflow 真嵌套均已上线并有测试）。
 > 本文是客户端轨道在该仓库的落地细化，遵守本仓库规则：**功能先在 `dsh-plugin-desktop-beta/`
