@@ -152,10 +152,10 @@ describe('awf client', () => {
   })
 
   it('run + gate resolve use the platform REST contract', async () => {
-    const calls: string[] = []
+    const calls: Array<{ method: string; url: string; body?: unknown }> = []
     const fetchImpl: AwfFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input)
-      calls.push(`${(init?.method ?? 'GET').toUpperCase()} ${url}`)
+      calls.push({ method: (init?.method ?? 'GET').toUpperCase(), url, body: init?.body ? JSON.parse(String(init.body)) : undefined })
       if (url.endsWith('/api/workflows/9/runs') && init?.method === 'POST') {
         return new Response(JSON.stringify({ id: 31, runner_run_id: 'run_x', status: 'completed', result_text: 'ok' }), { status: 200 })
       }
@@ -167,7 +167,12 @@ describe('awf client', () => {
     const client = createAwfClient(settings, { fetchImpl, token: TOKEN })
     const run = await client.createRun(9, { PROMPT: 'hi' })
     expect(run.status).toBe('completed')
+    // 默认 auto_approve=false：与本地引擎「审批等待人工」对齐（双跑一致）
+    expect(calls[0]?.body).toMatchObject({ auto_approve: false })
+    await client.createRun(9, {}, { autoApprove: true })
+    expect(calls[1]?.body).toMatchObject({ auto_approve: true })
     await client.resolveGate(31, 'gate-token', 'approved')
-    expect(calls).toContain('POST http://awf.test/api/workflows/runs/31/gates/gate-token')
+    expect(calls[2]?.url).toBe('http://awf.test/api/workflows/runs/31/gates/gate-token')
+    expect(calls[2]?.body).toMatchObject({ decision: 'approved' })
   })
 })

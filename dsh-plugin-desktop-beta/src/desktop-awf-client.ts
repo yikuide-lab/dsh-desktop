@@ -32,7 +32,7 @@ export interface AwfSyncItem {
   readonly title?: string
   readonly description?: string
   readonly version?: string
-  readonly visibility?: 'private' | 'public'
+  readonly visibility?: 'private' | 'unlisted' | 'public'
 }
 
 export interface AwfValidateResult {
@@ -75,7 +75,7 @@ export interface AwfClient {
   syncValidate(items: readonly AwfSyncItem[]): Promise<readonly AwfValidateResult[]>
   syncPush(items: readonly AwfSyncItem[]): Promise<readonly AwfWorkflowSummary[]>
   syncPull(): Promise<readonly AwfWorkflowSummary[]>
-  createRun(workflowId: number, params: Record<string, string>): Promise<AwfRun>
+  createRun(workflowId: number, params: Record<string, string>, options?: { autoApprove?: boolean }): Promise<AwfRun>
   listRuns(workflowId: number): Promise<readonly AwfRun[]>
   resolveGate(runDbId: number, token: string, decision: string): Promise<AwfRun>
   publish(workflowId: number, note?: string): Promise<AwfWorkflowSummary>
@@ -166,10 +166,11 @@ export function createAwfClient(
     syncPull() {
       return request<readonly AwfWorkflowSummary[]>('/api/sync/workflows')
     },
-    createRun(workflowId, params) {
+    createRun(workflowId, params, options = {}) {
+      // 默认 auto_approve=false：与本地引擎对齐（审批门等待人工 resolve），双跑语义一致
       return request<AwfRun>(`/api/workflows/${workflowId}/runs`, {
         method: 'POST',
-        body: JSON.stringify({ params, auto_approve: true }),
+        body: JSON.stringify({ params, auto_approve: options.autoApprove ?? false }),
       })
     },
     listRuns(workflowId) {
