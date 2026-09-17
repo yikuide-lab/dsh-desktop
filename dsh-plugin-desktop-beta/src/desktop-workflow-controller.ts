@@ -266,6 +266,15 @@ export async function executeDesktopWorkflowOp(
         name: request.name,
         ...(request.yaml ? { yaml: request.yaml } : {}),
         ...(typeof request.awfVisibility === 'string' ? { visibility: request.awfVisibility } : {}),
+        ...(request.awfPublish === true ? { publish: true } : {}),
+      })
+    }
+    case 'awfRemoteRun': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      if (!request.awfWorkflowId) throw new Error('awfWorkflowId is required')
+      return extras.awf.remoteRun({
+        workflowId: request.awfWorkflowId,
+        ...(request.params ? { params: request.params as Record<string, string> } : {}),
       })
     }
     default: {

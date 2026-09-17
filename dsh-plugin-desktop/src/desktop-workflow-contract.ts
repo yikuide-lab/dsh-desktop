@@ -52,6 +52,7 @@ export type DesktopWorkflowOp =
   | 'awfSetSettings'
   | 'awfCheckConnection'
   | 'awfSync'
+  | 'awfRemoteRun'
 
 export interface DesktopWorkflowRequest {
   readonly op: DesktopWorkflowOp
@@ -97,6 +98,10 @@ export interface DesktopWorkflowRequest {
   readonly awfSettings?: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }
   /** Workflow visibility for awfSync (private | unlisted | public). */
   readonly awfVisibility?: string
+  /** awfSync: publish-freeze the workflow on the platform after pushing (service enablement). */
+  readonly awfPublish?: boolean
+  /** awfRemoteRun target workflow id. */
+  readonly awfWorkflowId?: number
 }
 
 export interface DesktopWorkflowErrorResponse {

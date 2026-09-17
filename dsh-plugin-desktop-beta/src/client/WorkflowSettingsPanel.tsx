@@ -74,8 +74,12 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
   const [awfConn, setAwfConn] = useState<AwfConnectionView | null>(null)
   const [awfSyncName, setAwfSyncName] = useState('')
   const [awfSyncVisibility, setAwfSyncVisibility] = useState('private')
+  const [awfPublish, setAwfPublish] = useState(false)
   const [awfReceipt, setAwfReceipt] = useState<AwfSyncReceiptView | null>(null)
   const [busyAwf, setBusyAwf] = useState(false)
+  const [awfRunWfId, setAwfRunWfId] = useState('')
+  const [awfRunPrompt, setAwfRunPrompt] = useState('')
+  const [awfRunResult, setAwfRunResult] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -274,7 +278,30 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
     setError(null)
     setAwfReceipt(null)
     try {
-      setAwfReceipt(await api.syncWorkflowToAwf(awfSyncName.trim(), awfSyncVisibility))
+      setAwfReceipt(await api.syncWorkflowToAwf(awfSyncName.trim(), awfSyncVisibility, undefined, awfPublish))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setBusyAwf(false)
+    }
+  }
+
+  const remoteRunAwf = async (): Promise<void> => {
+    const id = Number(awfRunWfId)
+    if (!Number.isInteger(id) || id <= 0) {
+      setError(t('awfRunIdRequired'))
+      return
+    }
+    setBusyAwf(true)
+    setError(null)
+    setAwfRunResult(null)
+    try {
+      const result = await api.remoteRunOnAwf(id, awfRunPrompt.trim() ? { PROMPT: awfRunPrompt.trim() } : {})
+      if (result.ok) {
+        setAwfRunResult(`${t('awfRunOk')} [${result.status}] ${result.resultText ?? result.errorText ?? ''}`.trim())
+      } else {
+        setAwfRunResult(`${t('awfRunFailed')} [${result.errorKind ?? 'unknown'}] ${result.errorMessage ?? ''}`)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error'))
     } finally {
@@ -558,6 +585,14 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
           </label>
         </div>
         <div className="workflow-settings-provider-actions" style={{ marginBottom: '1rem', gap: 8 }}>
+          <label className="workflow-settings-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={awfPublish}
+              onChange={(event) => setAwfPublish(event.target.checked)}
+            />
+            <span>{t('awfPublishAfterSync')}</span>
+          </label>
           <button
             type="button"
             className="workflow-btn small primary"
@@ -583,6 +618,40 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
             )}
           </div>
         )}
+
+        <h4>{t('awfRunTitle')}</h4>
+        <p className="workflow-settings-lead">{t('awfRunHint')}</p>
+        <div className="workflow-settings-grid">
+          <label className="workflow-settings-field">
+            <span>{t('awfRunWorkflowId')}</span>
+            <input
+              type="number"
+              min={1}
+              value={awfRunWfId}
+              onChange={(event) => setAwfRunWfId(event.target.value)}
+              placeholder="12"
+            />
+          </label>
+          <label className="workflow-settings-field">
+            <span>PROMPT</span>
+            <input
+              value={awfRunPrompt}
+              onChange={(event) => setAwfRunPrompt(event.target.value)}
+              placeholder="hello"
+            />
+          </label>
+        </div>
+        <div className="workflow-settings-provider-actions" style={{ marginBottom: '1rem', gap: 8 }}>
+          <button
+            type="button"
+            className="workflow-btn small primary"
+            disabled={busyAwf}
+            onClick={() => { void remoteRunAwf() }}
+          >
+            {busyAwf ? t('loading') : t('awfRunButton')}
+          </button>
+        </div>
+        {awfRunResult && <p className="workflow-settings-lead">{awfRunResult}</p>}
       </div>
 
       <div className="workflow-settings-providers">

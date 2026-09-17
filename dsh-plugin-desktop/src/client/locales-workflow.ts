@@ -336,6 +336,14 @@ export const zh = {
   awfSyncError: '同步失败',
   awfSyncNameRequired: '请输入要同步的工作流名称',
   awfPlatformOnly: '该工作流包含本地引擎不支持的步骤类型，仅可在 AWF 平台运行：',
+  awfPublishAfterSync: '同步后发布冻结（可被调用方订阅）',
+  awfRunTitle: '远程试运行',
+  awfRunHint: '在 AWF 平台执行一次已同步的工作流（auto_approve=false，含审批门将失败退款）。',
+  awfRunWorkflowId: '平台工作流 ID',
+  awfRunButton: '远程运行',
+  awfRunOk: '远程运行完成',
+  awfRunFailed: '远程运行失败',
+  awfRunIdRequired: '请输入平台工作流 ID',
 } as const
 
 export type WorkflowLocaleKey = keyof typeof zh
@@ -678,4 +686,12 @@ export const en: Record<WorkflowLocaleKey, string> = {
   awfSyncError: 'Sync failed',
   awfSyncNameRequired: 'Enter a workflow name to sync',
   awfPlatformOnly: 'This workflow uses step types the local engine cannot run; it runs on the AWF platform only:',
+  awfPublishAfterSync: 'Publish-freeze after sync (subscribable)',
+  awfRunTitle: 'Remote trial run',
+  awfRunHint: 'Run a synced workflow once on the AWF platform (auto_approve=false; approval gates fail with refund).',
+  awfRunWorkflowId: 'Platform workflow ID',
+  awfRunButton: 'Remote run',
+  awfRunOk: 'Remote run completed',
+  awfRunFailed: 'Remote run failed',
+  awfRunIdRequired: 'Enter the platform workflow ID',
 }

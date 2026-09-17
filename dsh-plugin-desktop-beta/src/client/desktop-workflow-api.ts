@@ -351,7 +351,16 @@ export interface DesktopWorkflowApi {
   getAwfStatus(): Promise<AwfStatusView>
   setAwfSettings(input: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }): Promise<AwfStatusView>
   checkAwfConnection(): Promise<AwfConnectionView>
-  syncWorkflowToAwf(name: string, visibility?: string, yaml?: string): Promise<AwfSyncReceiptView>
+  syncWorkflowToAwf(name: string, visibility?: string, yaml?: string, publish?: boolean): Promise<AwfSyncReceiptView>
+  remoteRunOnAwf(workflowId: number, params?: Record<string, string>): Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    errorKind?: string
+    errorMessage?: string
+  }>
   setOpenAiApiSettings(settings: WorkflowOpenAiApiSettingsInput): Promise<{
     settings: WorkflowOpenAiApiStatusView
     apiKey?: string
@@ -1115,12 +1124,13 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
         ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
       }
     },
-    async syncWorkflowToAwf(name, visibility, yaml) {
+    async syncWorkflowToAwf(name, visibility, yaml, publish) {
       const result = await callOp(fetchImpl, {
         op: 'awfSync',
         name,
         ...(visibility ? { awfVisibility: visibility } : {}),
         ...(yaml ? { yaml } : {}),
+        ...(publish === true ? { awfPublish: true } : {}),
       })
       if (!isObject(result)) throw new Error('invalid awfSync response')
       const validation = isObject(result.validation)
@@ -1156,6 +1166,23 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
           : 'error') as AwfSyncReceiptView['stage'],
         ...(validation ? { validation } : {}),
         ...(workflow ? { workflow } : {}),
+        ...(typeof result.errorKind === 'string' ? { errorKind: result.errorKind } : {}),
+        ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
+      }
+    },
+    async remoteRunOnAwf(workflowId, params) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfRemoteRun',
+        awfWorkflowId: workflowId,
+        ...(params ? { params } : {}),
+      })
+      if (!isObject(result)) throw new Error('invalid awfRemoteRun response')
+      return {
+        ok: Boolean(result.ok),
+        ...(typeof result.status === 'string' ? { status: result.status } : {}),
+        ...(typeof result.resultText === 'string' ? { resultText: result.resultText } : {}),
+        ...(typeof result.errorText === 'string' ? { errorText: result.errorText } : {}),
+        ...(typeof result.runId === 'number' ? { runId: result.runId } : {}),
         ...(typeof result.errorKind === 'string' ? { errorKind: result.errorKind } : {}),
         ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
       }

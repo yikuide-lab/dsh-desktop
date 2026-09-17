@@ -44,6 +44,8 @@ export interface AwfSyncReceipt {
   readonly stage: 'preflight' | 'pushed' | 'error'
   readonly validation?: AwfPreflightEntry
   readonly workflow?: { id: number; name: string; title: string; status: string; visibility: string }
+  /** publish=true 时表示发布冻结成功。 */
+  readonly published?: boolean
   readonly errorKind?: string
   readonly errorMessage?: string
 }
@@ -59,7 +61,17 @@ export interface AwfBridge {
   getSettings(): Promise<AwfPublicStatus>
   setSettings(input: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }): Promise<AwfPublicStatus>
   checkConnection(): Promise<AwfConnectionResult>
-  syncWorkflow(input: { name: string; yaml?: string; visibility?: string }): Promise<AwfSyncReceipt>
+  syncWorkflow(input: { name: string; yaml?: string; visibility?: string; publish?: boolean }): Promise<AwfSyncReceipt>
+  /** 远程试运行：对平台工作流发起一次执行（auto_approve=false，轮询由调用方负责）。 */
+  remoteRun(input: { workflowId: number; params?: Record<string, string> }): Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    errorKind?: string
+    errorMessage?: string
+  }>
 }
 
 export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
@@ -150,7 +162,16 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         if (!workflow) {
           return { ok: false, stage: 'error' as const, errorKind: 'server', errorMessage: '平台未返回工作流回执' }
         }
-        log(`AWF sync pushed: ${name} → id=${workflow.id} (${workflow.status})`)
+        // 服务化（awf-0bx 第一环）：同步后可选发布冻结，使其可被调用方订阅
+        let status = workflow.status
+        let published = false
+        if (input.publish) {
+          const pub = await client.publish(workflow.id)
+          status = pub.status
+          published = true
+          log(`AWF publish ok: ${name} (id=${workflow.id})`)
+        }
+        log(`AWF sync pushed: ${name} → id=${workflow.id} (${status})`)
         return {
           ok: true,
           stage: 'pushed' as const,
@@ -158,15 +179,43 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
             id: workflow.id,
             name: workflow.name,
             title: workflow.title,
-            status: workflow.status,
+            status,
             visibility: workflow.visibility,
           },
+          ...(input.publish ? { published } : {}),
         }
       } catch (error) {
         if (error instanceof AwfError) {
           return { ok: false, stage: 'error' as const, errorKind: error.kind, errorMessage: error.message }
         }
         return { ok: false, stage: 'error' as const, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async remoteRun(input): Promise<{
+      ok: boolean
+      status?: string
+      resultText?: string
+      errorText?: string
+      runId?: number
+      errorKind?: string
+      errorMessage?: string
+    }> {
+      const settings = await currentSettings()
+      try {
+        const run = await clientFor(settings).createRun(input.workflowId, input.params ?? {})
+        return {
+          ok: true,
+          status: run.status,
+          ...(run.result_text !== undefined ? { resultText: run.result_text } : {}),
+          ...(run.error_text !== undefined ? { errorText: run.error_text } : {}),
+          runId: run.id,
+        }
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false, errorKind: error.kind, errorMessage: error.message }
+        }
+        return { ok: false, errorKind: 'network', errorMessage: String(error) }
       }
     },
   }
