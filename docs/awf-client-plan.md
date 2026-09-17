@@ -3,12 +3,16 @@
 > 日期：2026-09-17 · 对应 AWF 仓库 beads：awf-9zy（C-P1）/ awf-0bx（C-P2）/ awf-66p（C-P3）/ awf-a3c（C-P4 部分）
 >
 > **进度（2026-09-17）：**
-> - ✅ C-P1 核心：`desktop-awf-settings.ts` + `desktop-awf-client.ts` + `tests/awf-client.spec.ts`（10 用例）已落地；
->   controller/UI 接线与服务化向导待做（bead awf-9zy 保持 open）
+> - ✅ C-P1：核心模块（`desktop-awf-settings/client` + 10 用例）与 **controller/UI 接线均完成**——
+>   bridge（已提交）+ 契约/route/controller/workflow.ts/设置面板/双语文案（随工作区未提交的 workflow 功能文件走），
+>   controller 层 8 用例全绿；「同步到 AWF」位于工作流设置面板（AWF 平台连接区：baseUrl/令牌 env/指纹/测试连接/同步表单+回执）。
+>   服务化向导（publish→ApiService→Key）并入 awf-0bx 交付。
 > - ✅ C-P3 引擎核心：`metadata.requires` 门禁（capability_missing）+ `engineCapabilities()` + MCP `workflow_capabilities`
 >   （46 用例全绿）；designer 阻断 UX 与模板标签待做
 > - ✅ 三轮上线 loop：①远程审批语义对齐（auto_approve 默认 false）②gate 路径段编码/凭据暴露面审计
 >   ③真实平台 e2e（`tests/awf-e2e.spec.ts`，AWF_E2E_BASE_URL 环环回守卫，实测 4/4）
+> - ⚠ 注意：controller/契约/route/面板/locales 等宿主接线文件本身是**未提交的功能分支文件**，
+>   awf 接线改动保留在工作区随该分支一同提交；`desktop-awf-bridge.ts` 独立已提交（仅依赖已入库模块）。
 >
 > 总模式与双端路线图见 AWF 仓库 `docs/DSH_CLIENT_PLAN.md`（集成模式 §1、能力不变式、平台轨道已落地：
 > `GET /api/dsl/capabilities`、`POST /api/sync/validate`、sub_workflow 真嵌套均已上线并有测试）。
