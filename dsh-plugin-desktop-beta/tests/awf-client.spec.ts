@@ -174,5 +174,8 @@ describe('awf client', () => {
     await client.resolveGate(31, 'gate-token', 'approved')
     expect(calls[2]?.url).toBe('http://awf.test/api/workflows/runs/31/gates/gate-token')
     expect(calls[2]?.body).toMatchObject({ decision: 'approved' })
+    // 保留字符必须被编码，防路径注入/语义改变
+    await client.resolveGate(31, 'a/b?c=d', 'approved')
+    expect(calls[3]?.url).toBe('http://awf.test/api/workflows/runs/31/gates/a%2Fb%3Fc%3Dd')
   })
 })

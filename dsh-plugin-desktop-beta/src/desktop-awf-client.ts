@@ -177,7 +177,8 @@ export function createAwfClient(
       return request<readonly AwfRun[]>(`/api/workflows/${workflowId}/runs`)
     },
     resolveGate(runDbId, gateToken, decision) {
-      return request<AwfRun>(`/api/workflows/runs/${runDbId}/gates/${gateToken}`, {
+      // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义
+      return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runDbId))}/gates/${encodeURIComponent(gateToken)}`, {
         method: 'POST',
         body: JSON.stringify({ decision }),
       })
