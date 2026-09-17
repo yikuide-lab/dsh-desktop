@@ -12,13 +12,13 @@
 | 2 beta→stable 变体同步 | ✅ | `8de1e03`（awf 五件套+接线入 stable；verify-desktop-variants 230 文件对齐） |
 | 3 awf-0bx | ✅ | 同步后发布冻结（publish-after-sync）+ 远程试运行表单 + `awf-golden-parity.spec.ts`（真实双跑 5/5：同一 YAML 本地引擎与平台输出含同一 echo token） |
 | 4 awf-66p designer UX | ✅ | `414fbff`：platformOnlySteps 门禁——运行按钮禁用+提示列出平台扩展类型；同步不受阻；双包 4 用例 |
-| 5 awf-a3c | ⚪ 远期 | webhook/telemetry/desktop-as-executor PoC（不阻塞整合判定） |
+| 5 awf-a3c | ✅ 2026-09-17 第三轮（客户端部分） | 8787 网关默认 `127.0.0.1`（非回环警示文案）+ 遥测开关（默认关→零出站请求；run 摘要上报，失败入 0600 本地待发队列有界补发）+ desktop-executor PoC 客户端（注册/心跳/认领/经宿主真实 agent 执行/回传，凭据 0600）。平台侧 S-P4（`POST /api/telemetry/runs`、webhook HMAC 触发、executor 注册/认领/超时回收）同期交付；awf 仓库 smoke 34 项、pytest 117 项全绿 |
 
 门禁终态：双包 typecheck 0 错误；awf 测试双包各 23 项（22 过 + parity 按环境跳过/真实跑过）；
 verify-desktop-variants 230 对齐；既有 10 个 Linux-WIP 失败与本整合无关（未触碰）。
 **整合判据达成**：stable 包源码包含完整 AWF 客户端 + 双包门禁绿 + 通道①②③各有真实端到端用例 + 能力协商 UX 生效。
-残余说明：服务化向导的 API Key 签发 UI 仍需在平台侧操作（sync+publish 已自动化前两环）；
-通道⑤遥测与执行器 PoC 属远期轨道。
+残余说明：服务化向导的 API Key 签发 UI 仍需在平台侧操作（sync+publish 已自动化前两环）。
+通道⑤遥测与执行器 PoC 已于第三轮交付（见上表 awf-a3c 行）。
 
 ---
 

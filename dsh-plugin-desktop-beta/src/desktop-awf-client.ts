@@ -79,6 +79,20 @@ export interface AwfClient {
   listRuns(workflowId: number): Promise<readonly AwfRun[]>
   resolveGate(runDbId: number, token: string, decision: string): Promise<AwfRun>
   publish(workflowId: number, note?: string): Promise<AwfWorkflowSummary>
+  /** 摘要级遥测上报（C-P4）：只含名称/状态/步骤状态/token 估算/耗时。 */
+  telemetryRun(summary: AwfTelemetrySummary): Promise<{ ok: boolean; id: number }>
+}
+
+/** 摘要级遥测载荷；契约上禁止 prompt / 输出内容字段。 */
+export interface AwfTelemetrySummary {
+  readonly client: 'desktop'
+  readonly workflow_name: string
+  readonly run_ref: string
+  readonly status: string
+  readonly steps: ReadonlyArray<{ id: string; type: string; status: string }>
+  readonly token_estimate?: number
+  readonly duration_ms?: number
+  readonly finished_at?: string
 }
 
 export function createAwfClient(
@@ -187,6 +201,12 @@ export function createAwfClient(
       return request<AwfWorkflowSummary>(`/api/workflows/${workflowId}/publish`, {
         method: 'POST',
         body: JSON.stringify({ note }),
+      })
+    },
+    telemetryRun(summary) {
+      return request<{ ok: boolean; id: number }>('/api/telemetry/runs', {
+        method: 'POST',
+        body: JSON.stringify(summary),
       })
     },
   }

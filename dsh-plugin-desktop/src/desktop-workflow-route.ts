@@ -233,6 +233,7 @@ export async function handleDesktopWorkflowRequest(
   hostCtx?: import('@deepseek-ai/cordis').Context,
   openAiApi?: WorkflowOpenAiApiController,
   awf?: import('./desktop-awf-bridge.ts').AwfBridge,
+  awfExecutor?: import('./desktop-awf-executor.ts').AwfExecutorController,
 ): Promise<void> {
   if (req.method !== 'POST') {
     finishJson(res, 405, error('method not allowed'), 'POST')
@@ -273,6 +274,7 @@ export async function handleDesktopWorkflowRequest(
       {
         ...(openAiApi ? { openAiApi } : {}),
         ...(awf ? { awf } : {}),
+        ...(awfExecutor ? { awfExecutor } : {}),
       },
     )
     finishJson(res, 200, { ok: true, result })

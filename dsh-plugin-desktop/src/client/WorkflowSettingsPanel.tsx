@@ -7,6 +7,7 @@ import type {
   WorkflowModelCatalogView,
   WorkflowOpenAiApiStatusView,
   WorkflowSettingsView,
+  AwfExecutorStatusView,
   AwfStatusView,
   AwfConnectionView,
   AwfSyncReceiptView,
@@ -63,7 +64,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
   const [pickModel, setPickModel] = useState('')
   const [pickBias, setPickBias] = useState('coding')
   const [openAi, setOpenAi] = useState<WorkflowOpenAiApiStatusView | null>(null)
-  const [openAiDraftHost, setOpenAiDraftHost] = useState('0.0.0.0')
+  const [openAiDraftHost, setOpenAiDraftHost] = useState('127.0.0.1')
   const [openAiDraftPort, setOpenAiDraftPort] = useState(8787)
   const [revealedApiKey, setRevealedApiKey] = useState<string | null>(null)
   const [busyOpenAi, setBusyOpenAi] = useState(false)
@@ -80,6 +81,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
   const [awfRunWfId, setAwfRunWfId] = useState('')
   const [awfRunPrompt, setAwfRunPrompt] = useState('')
   const [awfRunResult, setAwfRunResult] = useState<string | null>(null)
+  const [awfExecutorStatus, setAwfExecutorStatus] = useState<AwfExecutorStatusView | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -106,6 +108,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
         setAwfDraftBaseUrl(nextAwf.baseUrl)
         setAwfDraftEnv(nextAwf.apiTokenEnv)
       }
+      setAwfExecutorStatus(await api.getAwfExecutorStatus().catch(() => null))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error'))
     } finally {
@@ -219,7 +222,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
     try {
       const result = await api.setOpenAiApiSettings({
         enabled,
-        bindHost: openAiDraftHost.trim() || '0.0.0.0',
+        bindHost: openAiDraftHost.trim() || '127.0.0.1',
         port: Math.max(1, Math.min(65535, openAiDraftPort || 8787)),
       })
       setOpenAi(result.settings)
@@ -266,6 +269,27 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
       setError(err instanceof Error ? err.message : t('error'))
     } finally {
       setBusyAwf(false)
+    }
+  }
+
+  const toggleAwfTelemetry = async (enabled: boolean): Promise<void> => {
+    setError(null)
+    try {
+      setAwf(await api.setAwfTelemetrySettings(enabled))
+      setMessage(t('awfSaved'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    }
+  }
+
+  const toggleAwfExecutor = async (enabled: boolean): Promise<void> => {
+    setError(null)
+    try {
+      setAwf(await api.setAwfExecutorSettings(enabled))
+      setMessage(t('awfSaved'))
+      setAwfExecutorStatus(await api.getAwfExecutorStatus())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
     }
   }
 
@@ -435,13 +459,18 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
       <div className="workflow-settings-openai">
         <h4>{t('openAiApiTitle')}</h4>
         <p className="workflow-settings-lead">{t('openAiApiHint')}</p>
+        {!['127.0.0.1', 'localhost', '::1', '[::1]'].includes(openAiDraftHost.trim().toLowerCase()) && (
+          <p className="workflow-settings-lead" style={{ color: '#c0392b' }}>
+            {t('openAiApiLanWarning')}
+          </p>
+        )}
         <div className="workflow-settings-grid">
           <label className="workflow-settings-field">
             <span>{t('openAiApiBindHost')}</span>
             <input
               value={openAiDraftHost}
               onChange={(event) => setOpenAiDraftHost(event.target.value)}
-              placeholder="0.0.0.0"
+              placeholder="127.0.0.1"
             />
           </label>
           <label className="workflow-settings-field">
@@ -559,6 +588,35 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
           >
             {t('awfCheck')}
           </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: '1rem' }}>
+          <label className="workflow-settings-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={awf?.telemetryEnabled ?? false}
+              onChange={(event) => { void toggleAwfTelemetry(event.target.checked) }}
+            />
+            <span>{t('awfTelemetry')}</span>
+          </label>
+          <p className="workflow-settings-lead" style={{ margin: 0 }}>{t('awfTelemetryHint')}</p>
+          <label className="workflow-settings-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={awf?.executorEnabled ?? false}
+              onChange={(event) => { void toggleAwfExecutor(event.target.checked) }}
+            />
+            <span>{t('awfExecutor')}</span>
+          </label>
+          <p className="workflow-settings-lead" style={{ margin: 0 }}>{t('awfExecutorHint')}</p>
+          {awfExecutorStatus && (
+            <p className="workflow-settings-lead" style={{ margin: 0 }}>
+              {awfExecutorStatus.running
+                ? `${t('awfExecutorRunning')}${awfExecutorStatus.executorId !== null ? ` #${awfExecutorStatus.executorId}` : ''}`
+                : t('awfExecutorIdle')}
+              {awfExecutorStatus.lastError ? ` — ${t('awfExecutorError')}: ${awfExecutorStatus.lastError}` : ''}
+            </p>
+          )}
         </div>
 
         <h4>{t('awfSyncTitle')}</h4>

@@ -19,6 +19,9 @@ import { handleDesktopWorkflowRequest } from './desktop-workflow-route.ts'
 import { formatWorkflowError } from './desktop-workflow-errors.ts'
 import { createWorkflowOpenAiApiController } from './desktop-workflow-openai-controller.ts'
 import { createAwfBridge } from './desktop-awf-bridge.ts'
+import { createAwfExecutor } from './desktop-awf-executor.ts'
+import { readAwfSettings } from './desktop-awf-settings.ts'
+import { attachRunTelemetry, createAwfTelemetry } from './desktop-awf-telemetry.ts'
 import type {} from './runtime.ts'
 
 export interface DesktopWorkflow {
@@ -59,10 +62,28 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
     })
 
     // AWF 平台连接器（同步/预检/连接检查）；凭据走 ~/.dsh/awf.json（0600）或 AWF_API_TOKEN
+    const awfLog = (message: string): void => ctx.logger.info(message)
     const awfBridge = createAwfBridge({
       plugin: this.plugin,
       stateDir,
-      log: (message) => ctx.logger.info(message),
+      log: awfLog,
+    })
+
+    // 遥测（默认关）与桌面执行器 PoC（默认关）；宿主服务就绪后执行器才能跑真实 task
+    const hostServicesRef: { current?: ReturnType<typeof hostServicesFromContext> } = {}
+    const awfTelemetry = createAwfTelemetry({
+      stateDir,
+      log: awfLog,
+      lookupStepTypes: async (run) => {
+        const workflow = await this.plugin.getWorkflow(run.workflowName)
+        return new Map((workflow?.spec.steps ?? []).map((step) => [step.id, String(step.type)]))
+      },
+    })
+    const detachRunTelemetry = attachRunTelemetry(this.plugin, awfTelemetry)
+    const awfExecutor = createAwfExecutor({
+      stateDir,
+      log: awfLog,
+      getHostServices: () => hostServicesRef.current,
     })
 
     ctx.effect(
@@ -71,6 +92,9 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
           console.error('[desktop-workflow] failed to initialize:', err)
         })
         return () => {
+          void awfExecutor.stop()
+          detachRunTelemetry()
+          awfTelemetry.stop()
           void openAiApi.stop()
           this.plugin.stop()
           void this.plugin.whenStopped()
@@ -88,7 +112,14 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
           agentDefaultModel: llmCtx.get('agentDefaultModel') as never,
         }
         services.getWorkflowSettings = () => this.plugin.getSettingsSync()
+        hostServicesRef.current = services
         this.plugin.setHostHooks(createDesktopWorkflowHostHooks(services))
+        // 宿主执行能力就绪：若执行器开关已打开，补一次启动
+        readAwfSettings(stateDir)
+          .then((settings) => {
+            if (settings.executorEnabled) awfExecutor.start()
+          })
+          .catch(() => undefined)
         return () => {
           this.plugin.setHostHooks()
         }
@@ -120,6 +151,7 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
             ctx,
             openAiApi,
             awfBridge,
+            awfExecutor,
           )
         },
       })

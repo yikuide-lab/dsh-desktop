@@ -59,7 +59,13 @@ export interface AwfConnectionResult {
 
 export interface AwfBridge {
   getSettings(): Promise<AwfPublicStatus>
-  setSettings(input: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }): Promise<AwfPublicStatus>
+  setSettings(input: {
+    baseUrl?: string
+    apiTokenEnv?: string
+    apiToken?: string
+    telemetryEnabled?: boolean
+    executorEnabled?: boolean
+  }): Promise<AwfPublicStatus>
   checkConnection(): Promise<AwfConnectionResult>
   syncWorkflow(input: { name: string; yaml?: string; visibility?: string; publish?: boolean }): Promise<AwfSyncReceipt>
   /** 远程试运行：对平台工作流发起一次执行（auto_approve=false，轮询由调用方负责）。 */
@@ -105,6 +111,8 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         apiTokenEnv: typeof input.apiTokenEnv === 'string' && input.apiTokenEnv.trim() ? input.apiTokenEnv : prev.apiTokenEnv,
         // 空串表示「清除已保存 token（回到 env-only）」
         apiToken: typeof input.apiToken === 'string' ? input.apiToken : prev.apiToken,
+        telemetryEnabled: typeof input.telemetryEnabled === 'boolean' ? input.telemetryEnabled : prev.telemetryEnabled,
+        executorEnabled: typeof input.executorEnabled === 'boolean' ? input.executorEnabled : prev.executorEnabled,
       })
       const token = resolveAwfToken(next, env ?? process.env)
       log(`AWF settings updated (baseUrl=${next.baseUrl}, tokenEnv=${next.apiTokenEnv})`)

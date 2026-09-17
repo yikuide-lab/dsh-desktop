@@ -11,10 +11,12 @@ import {
 import { designWorkflowWithLlm, type WorkflowDesignMode } from './desktop-workflow-design.ts'
 import type { WorkflowOpenAiApiController } from './desktop-workflow-openai-controller.ts'
 import type { AwfBridge } from './desktop-awf-bridge.ts'
+import type { AwfExecutorController } from './desktop-awf-executor.ts'
 
 export interface DesktopWorkflowOpExtras {
   readonly openAiApi?: WorkflowOpenAiApiController
   readonly awf?: AwfBridge
+  readonly awfExecutor?: AwfExecutorController
 }
 
 function parseCustomProvider(raw: Record<string, unknown> | undefined): WorkflowCustomProviderInput {
@@ -276,6 +278,29 @@ export async function executeDesktopWorkflowOp(
         workflowId: request.awfWorkflowId,
         ...(request.params ? { params: request.params as Record<string, string> } : {}),
       })
+    }
+    case 'awfSetTelemetrySettings': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      const telemetry = request.awfTelemetrySettings?.telemetryEnabled
+      return extras.awf.setSettings({
+        ...(typeof telemetry === 'boolean' ? { telemetryEnabled: telemetry } : {}),
+      })
+    }
+    case 'awfGetExecutorStatus': {
+      if (!extras?.awfExecutor) {
+        return { running: false, registered: false, executorId: null, executingTaskId: null, lastClaimAt: null, lastError: null }
+      }
+      return extras.awfExecutor.status()
+    }
+    case 'awfSetExecutorSettings': {
+      if (!extras?.awf || !extras?.awfExecutor) throw new Error('AWF connector unavailable')
+      const enabled = request.awfExecutorSettings?.executorEnabled
+      const status = await extras.awf.setSettings({
+        ...(typeof enabled === 'boolean' ? { executorEnabled: enabled } : {}),
+      })
+      if (enabled === true) extras.awfExecutor.start()
+      if (enabled === false) await extras.awfExecutor.stop()
+      return status
     }
     default: {
       const _exhaustive: never = request.op

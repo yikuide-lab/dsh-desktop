@@ -230,6 +230,17 @@ export interface AwfStatusView {
   apiTokenEnv: string
   hasToken: boolean
   tokenFingerprint: string
+  telemetryEnabled: boolean
+  executorEnabled: boolean
+}
+
+export interface AwfExecutorStatusView {
+  running: boolean
+  registered: boolean
+  executorId: number | null
+  executingTaskId: number | null
+  lastClaimAt: string | null
+  lastError: string | null
 }
 
 export interface AwfConnectionView {
@@ -351,6 +362,9 @@ export interface DesktopWorkflowApi {
   getAwfStatus(): Promise<AwfStatusView>
   setAwfSettings(input: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }): Promise<AwfStatusView>
   checkAwfConnection(): Promise<AwfConnectionView>
+  setAwfTelemetrySettings(telemetryEnabled: boolean): Promise<AwfStatusView>
+  getAwfExecutorStatus(): Promise<AwfExecutorStatusView>
+  setAwfExecutorSettings(executorEnabled: boolean): Promise<AwfStatusView>
   syncWorkflowToAwf(name: string, visibility?: string, yaml?: string, publish?: boolean): Promise<AwfSyncReceiptView>
   remoteRunOnAwf(workflowId: number, params?: Record<string, string>): Promise<{
     ok: boolean
@@ -824,13 +838,22 @@ function mapOpenAiApiStatus(value: unknown): WorkflowOpenAiApiStatusView {
 
 function mapAwfStatus(value: unknown): AwfStatusView {
   if (!isObject(value)) {
-    return { baseUrl: '', apiTokenEnv: 'AWF_API_TOKEN', hasToken: false, tokenFingerprint: '' }
+    return {
+      baseUrl: '',
+      apiTokenEnv: 'AWF_API_TOKEN',
+      hasToken: false,
+      tokenFingerprint: '',
+      telemetryEnabled: false,
+      executorEnabled: false,
+    }
   }
   return {
     baseUrl: typeof value.baseUrl === 'string' ? value.baseUrl : '',
     apiTokenEnv: typeof value.apiTokenEnv === 'string' ? value.apiTokenEnv : 'AWF_API_TOKEN',
     hasToken: Boolean(value.hasToken),
     tokenFingerprint: typeof value.tokenFingerprint === 'string' ? value.tokenFingerprint : '',
+    telemetryEnabled: value.telemetryEnabled === true,
+    executorEnabled: value.executorEnabled === true,
   }
 }
 
@@ -1123,6 +1146,34 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
         ...(typeof result.errorKind === 'string' ? { errorKind: result.errorKind } : {}),
         ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
       }
+    },
+    async setAwfTelemetrySettings(telemetryEnabled) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfSetTelemetrySettings',
+        awfTelemetrySettings: { telemetryEnabled },
+      })
+      if (!isObject(result)) throw new Error('invalid awfSetTelemetrySettings response')
+      return mapAwfStatus(result)
+    },
+    async getAwfExecutorStatus() {
+      const result = await callOp(fetchImpl, { op: 'awfGetExecutorStatus' })
+      if (!isObject(result)) throw new Error('invalid awfGetExecutorStatus response')
+      return {
+        running: result.running === true,
+        registered: result.registered === true,
+        executorId: typeof result.executorId === 'number' ? result.executorId : null,
+        executingTaskId: typeof result.executingTaskId === 'number' ? result.executingTaskId : null,
+        lastClaimAt: typeof result.lastClaimAt === 'string' ? result.lastClaimAt : null,
+        lastError: typeof result.lastError === 'string' ? result.lastError : null,
+      }
+    },
+    async setAwfExecutorSettings(executorEnabled) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfSetExecutorSettings',
+        awfExecutorSettings: { executorEnabled },
+      })
+      if (!isObject(result)) throw new Error('invalid awfSetExecutorSettings response')
+      return mapAwfStatus(result)
     },
     async syncWorkflowToAwf(name, visibility, yaml, publish) {
       const result = await callOp(fetchImpl, {

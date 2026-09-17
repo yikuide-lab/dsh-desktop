@@ -53,6 +53,9 @@ export type DesktopWorkflowOp =
   | 'awfCheckConnection'
   | 'awfSync'
   | 'awfRemoteRun'
+  | 'awfSetTelemetrySettings'
+  | 'awfGetExecutorStatus'
+  | 'awfSetExecutorSettings'
 
 export interface DesktopWorkflowRequest {
   readonly op: DesktopWorkflowOp
@@ -96,6 +99,10 @@ export interface DesktopWorkflowRequest {
   readonly openAiApiSettings?: Record<string, unknown>
   /** AWF connector settings for awfSetSettings (token saved only via this path; env var wins). */
   readonly awfSettings?: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }
+  /** awfSetTelemetrySettings: opt-in run-summary reporting (default off). */
+  readonly awfTelemetrySettings?: { telemetryEnabled?: boolean }
+  /** awfSetExecutorSettings: opt-in desktop executor loop (default off). */
+  readonly awfExecutorSettings?: { executorEnabled?: boolean }
   /** Workflow visibility for awfSync (private | unlisted | public). */
   readonly awfVisibility?: string
   /** awfSync: publish-freeze the workflow on the platform after pushing (service enablement). */
