@@ -13,12 +13,14 @@ import { startRendererBootReporter } from './boot-health.ts'
 import { applyDesktopSettings } from './desktop-settings.ts'
 import { installDesktopDirectoryPickerBridge } from './directory-picker.ts'
 import { parseDesktopClientEnvironment } from './environment.ts'
-import { applyExtendedShell } from './extended-shell.ts'
+import { applyExtendedShell, applyFramedShell } from './extended-shell.ts'
+import { applyWorkflowClient } from './workflow-client.tsx'
 import { desktopWindowService, provideDesktopWindow } from './window-service.ts'
 
 export { applyAdvancedShell } from './advanced-shell.ts'
 export { applyDesktopSettings } from './desktop-settings.ts'
 export { applyExtendedShell, applyFramedShell } from './extended-shell.ts'
+export { applyWorkflowClient } from './workflow-client.tsx'
 export {
   createDesktopSettingsApi,
   desktopSettingsPaths,
@@ -34,6 +36,28 @@ export type {
   DesktopSettingsApi,
   DesktopSettingsView,
 } from './desktop-settings-api.ts'
+export {
+  createDesktopWorkflowApi,
+  desktopWorkflowPaths,
+  mapEngineRun,
+  mapEngineWorkflow,
+  workflowViewToYaml,
+} from './desktop-workflow-api.ts'
+export {
+  allocateCloneName,
+  cloneTemplateYaml,
+  parseWorkflowYaml,
+} from './workflow-template-clone.ts'
+export type {
+  DesktopWorkflowApi,
+  PendingGateView,
+  ValidationView,
+  WorkflowRunView,
+  WorkflowStepView,
+  WorkflowTemplateView,
+  WorkflowView,
+  WorkspaceBindingView,
+} from './desktop-workflow-api.ts'
 export { DesktopSettingsSection } from './DesktopSettingsSection.tsx'
 export { DesktopTerminalSettingsAction } from './DesktopTerminalSettingsAction.tsx'
 export type {
@@ -81,6 +105,7 @@ export const inject = [
 
 /** Register desktop-owned client surfaces for the current BrowserWindow mode. @param ctx - browser Cordis context. */
 export function apply(ctx: ClientContext): void {
+  console.log('[dsh-plugin-desktop] client apply called')
   const environment = parseDesktopClientEnvironment(window.location.search)
   if (!environment) return
   ctx.effect(
@@ -98,6 +123,19 @@ export function apply(ctx: ClientContext): void {
       'dsh-plugin-desktop: native directory picker bridge',
     )
   }
-  if (environment.mode === 'advanced') applyAdvancedShell(ctx, environment)
-  if (environment.mode === 'extended') applyExtendedShell(ctx, environment, desktopSettings)
+  if (environment.mode === 'advanced') {
+    applyAdvancedShell(ctx, environment)
+  }
+  if (environment.mode === 'extended') {
+    applyExtendedShell(ctx, environment, desktopSettings)
+  }
+  if (environment.mode === 'compatibility') {
+    // Compatibility keeps the upstream root; only the independent Desktop
+    // frame styles/body markers are owned here (same seam as extended).
+    applyFramedShell(ctx, environment, desktopSettings)
+  }
+  // Register after Desktop-owned shells so `main` is already declared when possible.
+  if (environment.mode === 'advanced' || environment.mode === 'compatibility' || environment.mode === 'extended') {
+    applyWorkflowClient(ctx)
+  }
 }

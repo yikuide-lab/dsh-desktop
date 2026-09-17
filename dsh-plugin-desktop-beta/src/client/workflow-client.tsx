@@ -1,0 +1,133 @@
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { WorkflowLocaleKey } from './locales-workflow.js'
+import { WorkflowPanel } from './WorkflowPanel.js'
+import { WorkflowIcon, WorkflowLauncher } from './WorkflowLauncher.js'
+import { WorkflowOverlay } from './WorkflowOverlay.js'
+import { WorkflowRecommend } from './WorkflowRecommend.js'
+import { createWorkflowStore } from './workflow-store.js'
+import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
+import { en, zh } from './locales-workflow.js'
+import { installWorkflowStyles } from './styles-workflow.js'
+import { WORKFLOW_PANEL_ID } from './workflow-layout.js'
+import { pickCurrentSessionCwd } from './workflow-run-params.js'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    'dsh-plugin-desktop/workflow': WorkflowLocaleKey
+  }
+}
+
+export const inject = ['slots', 'locale']
+export const NS = 'dsh-plugin-desktop/workflow'
+export { WORKFLOW_PANEL_ID, resolveLayout, selectWorkflowPanel } from './workflow-layout.js'
+
+type WorkflowPanelIconProps = PropsRuntime<'sidebar.panellist'> & {
+  openWorkflowPanel: () => void
+}
+
+/**
+ * Panellist glyph that opens the floating workflow surface.
+ * Stops propagation so the shell's selectPanel(id) path cannot swallow the click.
+ */
+function WorkflowPanelIcon({ size, openWorkflowPanel }: WorkflowPanelIconProps) {
+  return (
+    <span
+      className="dshWorkflowPanelIcon"
+      onClick={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        openWorkflowPanel()
+      }}
+      onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+      }}
+    >
+      <WorkflowIcon size={size} />
+    </span>
+  )
+}
+
+/** Register workflow floating launcher, panellist glyph, optional main panel, locale, and styles. */
+export function applyWorkflowClient(ctx: ClientContext): void {
+  const workflowViewHandle = createWorkflowStore()
+  const workflowView = workflowViewHandle.create()
+  const workflowStore = { ...workflowViewHandle, create: () => workflowView }
+  const api = createDesktopWorkflowApi()
+
+  const openWorkflowPanel = (): void => {
+    workflowView.actions.setActiveTab('workflows')
+    workflowView.actions.setPanelOpen(true)
+  }
+
+  const openRunsPanel = (): void => {
+    workflowView.actions.setActiveTab('runs')
+    workflowView.actions.setPanelOpen(true)
+  }
+
+  const openSettingsPanel = (): void => {
+    workflowView.actions.setActiveTab('settings')
+    workflowView.actions.setPanelOpen(true)
+  }
+
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-desktop/workflow: dictionaries')
+  ctx.effect(() => installWorkflowStyles(), 'dsh-plugin-desktop/workflow: styles')
+
+  // Best-effort main panel for environments where selectPanel works.
+  ctx.slots.inject('main', function* () {
+    yield ctx.slots.register({
+      name: 'main',
+      key: WORKFLOW_PANEL_ID,
+      locale: NS,
+      store: workflowStore,
+      inject: () => ({ api }),
+    }, function WorkflowMainPanel(props: PropsRuntime<'main'> & Parameters<typeof WorkflowPanel>[0]) {
+      const sessionCwd = props.useSessions((state) => pickCurrentSessionCwd(state))
+      return <WorkflowPanel {...props} {...(sessionCwd ? { sessionCwd } : {})} />
+    })
+  })
+
+  ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
+    name: 'sidebar.panellist',
+    id: WORKFLOW_PANEL_ID,
+    order: 45,
+    label: () => ctx.locale.bind(NS)('tab'),
+    locale: NS,
+    inject: () => ({ openWorkflowPanel }),
+  }, WorkflowPanelIcon))
+
+  ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({
+    name: 'sidebar.footer.action',
+    id: WORKFLOW_PANEL_ID,
+    order: 15,
+    label: () => ctx.locale.bind(NS)('tab'),
+    locale: NS,
+    store: workflowStore,
+    inject: () => ({ openWorkflowPanel }),
+  }, WorkflowLauncher))
+
+  // Centered workbench (Market-style). Declared by upstream AppFrame and
+  // desktop-owned shells; inject is a no-op until the seat exists.
+  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
+    name: 'shell.overlay',
+    id: WORKFLOW_PANEL_ID,
+    order: 20,
+    locale: NS,
+    store: workflowStore,
+    inject: () => ({ api }),
+  }, WorkflowOverlay))
+
+  ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
+    name: 'conversation.input.right',
+    id: 'workflow-recommend',
+    order: 40,
+    locale: NS,
+    // Do not attach workflowStore here: that handle is already pinned to root
+    // (main / footer / overlay). Session+root reuse throws "one handle, one scope".
+    inject: () => ({ api, openRunsPanel, openWorkflowPanel, openSettingsPanel }),
+  }, WorkflowRecommend))
+}

@@ -71,6 +71,10 @@
       "types": "./lib/types/updates.d.ts",
       "default": "./lib/updates.js"
     },
+    "./workflow": {
+      "types": "./lib/types/workflow.d.ts",
+      "default": "./lib/workflow.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
@@ -277,8 +281,10 @@
     "@deepseek-ai/dsh-workflow": "0.1.5-rc.1",
     "@deepseek-ai/dsh-workspace": "0.1.5-rc.1",
     "@deepseek-ai/schemastery": "^3.18.2",
+    "@xyflow/react": "^12.8.2",
     "adm-zip": "^0.6.0",
     "dsh-community-market": "0.1.0-dev.0",
+    "dsh-plugin-workflow": "0.1.0",
     "dshmarket": "1.38.1",
     "fs-ext": "2.1.1",
     "koffi": "3.1.5",

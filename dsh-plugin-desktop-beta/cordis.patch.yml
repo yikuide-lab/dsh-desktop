@@ -18,6 +18,8 @@
       name: dsh-plugin-desktop-beta/profiles
     - id: desktop-updates
       name: dsh-plugin-desktop-beta/updates
+    - id: desktop-workflow
+      name: dsh-plugin-desktop-beta/workflow
 
 # A desktop launch has no terminal operator waiting for the Web readiness line.
 - id: web-runtime
@@ -26,3 +28,10 @@
     printUrl: false
     surfaceContext: true
     trustedHosts: []
+
+# Packaged Electron Host often cannot resolve every active Loader package from
+# asar search paths; failing prepare() blocks all official DeepSeek requests
+# (including workflow AI design). Omit diagnostic package metadata on Desktop.
+- id: plugin-package-inventory-deepseek
+  config:
+    enabled: false

@@ -1,0 +1,203 @@
+import { useEffect, useState } from 'react'
+import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { WorkflowViewStore, Workflow } from './workflow-store.js'
+import type { DesktopWorkflowApi } from './desktop-workflow-api.js'
+import { WorkflowList } from './WorkflowList.js'
+import { WorkflowEditor } from './WorkflowEditor.js'
+import { WorkflowRunView } from './WorkflowRunView.js'
+import { WorkflowTemplateManager } from './WorkflowTemplateManager.js'
+import { WorkflowSettingsPanel } from './WorkflowSettingsPanel.js'
+import { WorkflowTriggers } from './WorkflowTriggers.js'
+import { WorkflowStats } from './WorkflowStats.js'
+
+export type WorkflowPanelProps = PropsStore<WorkflowViewStore>
+  & PropsLocale<'dsh-plugin-desktop/workflow'>
+  & {
+    api: DesktopWorkflowApi
+    /** When false, omit the in-body title block (overlay already shows chrome). */
+    showHeader?: boolean
+    /** Absolute cwd of the active session when known. */
+    sessionCwd?: string | undefined
+  }
+
+type Tab = 'workflows' | 'runs' | 'templates' | 'settings' | 'triggers' | 'stats'
+
+/** Workflow manager body shared by the overlay workbench and optional main panel. */
+export function WorkflowPanel({
+  t,
+  api,
+  useStore,
+  actions,
+  showHeader = true,
+  sessionCwd,
+}: WorkflowPanelProps) {
+  const activeTab = useStore(s => s.activeTab) as Tab
+  const pendingTemplateYaml = useStore(s => s.pendingTemplateYaml)
+  const statsFocusName = useStore(s => s.statsFocusName)
+  const [showEditor, setShowEditor] = useState(false)
+  const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
+  const [initialYaml, setInitialYaml] = useState<string | null>(null)
+  const [preferVisual, setPreferVisual] = useState(false)
+
+  useEffect(() => {
+    if (pendingTemplateYaml) {
+      setEditingWorkflow(null)
+      setInitialYaml(pendingTemplateYaml)
+      setPreferVisual(true)
+      setShowEditor(true)
+      actions.setPendingTemplateYaml(null)
+      actions.setActiveTab('workflows')
+    }
+  }, [pendingTemplateYaml, actions])
+
+  const handleCreate = () => {
+    setEditingWorkflow(null)
+    setInitialYaml(null)
+    setPreferVisual(false)
+    setShowEditor(true)
+  }
+
+  const handleEdit = (workflow: Workflow) => {
+    setEditingWorkflow(workflow)
+    setInitialYaml(null)
+    setPreferVisual(false)
+    setShowEditor(true)
+  }
+
+  const handleSave = () => {
+    setShowEditor(false)
+    setEditingWorkflow(null)
+    setInitialYaml(null)
+    setPreferVisual(false)
+  }
+
+  const handleCancel = () => {
+    setShowEditor(false)
+    setEditingWorkflow(null)
+    setInitialYaml(null)
+    setPreferVisual(false)
+  }
+
+  if (showEditor) {
+    return (
+      <WorkflowEditor
+        workflow={editingWorkflow}
+        initialYaml={initialYaml}
+        preferVisual={preferVisual}
+        api={api}
+        onSave={handleSave}
+        onCancel={handleCancel}
+        t={t}
+      />
+    )
+  }
+
+  return (
+    <div className="workflow-panel" data-embedded={showHeader ? undefined : 'true'}>
+      {showHeader && (
+        <div className="workflow-header">
+          <h2>{t('title')}</h2>
+          <p>{t('subtitle')}</p>
+        </div>
+      )}
+
+      <div className="workflow-tabs">
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'workflows' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('workflows')}
+        >
+          {t('workflowsTab')}
+        </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'runs' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('runs')}
+        >
+          {t('runs')}
+        </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'templates' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('templates')}
+        >
+          {t('templates')}
+        </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'triggers' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('triggers')}
+        >
+          {t('triggersTab')}
+        </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'stats' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('stats')}
+        >
+          {t('statsTab')}
+        </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('settings')}
+        >
+          {t('settingsTab')}
+        </button>
+      </div>
+
+      <div className="workflow-content">
+        {activeTab === 'workflows' && (
+          <WorkflowList
+            api={api}
+            onCreate={handleCreate}
+            onEdit={handleEdit}
+            onRunStarted={() => actions.setActiveTab('runs')}
+            onOpenSettings={() => actions.setActiveTab('settings')}
+            onOpenStats={(name) => {
+              actions.setStatsFocusName(name)
+              actions.setActiveTab('stats')
+            }}
+            {...(sessionCwd ? { sessionCwd } : {})}
+            t={t}
+          />
+        )}
+        {activeTab === 'runs' && (
+          <WorkflowRunView
+            api={api}
+            t={t}
+            useStore={useStore}
+            actions={actions}
+          />
+        )}
+        {activeTab === 'templates' && (
+          <WorkflowTemplateManager
+            api={api}
+            onUseTemplate={(yaml) => {
+              actions.setPendingTemplateYaml(yaml)
+            }}
+            t={t}
+          />
+        )}
+        {activeTab === 'triggers' && (
+          <WorkflowTriggers api={api} t={t} />
+        )}
+        {activeTab === 'stats' && (
+          <WorkflowStats
+            api={api}
+            t={t}
+            focusName={statsFocusName}
+            onFocusConsumed={() => actions.setStatsFocusName(null)}
+            onOpenRun={(runId) => {
+              actions.setFocusRunId(runId)
+              actions.setActiveTab('runs')
+            }}
+          />
+        )}
+        {activeTab === 'settings' && (
+          <WorkflowSettingsPanel api={api} t={t} />
+        )}
+      </div>
+    </div>
+  )
+}

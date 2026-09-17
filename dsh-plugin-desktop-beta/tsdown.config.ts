@@ -1,6 +1,14 @@
+import { createRequire } from 'node:module'
+import { dirname, join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'tsdown'
 
 const PACKAGE_NAME = 'dsh-plugin-desktop-beta'
+const packageRoot = dirname(fileURLToPath(import.meta.url))
+const require = createRequire(import.meta.url)
+const yamlPackageRoot = dirname(require.resolve('yaml/package.json'))
+const yamlBrowserEntry = join(yamlPackageRoot, 'browser/index.js')
+const processShimEntry = resolve(packageRoot, 'src/client/process-shim.ts')
 
 export default defineConfig([
   {
@@ -28,6 +36,7 @@ export default defineConfig([
       'update-checker': 'src/update-checker.ts',
       'update-download': 'src/update-download.ts',
       updates: 'src/updates.ts',
+      workflow: 'src/workflow.ts',
       'windows-pwsh-sandbox': 'src/windows-pwsh-sandbox.ts',
       'windows-acl-runner': 'src/windows-acl-runner.ts',
       main: 'src/main.ts',
@@ -67,6 +76,11 @@ export default defineConfig([
     target: 'es2022',
     define: {
       'process.env.NODE_ENV': JSON.stringify('production'),
+    },
+    // Force browser yaml (no require("process")) and stub any leftover process imports.
+    alias: {
+      yaml: yamlBrowserEntry,
+      process: processShimEntry,
     },
     fixedExtension: false,
     dts: false,
