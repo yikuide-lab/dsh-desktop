@@ -1,7 +1,50 @@
 # DSH Workflow 插件 × AWF 平台：客户端侧实施计划（文件级）
 
 > 日期：2026-09-17 · 对应 AWF 仓库 beads：awf-9zy（C-P1）/ awf-0bx（C-P2）/ awf-66p（C-P3）/ awf-a3c（C-P4 部分）
->
+
+---
+
+## 整合状态检查（2026-09-17，实测结论：**未完全整合**）
+
+按 `docs/DSH_CLIENT_PLAN.md` §1 五通道逐项核验：
+
+| 通道 | 状态 | 证据 |
+|------|------|------|
+| ① Sync 编辑/备份 | 🟡 **代码就绪，未落地** | 双端代码+测试齐备（beta 18 用例、真实平台 e2e 4/4、AWF 侧 15 用例）；但客户端接线全部位于**未提交的功能分支文件**（契约/controller/route/workflow.ts/面板/编辑器/文案） |
+| ② Publish 服务化 | 🔴 未做 | 客户端服务化向导（publish→ApiService→Key）在 awf-0bx |
+| ③ Hosted-run 平台执行 | 🔴 未做 | 远程运行 UI/gate 双端在 awf-0bx；平台侧 runs/异步网关已就绪 |
+| ④ 桌面反向网关 :8787 | 🟢 独立存在 | dsh-plugin-desktop 既有能力，与平台网关互不依赖 |
+| ⑤ Telemetry | ⚪ 远期 | awf-a3c |
+| 能力协商 | 🟡 机制就绪，UX 未做 | 平台 `/api/dsl/capabilities`+requires 校验、引擎 capability_missing 门禁均上线；designer 阻断 UX 未做（awf-66p） |
+
+**判定「未完全整合」的两个硬缺口：**
+
+1. **落地缺口（最优先）**：stable 包（`dsh-plugin-desktop/`）**零 awf 代码**（controller 中 0 处引用）——
+   仓库规则要求 beta 先行后同步 stable 并通过 `check:desktop-variants`；且 beta 接线所在的
+   workflow 功能文件整体未提交（含用户在途改动）。**在功能分支落地 + 变体同步完成之前，
+   任何正式构建都不含 AWF 客户端。**
+2. **通道缺口**：②服务化向导、③远程运行互通未交付（awf-0bx 整体 open）。
+
+### 整合收尾计划（gap-closure，按序执行）
+
+1. **落地功能分支（需分支作者执行）**：提交工作区中 workflow 功能文件（含 awf 接线：
+   契约/route/controller/workflow.ts/WorkflowSettingsPanel/WorkflowEditor/locales/client-api/
+   tests/awf-controller.spec.ts）。提交前跑 beta 侧 `corepack yarn workspace dsh-plugin-desktop-beta check`。
+2. **beta→stable 变体同步**：将 awf 连接器五件套（settings/client/bridge + controller/route 接线 +
+   面板/编辑器/文案）同步 `dsh-plugin-desktop/`，遵守两包声明的变体差异；`corepack yarn check:desktop-variants`
+   + 双包 check 全绿后提交（与上游 submodule pin 更新分开提交）。
+3. **awf-0bx 交付（通道②③）**：执行位置切换（本地/平台）+ gate 双端 resolve + 服务化向导 +
+   golden 双跑一致性用例（基础 5 类型 YAML 双端输出语义一致）。
+4. **awf-66p 收尾**：designer 对平台扩展类型标「仅平台可运行」并阻断运行；模板能力标签。
+5. **awf-a3c（远期，不阻塞整合判定）**：webhook 触发、telemetry（默认关）、desktop-as-executor PoC。
+6. 每步验收统一：受影响包 vitest + typecheck 全绿；联调用 AWF 侧 `scripts/smoke.sh`（23 项基线）+
+   `AWF_E2E_BASE_URL=… vitest run tests/awf-e2e.spec.ts`（真实平台 4 项）。
+
+> 整合「完成」的判据：stable 包构建产物包含 AWF 客户端且双包门禁绿 + 通道①②③各有端到端用例 +
+> 能力协商 UX 生效。届时在本节标记 ✅。
+
+---
+
 > **进度（2026-09-17）：**
 > - ✅ C-P1：核心模块（`desktop-awf-settings/client` + 10 用例）与 **controller/UI 接线均完成**——
 >   bridge（已提交）+ 契约/route/controller/workflow.ts/设置面板/双语文案（随工作区未提交的 workflow 功能文件走），
