@@ -335,6 +335,7 @@ export const zh = {
   awfSyncPreflightFailed: '预检未通过',
   awfSyncError: '同步失败',
   awfSyncNameRequired: '请输入要同步的工作流名称',
+  awfPlatformOnly: '该工作流包含本地引擎不支持的步骤类型，仅可在 AWF 平台运行：',
 } as const
 
 export type WorkflowLocaleKey = keyof typeof zh
@@ -676,4 +677,5 @@ export const en: Record<WorkflowLocaleKey, string> = {
   awfSyncPreflightFailed: 'Preflight rejected',
   awfSyncError: 'Sync failed',
   awfSyncNameRequired: 'Enter a workflow name to sync',
+  awfPlatformOnly: 'This workflow uses step types the local engine cannot run; it runs on the AWF platform only:',
 }

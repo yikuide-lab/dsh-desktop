@@ -5,6 +5,27 @@ const WORKFLOW_PATH = '/api/desktop/workflow'
 export type WorkflowStepType = 'script' | 'task' | 'llm' | 'approval' | 'sub_workflow'
 export type WorkflowOnFailure = 'fail' | 'skip' | 'compensate'
 
+/** 本地引擎可执行的步骤类型；之外的类型仅 AWF 平台可运行（能力协商，见 /api/dsl/capabilities）。 */
+export const LOCAL_STEP_TYPES: ReadonlySet<string> = new Set<string>([
+  'script',
+  'task',
+  'llm',
+  'approval',
+  'sub_workflow',
+])
+
+/** 返回该工作流中超出本地引擎能力的步骤类型（去重、保序）；空数组表示可本地运行。 */
+export function platformOnlySteps(
+  workflow: { steps?: Array<{ type: string }> } | undefined,
+): string[] {
+  const seen = new Set<string>()
+  for (const step of workflow?.steps ?? []) {
+    if (!LOCAL_STEP_TYPES.has(step.type)) seen.add(step.type)
+  }
+  return [...seen]
+}
+
+
 export interface WorkflowCompensationView {
   run: string
   env?: Record<string, string>
