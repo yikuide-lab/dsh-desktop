@@ -116,6 +116,46 @@ export async function executeDesktopWorkflowOp(
     }
     case 'listTemplates':
       return plugin.listTemplates()
+    case 'saveTemplate': {
+      if (!request.yaml?.trim()) throw new Error('yaml is required')
+      const category = request.templateCategory === 'development'
+        || request.templateCategory === 'devops'
+        || request.templateCategory === 'analysis'
+        || request.templateCategory === 'custom'
+        ? request.templateCategory
+        : undefined
+      return plugin.saveUserTemplate({
+        yaml: request.yaml,
+        ...(request.templateName ? { name: request.templateName } : {}),
+        ...(request.templateDescription ? { description: request.templateDescription } : {}),
+        ...(category ? { category } : {}),
+        ...(request.templateId ? { id: request.templateId } : {}),
+        ...(request.workflowName ? { sourceWorkflowName: request.workflowName } : {}),
+      })
+    }
+    case 'deleteTemplate': {
+      if (!request.templateId && !request.name) throw new Error('templateId is required')
+      return {
+        removed: await plugin.deleteUserTemplate(request.templateId ?? request.name!),
+      }
+    }
+    case 'promoteWorkflowToTemplate': {
+      if (!request.workflowName && !request.name) {
+        throw new Error('workflowName is required')
+      }
+      const category = request.templateCategory === 'development'
+        || request.templateCategory === 'devops'
+        || request.templateCategory === 'analysis'
+        || request.templateCategory === 'custom'
+        ? request.templateCategory
+        : undefined
+      return plugin.promoteWorkflowToTemplate(request.workflowName ?? request.name!, {
+        ...(request.templateName ? { name: request.templateName } : {}),
+        ...(request.templateDescription ? { description: request.templateDescription } : {}),
+        ...(category ? { category } : {}),
+        ...(request.templateId ? { id: request.templateId } : {}),
+      })
+    }
     case 'listBindings':
       return plugin.listBindings()
     case 'getBinding': {
@@ -249,6 +289,16 @@ export async function executeDesktopWorkflowOp(
       if (!extras?.openAiApi) throw new Error('OpenAI API controller unavailable')
       return extras.openAiApi.rotateKey()
     }
+    case 'listOpenAiApiCalls': {
+      if (!extras?.openAiApi) throw new Error('OpenAI API controller unavailable')
+      const calls = await extras.openAiApi.listCalls(request.limit)
+      return { calls }
+    }
+    case 'clearOpenAiApiCalls': {
+      if (!extras?.openAiApi) throw new Error('OpenAI API controller unavailable')
+      await extras.openAiApi.clearCalls()
+      return { ok: true }
+    }
     case 'awfGetSettings': {
       if (!extras?.awf) throw new Error('AWF connector unavailable')
       return extras.awf.getSettings()
@@ -285,6 +335,46 @@ export async function executeDesktopWorkflowOp(
       return extras.awf.setSettings({
         ...(typeof telemetry === 'boolean' ? { telemetryEnabled: telemetry } : {}),
       })
+    }
+    case 'awfAuthStatus': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      return extras.awf.authStatus()
+    }
+    case 'awfAuthMethods': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      return extras.awf.authMethods()
+    }
+    case 'awfAuthRegister': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      const creds = request.awfAuthCredentials ?? {}
+      if (!creds.email || !creds.password) throw new Error('email and password are required')
+      return extras.awf.authRegister({
+        email: creds.email,
+        password: creds.password,
+        ...(creds.displayName ? { displayName: creds.displayName } : {}),
+      })
+    }
+    case 'awfAuthLogin': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      const creds = request.awfAuthCredentials ?? {}
+      if (!creds.email || !creds.password) throw new Error('email and password are required')
+      return extras.awf.authLogin({ email: creds.email, password: creds.password })
+    }
+    case 'awfAuthSendPhoneCode': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      const phone = request.awfAuthCredentials?.phone
+      if (!phone) throw new Error('phone is required')
+      return extras.awf.authSendPhoneCode(phone)
+    }
+    case 'awfAuthPhoneLogin': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      const creds = request.awfAuthCredentials ?? {}
+      if (!creds.phone || !creds.code) throw new Error('phone and code are required')
+      return extras.awf.authPhoneLogin({ phone: creds.phone, code: creds.code })
+    }
+    case 'awfAuthLogout': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      return extras.awf.authLogout()
     }
     case 'awfGetExecutorStatus': {
       if (!extras?.awfExecutor) {

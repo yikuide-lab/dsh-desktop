@@ -38,6 +38,8 @@ export interface WorkflowStepView {
   prompt?: string
   deps?: string[]
   timeout?: number
+  /** Optional LLM completion token budget. */
+  maxTokens?: number
   env?: Record<string, string>
   inputs?: Record<string, unknown>
   outputs?: string[]
@@ -59,6 +61,8 @@ export interface WorkflowStepView {
 }
 
 export interface WorkflowView {
+  /** Stable document id (UUID). Storage key; view-only in the editor. */
+  uid?: string
   name: string
   title: string
   description?: string
@@ -112,6 +116,8 @@ export interface WorkflowTemplateView {
   description: string
   category: string
   yaml: string
+  /** Built-in catalog entries are true; user-saved templates are false/omitted. */
+  builtin?: boolean
 }
 
 export interface WorkspaceBindingView {
@@ -217,6 +223,22 @@ export interface WorkflowOpenAiApiStatusView {
   lastError: string | null
 }
 
+export interface WorkflowOpenAiApiCallView {
+  id: string
+  ts: string
+  method: string
+  path: string
+  clientIp: string
+  model?: string
+  workflowName?: string
+  runId?: string
+  statusCode: number
+  ok: boolean
+  error?: string
+  durationMs?: number
+  stream?: boolean
+}
+
 export interface WorkflowOpenAiApiSettingsInput {
   enabled?: boolean
   bindHost?: string
@@ -232,6 +254,23 @@ export interface AwfStatusView {
   tokenFingerprint: string
   telemetryEnabled: boolean
   executorEnabled: boolean
+}
+
+export interface AwfAuthAccountView {
+  hasSession: boolean
+  email?: string
+  displayName?: string
+  tokenFingerprint?: string
+  accessTokenExpiresAt?: string
+  errorKind?: string
+  errorMessage?: string
+}
+
+export interface AwfAuthMethodsView {
+  email: boolean
+  phone: boolean
+  wechat: boolean
+  wechatReason?: string
 }
 
 export interface AwfExecutorStatusView {
@@ -335,6 +374,21 @@ export interface DesktopWorkflowApi {
     resolvedBy?: string
   }): Promise<WorkflowRunView>
   listTemplates(): Promise<WorkflowTemplateView[]>
+  saveTemplate(input: {
+    yaml: string
+    name?: string
+    description?: string
+    category?: string
+    id?: string
+    sourceWorkflowName?: string
+  }): Promise<WorkflowTemplateView>
+  deleteTemplate(templateId: string): Promise<boolean>
+  promoteWorkflowToTemplate(workflowName: string, options?: {
+    name?: string
+    description?: string
+    category?: string
+    id?: string
+  }): Promise<WorkflowTemplateView>
   getBinding(workspaceId: string): Promise<WorkspaceBindingView | null>
   setBinding(workspaceId: string, workflowName: string): Promise<WorkspaceBindingView>
   clearBinding(workspaceId: string): Promise<boolean>
@@ -365,6 +419,13 @@ export interface DesktopWorkflowApi {
   setAwfTelemetrySettings(telemetryEnabled: boolean): Promise<AwfStatusView>
   getAwfExecutorStatus(): Promise<AwfExecutorStatusView>
   setAwfExecutorSettings(executorEnabled: boolean): Promise<AwfStatusView>
+  getAwfAuthStatus(): Promise<AwfAuthAccountView>
+  getAwfAuthMethods(): Promise<AwfAuthMethodsView>
+  awfAuthRegister(input: { email: string; password: string; displayName?: string }): Promise<AwfAuthAccountView>
+  awfAuthLogin(input: { email: string; password: string }): Promise<AwfAuthAccountView>
+  awfAuthSendPhoneCode(phone: string): Promise<{ ok: boolean; errorKind?: string; errorMessage?: string }>
+  awfAuthPhoneLogin(input: { phone: string; code: string }): Promise<AwfAuthAccountView>
+  awfAuthLogout(): Promise<{ ok: boolean }>
   syncWorkflowToAwf(name: string, visibility?: string, yaml?: string, publish?: boolean): Promise<AwfSyncReceiptView>
   remoteRunOnAwf(workflowId: number, params?: Record<string, string>): Promise<{
     ok: boolean
@@ -383,6 +444,8 @@ export interface DesktopWorkflowApi {
     settings: WorkflowOpenAiApiStatusView
     apiKey: string
   }>
+  listOpenAiApiCalls(limit?: number): Promise<WorkflowOpenAiApiCallView[]>
+  clearOpenAiApiCalls(): Promise<void>
 }
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -400,6 +463,7 @@ function mapStep(raw: Record<string, unknown>): WorkflowStepView {
   if (typeof raw.prompt === 'string') step.prompt = raw.prompt
   if (Array.isArray(raw.deps)) step.deps = raw.deps.map(String)
   if (typeof raw.timeout === 'number') step.timeout = raw.timeout
+  if (typeof raw.maxTokens === 'number') step.maxTokens = raw.maxTokens
   if (isObject(raw.env)) {
     const env: Record<string, string> = {}
     for (const [key, value] of Object.entries(raw.env)) {
@@ -452,6 +516,9 @@ export function mapEngineWorkflow(value: unknown): WorkflowView {
       title: typeof value.metadata.title === 'string' ? value.metadata.title : String(value.metadata.name ?? ''),
       steps: value.spec.steps.map((step) => mapStep(isObject(step) ? step : {})),
     }
+    if (typeof value.metadata.uid === 'string' && value.metadata.uid.trim()) {
+      view.uid = value.metadata.uid.trim()
+    }
     if (typeof value.metadata.description === 'string') view.description = value.metadata.description
     if (typeof value.apiVersion === 'string') view.apiVersion = value.apiVersion
     if (typeof value.kind === 'string') view.kind = value.kind
@@ -464,6 +531,7 @@ export function mapEngineWorkflow(value: unknown): WorkflowView {
       ? value.steps.map((step) => mapStep(isObject(step) ? step : {}))
       : [],
   }
+  if (typeof value.uid === 'string' && value.uid.trim()) view.uid = value.uid.trim()
   if (typeof value.description === 'string') view.description = value.description
   return view
 }
@@ -539,8 +607,9 @@ export function workflowViewToYaml(workflow: WorkflowView): string {
     'apiVersion: workflow-wise/v1',
     'kind: Workflow',
     'metadata:',
-    `  name: ${workflow.name}`,
   ]
+  if (workflow.uid) lines.push(`  uid: ${workflow.uid}`)
+  lines.push(`  name: ${workflow.name}`)
   if (workflow.title) lines.push(`  title: ${escapeYamlScalar(workflow.title)}`)
   if (workflow.description) lines.push(`  description: ${escapeYamlScalar(workflow.description)}`)
   lines.push('spec:', '  steps:')
@@ -590,6 +659,7 @@ export function workflowViewToYaml(workflow: WorkflowView): string {
     if (step.model) lines.push(`      model: ${step.model}`)
     if (step.role) lines.push(`      role: ${step.role}`)
     if (step.timeout) lines.push(`      timeout: ${step.timeout}`)
+    if (typeof step.maxTokens === 'number') lines.push(`      maxTokens: ${step.maxTokens}`)
     if (typeof step.retries === 'number') lines.push(`      retries: ${step.retries}`)
     if (step.onFailure) lines.push(`      on_failure: ${step.onFailure}`)
     if (step.compensation?.run) {
@@ -808,6 +878,27 @@ function mapStatsDetail(value: unknown): WorkflowStatsDetailView {
   return { ...summary, byDay, recentRuns }
 }
 
+function mapOpenAiApiCall(value: unknown): WorkflowOpenAiApiCallView | null {
+  if (!isObject(value) || typeof value.id !== 'string' || typeof value.ts !== 'string') return null
+  if (typeof value.method !== 'string' || typeof value.path !== 'string') return null
+  if (typeof value.clientIp !== 'string' || typeof value.statusCode !== 'number') return null
+  return {
+    id: value.id,
+    ts: value.ts,
+    method: value.method,
+    path: value.path,
+    clientIp: value.clientIp,
+    statusCode: value.statusCode,
+    ok: value.ok === true,
+    ...(typeof value.model === 'string' ? { model: value.model } : {}),
+    ...(typeof value.workflowName === 'string' ? { workflowName: value.workflowName } : {}),
+    ...(typeof value.runId === 'string' ? { runId: value.runId } : {}),
+    ...(typeof value.error === 'string' ? { error: value.error } : {}),
+    ...(typeof value.durationMs === 'number' ? { durationMs: value.durationMs } : {}),
+    ...(typeof value.stream === 'boolean' ? { stream: value.stream } : {}),
+  }
+}
+
 function mapOpenAiApiStatus(value: unknown): WorkflowOpenAiApiStatusView {
   const defaults: WorkflowOpenAiApiStatusView = {
     enabled: false,
@@ -833,6 +924,19 @@ function mapOpenAiApiStatus(value: unknown): WorkflowOpenAiApiStatusView {
     baseUrl: typeof value.baseUrl === 'string' ? value.baseUrl : null,
     usingTls: Boolean(value.usingTls),
     lastError: typeof value.lastError === 'string' ? value.lastError : null,
+  }
+}
+
+function mapAwfAuthAccount(value: unknown): AwfAuthAccountView {
+  if (!isObject(value)) return { hasSession: false }
+  return {
+    hasSession: value.hasSession === true,
+    ...(typeof value.email === 'string' ? { email: value.email } : {}),
+    ...(typeof value.displayName === 'string' ? { displayName: value.displayName } : {}),
+    ...(typeof value.tokenFingerprint === 'string' ? { tokenFingerprint: value.tokenFingerprint } : {}),
+    ...(typeof value.accessTokenExpiresAt === 'string' ? { accessTokenExpiresAt: value.accessTokenExpiresAt } : {}),
+    ...(typeof value.errorKind === 'string' ? { errorKind: value.errorKind } : {}),
+    ...(typeof value.errorMessage === 'string' ? { errorMessage: value.errorMessage } : {}),
   }
 }
 
@@ -1000,6 +1104,39 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
       const result = await callOp(fetchImpl, { op: 'listTemplates' })
       if (!Array.isArray(result)) return []
       return result as WorkflowTemplateView[]
+    },
+    async saveTemplate(input) {
+      const result = await callOp(fetchImpl, {
+        op: 'saveTemplate',
+        yaml: input.yaml,
+        ...(input.name ? { templateName: input.name } : {}),
+        ...(input.description ? { templateDescription: input.description } : {}),
+        ...(input.category ? { templateCategory: input.category } : {}),
+        ...(input.id ? { templateId: input.id } : {}),
+        ...(input.sourceWorkflowName ? { workflowName: input.sourceWorkflowName } : {}),
+      })
+      if (!isObject(result) || typeof result.id !== 'string') {
+        throw new Error('invalid saveTemplate response')
+      }
+      return result as unknown as WorkflowTemplateView
+    },
+    async deleteTemplate(templateId) {
+      const result = await callOp(fetchImpl, { op: 'deleteTemplate', templateId })
+      return isObject(result) ? Boolean(result.removed) : false
+    },
+    async promoteWorkflowToTemplate(workflowName, options) {
+      const result = await callOp(fetchImpl, {
+        op: 'promoteWorkflowToTemplate',
+        workflowName,
+        ...(options?.name ? { templateName: options.name } : {}),
+        ...(options?.description ? { templateDescription: options.description } : {}),
+        ...(options?.category ? { templateCategory: options.category } : {}),
+        ...(options?.id ? { templateId: options.id } : {}),
+      })
+      if (!isObject(result) || typeof result.id !== 'string') {
+        throw new Error('invalid promoteWorkflowToTemplate response')
+      }
+      return result as unknown as WorkflowTemplateView
     },
     async getBinding(workspaceId) {
       const result = await callOp(fetchImpl, { op: 'getBinding', workspaceId })
@@ -1175,6 +1312,62 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
       if (!isObject(result)) throw new Error('invalid awfSetExecutorSettings response')
       return mapAwfStatus(result)
     },
+    async getAwfAuthStatus() {
+      const result = await callOp(fetchImpl, { op: 'awfAuthStatus' })
+      if (!isObject(result)) throw new Error('invalid awfAuthStatus response')
+      return mapAwfAuthAccount(result)
+    },
+    async getAwfAuthMethods() {
+      const result = await callOp(fetchImpl, { op: 'awfAuthMethods' })
+      if (!isObject(result)) throw new Error('invalid awfAuthMethods response')
+      return {
+        email: result.email === true,
+        phone: result.phone === true,
+        wechat: result.wechat === true,
+        ...(typeof result.wechatReason === 'string' ? { wechatReason: result.wechatReason } : {}),
+      }
+    },
+    async awfAuthRegister(input) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfAuthRegister',
+        awfAuthCredentials: { ...input },
+      })
+      if (!isObject(result)) throw new Error('invalid awfAuthRegister response')
+      return mapAwfAuthAccount(result)
+    },
+    async awfAuthLogin(input) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfAuthLogin',
+        awfAuthCredentials: { ...input },
+      })
+      if (!isObject(result)) throw new Error('invalid awfAuthLogin response')
+      return mapAwfAuthAccount(result)
+    },
+    async awfAuthSendPhoneCode(phone) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfAuthSendPhoneCode',
+        awfAuthCredentials: { phone },
+      })
+      if (!isObject(result)) throw new Error('invalid awfAuthSendPhoneCode response')
+      return {
+        ok: result.ok === true,
+        ...(typeof result.errorKind === 'string' ? { errorKind: result.errorKind } : {}),
+        ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
+      }
+    },
+    async awfAuthPhoneLogin(input) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfAuthPhoneLogin',
+        awfAuthCredentials: { ...input },
+      })
+      if (!isObject(result)) throw new Error('invalid awfAuthPhoneLogin response')
+      return mapAwfAuthAccount(result)
+    },
+    async awfAuthLogout() {
+      const result = await callOp(fetchImpl, { op: 'awfAuthLogout' })
+      if (!isObject(result)) throw new Error('invalid awfAuthLogout response')
+      return { ok: result.ok === true }
+    },
     async syncWorkflowToAwf(name, visibility, yaml, publish) {
       const result = await callOp(fetchImpl, {
         op: 'awfSync',
@@ -1258,6 +1451,22 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
         settings: mapOpenAiApiStatus(result.settings),
         apiKey: result.apiKey,
       }
+    },
+    async listOpenAiApiCalls(limit) {
+      const result = await callOp(fetchImpl, {
+        op: 'listOpenAiApiCalls',
+        ...(typeof limit === 'number' ? { limit } : {}),
+      })
+      if (!isObject(result) || !Array.isArray(result.calls)) {
+        throw new Error('invalid listOpenAiApiCalls response')
+      }
+      return result.calls.flatMap((entry) => {
+        const mapped = mapOpenAiApiCall(entry)
+        return mapped ? [mapped] : []
+      })
+    },
+    async clearOpenAiApiCalls() {
+      await callOp(fetchImpl, { op: 'clearOpenAiApiCalls' })
     },
   }
 }

@@ -97,23 +97,55 @@ export interface AwfTelemetrySummary {
 
 export function createAwfClient(
   settings: AwfSettings,
-  options: { fetchImpl?: AwfFetch; env?: Record<string, string | undefined>; token?: string } = {},
+  options: {
+    fetchImpl?: AwfFetch
+    env?: Record<string, string | undefined>
+    token?: string
+    /** 每次请求前动态解析 Bearer（登录会话 access token）；优先于静态 token。 */
+    tokenProvider?: () => Promise<string | null>
+    /** 401 时的补救路径（如刷新会话）；返回新 token 则重试一次，返回 null 则照常抛错。 */
+    onAuthFailure?: () => Promise<string | null>
+  } = {},
 ): AwfClient {
   const doFetch = options.fetchImpl ?? fetch
   const token = options.token ?? resolveAwfToken(settings, options.env)
   const base = settings.baseUrl.replace(/\/+$/, '')
 
-  async function request<T>(path: string, init: RequestInit = {}, authenticated = true): Promise<T> {
+  async function resolveBearer(): Promise<string | null> {
+    if (options.tokenProvider) {
+      const provided = await options.tokenProvider()
+      if (provided) return provided
+    }
+    return token || null
+  }
+
+  async function request<T>(
+    path: string,
+    init: RequestInit = {},
+    authenticated = true,
+    allowAuthRetry = true,
+    overrideToken: string | null = null,
+  ): Promise<T> {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       ...((init.headers as Record<string, string>) ?? {}),
     }
-    if (authenticated && token) headers.Authorization = `Bearer ${token}`
+    if (authenticated) {
+      const bearer = overrideToken ?? (await resolveBearer())
+      if (bearer) headers.Authorization = `Bearer ${bearer}`
+    }
     let response: Response
     try {
       response = await doFetch(`${base}${path}`, { ...init, headers })
     } catch (error) {
       throw new AwfError('network', `无法连接 AWF 平台（${base}）`, null, error)
+    }
+    // 会话 access token 过期 → onAuthFailure（刷新）拿到新 token 后带新凭据重试一次
+    if (response.status === 401 && authenticated && allowAuthRetry && options.onAuthFailure) {
+      const fresh = await options.onAuthFailure()
+      if (fresh) {
+        return request<T>(path, init, authenticated, false, fresh)
+      }
     }
     if (response.ok) {
       const text = await response.text()

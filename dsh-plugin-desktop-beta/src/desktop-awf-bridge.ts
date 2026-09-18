@@ -15,6 +15,19 @@ import {
   writeAwfSettings,
   type AwfSettings,
 } from './desktop-awf-settings.ts'
+import {
+  awfAuthAccessToken,
+  awfAuthLogin,
+  awfAuthLogout,
+  awfAuthMethods,
+  awfAuthPhoneLogin,
+  awfAuthRefresh,
+  awfAuthRegister,
+  awfAuthSendPhoneCode,
+  awfAuthStatus,
+  type AwfAuthMethods,
+  type AwfAuthStatusView,
+} from './desktop-awf-auth.ts'
 
 export interface AwfBridgeOptions {
   readonly plugin: WorkflowPlugin
@@ -68,6 +81,14 @@ export interface AwfBridge {
   }): Promise<AwfPublicStatus>
   checkConnection(): Promise<AwfConnectionResult>
   syncWorkflow(input: { name: string; yaml?: string; visibility?: string; publish?: boolean }): Promise<AwfSyncReceipt>
+  /** 平台账号：可选注册/登录（邮箱、手机验证码）；密码绝不落盘。 */
+  authStatus(): Promise<AwfAuthStatusView>
+  authMethods(): Promise<AwfAuthMethods>
+  authRegister(input: { email: string; password: string; displayName?: string }): Promise<AwfAuthStatusView>
+  authLogin(input: { email: string; password: string }): Promise<AwfAuthStatusView>
+  authSendPhoneCode(phone: string): Promise<{ ok: boolean }>
+  authPhoneLogin(input: { phone: string; code: string }): Promise<AwfAuthStatusView>
+  authLogout(): Promise<{ ok: boolean }>
   /** 远程试运行：对平台工作流发起一次执行（auto_approve=false，轮询由调用方负责）。 */
   remoteRun(input: { workflowId: number; params?: Record<string, string> }): Promise<{
     ok: boolean
@@ -80,6 +101,11 @@ export interface AwfBridge {
   }>
 }
 
+/** 失败视图：状态 view 携带错误信息（与 AwfConnectionResult 字段对齐）。 */
+function authErrorView(error: AwfError): { errorKind: string; errorMessage: string } {
+  return { errorKind: error.kind, errorMessage: error.message }
+}
+
 export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
   const { plugin, stateDir } = options
   const log = options.log ?? ((): void => {})
@@ -90,14 +116,97 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
     return readAwfSettings(stateDir)
   }
 
+  function authOptions() {
+    return {
+      stateDir,
+      ...(fetchImpl ? { fetchImpl } : {}),
+      ...(env ? { env } : {}),
+    }
+  }
+
   function clientFor(settings: AwfSettings) {
     return createAwfClient(settings, {
       ...(fetchImpl ? { fetchImpl } : {}),
       ...(env ? { env } : {}),
+      // env / 手动 token 缺席时回退登录会话（自动刷新 access token）
+      tokenProvider: async () => {
+        if (resolveAwfToken(settings, env ?? process.env)) return null
+        return awfAuthAccessToken(authOptions())
+      },
+      onAuthFailure: async () => {
+        // env / 手动 token 无法刷新；会话 token 可走 refresh 旋转重试一次
+        if (resolveAwfToken(settings, env ?? process.env)) return null
+        return awfAuthRefresh(authOptions())
+      },
     })
   }
 
   return {
+    async authStatus(): Promise<AwfAuthStatusView> {
+      return awfAuthStatus(authOptions())
+    },
+
+    async authMethods(): Promise<AwfAuthMethods> {
+      return awfAuthMethods(authOptions())
+    },
+
+    async authRegister(input): Promise<AwfAuthStatusView> {
+      try {
+        const status = await awfAuthRegister(authOptions(), input)
+        log(`AWF auth: registered ${status.email ?? ''}`)
+        return status
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { hasSession: false, ...(authErrorView(error)) }
+        }
+        return { hasSession: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async authLogin(input): Promise<AwfAuthStatusView> {
+      try {
+        const status = await awfAuthLogin(authOptions(), input)
+        log(`AWF auth: logged in ${status.email ?? ''}`)
+        return status
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { hasSession: false, ...(authErrorView(error)) }
+        }
+        return { hasSession: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async authSendPhoneCode(phone) {
+      try {
+        await awfAuthSendPhoneCode(authOptions(), phone)
+        return { ok: true }
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false, ...(authErrorView(error)) }
+        }
+        return { ok: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async authPhoneLogin(input): Promise<AwfAuthStatusView> {
+      try {
+        const status = await awfAuthPhoneLogin(authOptions(), input)
+        log(`AWF auth: phone login ${status.email ?? ''}`)
+        return status
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { hasSession: false, ...(authErrorView(error)) }
+        }
+        return { hasSession: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async authLogout() {
+      await awfAuthLogout(authOptions())
+      log('AWF auth: signed out')
+      return { ok: true }
+    },
+
     async getSettings(): Promise<AwfPublicStatus> {
       const settings = await currentSettings()
       const token = resolveAwfToken(settings, env ?? process.env)

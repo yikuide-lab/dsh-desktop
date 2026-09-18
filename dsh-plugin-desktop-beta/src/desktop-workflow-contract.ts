@@ -23,6 +23,9 @@ export type DesktopWorkflowOp =
   | 'listGates'
   | 'resolveGate'
   | 'listTemplates'
+  | 'saveTemplate'
+  | 'deleteTemplate'
+  | 'promoteWorkflowToTemplate'
   | 'listBindings'
   | 'getBinding'
   | 'setBinding'
@@ -48,6 +51,8 @@ export type DesktopWorkflowOp =
   | 'getOpenAiApiStatus'
   | 'setOpenAiApiSettings'
   | 'rotateOpenAiApiKey'
+  | 'listOpenAiApiCalls'
+  | 'clearOpenAiApiCalls'
   | 'awfGetSettings'
   | 'awfSetSettings'
   | 'awfCheckConnection'
@@ -56,6 +61,13 @@ export type DesktopWorkflowOp =
   | 'awfSetTelemetrySettings'
   | 'awfGetExecutorStatus'
   | 'awfSetExecutorSettings'
+  | 'awfAuthStatus'
+  | 'awfAuthMethods'
+  | 'awfAuthRegister'
+  | 'awfAuthLogin'
+  | 'awfAuthSendPhoneCode'
+  | 'awfAuthPhoneLogin'
+  | 'awfAuthLogout'
 
 export interface DesktopWorkflowRequest {
   readonly op: DesktopWorkflowOp
@@ -97,12 +109,25 @@ export interface DesktopWorkflowRequest {
   readonly recentLimit?: number
   /** Partial OpenAI API server settings for setOpenAiApiSettings. */
   readonly openAiApiSettings?: Record<string, unknown>
+  /** saveTemplate / promoteWorkflowToTemplate display name. */
+  readonly templateName?: string
+  readonly templateDescription?: string
+  readonly templateCategory?: string
+  readonly templateId?: string
   /** AWF connector settings for awfSetSettings (token saved only via this path; env var wins). */
   readonly awfSettings?: { baseUrl?: string; apiTokenEnv?: string; apiToken?: string }
   /** awfSetTelemetrySettings: opt-in run-summary reporting (default off). */
   readonly awfTelemetrySettings?: { telemetryEnabled?: boolean }
   /** awfSetExecutorSettings: opt-in desktop executor loop (default off). */
   readonly awfExecutorSettings?: { executorEnabled?: boolean }
+  /** awfAuth* 账号凭据；密码只在请求体内存在，绝不落盘。 */
+  readonly awfAuthCredentials?: {
+    email?: string
+    password?: string
+    displayName?: string
+    phone?: string
+    code?: string
+  }
   /** Workflow visibility for awfSync (private | unlisted | public). */
   readonly awfVisibility?: string
   /** awfSync: publish-freeze the workflow on the platform after pushing (service enablement). */
