@@ -26,7 +26,20 @@ access token 临期自动刷新、401 自动重试一次；token 解析链 env >
 
 ---
 
-## 整合状态检查（2026-09-17，实测结论：**未完全整合**）
+## 整合状态检查（2026-09-19 更新：**已整合，生产实测闭环**）
+
+> 2026-09-17 的「未完全整合」结论与 gap-closure 计划见下节（保留供追溯）。收尾已于 2026-09-17/18 完成：
+> ①功能分支落地 ②stable 变体同步（verify-desktop-variants 234 对齐）③awf-0bx ④awf-66p ⑤awf-a3c ⑥桌面账号注册/登录。
+>
+> **2026-09-19 生产验证（平台 https://awf.seedwill.com，直连部署）**：用真实 `desktop-awf-client` 驱动直连生产，
+> 7/7 全过 —— 注册/`/api/auth/methods` 探测 → health+me 连接 → `/api/dsl/capabilities` 能力协商（dsl_version
+> workflow-wise/v1、sub_workflow feature）→ 通道① sync 预检/推送/拉取 → 通道③ 远程运行完成（script echo 输出校验）→
+> 通道② publish 冻结 → 通道⑤ 遥测摘要（client=desktop 白名单）。双包 awf 单测与 `check:desktop-variants` 复跑全绿。
+> 期间发现并修复一处**部署侧**问题：Docker 时代 bind mount 以 root 创建的 `data/runner/` 残留，直连部署的 ubuntu
+> 服务无法建 run 工作目录（`chown -R ubuntu:ubuntu ~/awf/data` 解决，非代码缺陷；新建部署注意 data 目录属主）。
+> 生产联调方法：`awf-e2e.spec.ts` 有环回守卫（设计如此），生产验证需自写驱动（显式指向生产域名，一次性，勿入库）。
+
+## 整合状态检查（2026-09-17，实测结论：**未完全整合**）〔历史存档〕
 
 按 `docs/DSH_CLIENT_PLAN.md` §1 五通道逐项核验：
 
