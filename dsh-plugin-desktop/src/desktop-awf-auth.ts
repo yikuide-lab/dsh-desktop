@@ -5,6 +5,8 @@
  * 复制 token」的手工步骤。会话文件 ~/.dsh/awf-auth.json（0600）只存
  * refresh token 与短时效 access token —— **密码绝不落盘**；UI 只见指纹。
  * Token 解析链：env AWF_API_TOKEN > 手动保存 token > 登录会话（自动刷新）。
+ * 退出登录会尽力调用平台 POST /api/auth/logout 吊销当前会话的 refresh token
+ * （网络/HTTP 失败一律吞掉），随后始终清除本地会话文件。
  * 微信登录需要平台配置微信开放平台应用（GET /api/auth/methods 如实上报），
  * 未配置前客户端如实显示不可用。
  */
@@ -244,8 +246,28 @@ async function fetchMe(
   return (await response.json()) as { email?: string; display_name?: string }
 }
 
-/** 退出登录：平台未提供 revoke 端点，落本地清除会话即可。 */
+/**
+ * 退出登录：有会话时尽力 POST /api/auth/logout 吊销当前 refresh token
+ * （Bearer access token 鉴权；网络/HTTP 失败 —— 含 access token 过期的 401 —— 一律吞掉），
+ * 随后始终清除本地会话文件。
+ */
 export async function awfAuthLogout(options: AwfAuthOptions): Promise<void> {
+  const session = await readAuthSession(options.stateDir)
+  if (session) {
+    const doFetch = options.fetchImpl ?? fetch
+    try {
+      await doFetch(`${await awfBase(options)}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+        body: JSON.stringify({ refresh_token: session.refreshToken }),
+      })
+    } catch {
+      // best-effort：平台不可达或拒绝都不阻塞本地退出
+    }
+  }
   await clearAuthSessionFile(options.stateDir)
 }
 

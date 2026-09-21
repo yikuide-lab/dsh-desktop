@@ -129,6 +129,57 @@ describe('awf 平台账号（可选注册/登录）', () => {
     expect((await awfAuthStatus(opts)).hasSession).toBe(false)
   })
 
+  it('退出登录：POST /api/auth/logout 吊销 refresh token（Bearer 鉴权）', async () => {
+    const stateDir = await newStateDir()
+    const { fetchImpl, requests } = scriptedFetch([
+      (method, url) => {
+        if (method === 'POST' && url.includes('/api/auth/login')) return { status: 200, body: PAIR_1 }
+        if (method === 'POST' && url.includes('/api/auth/logout')) return { status: 200, body: {} }
+        return null
+      },
+    ])
+    const opts = { stateDir, fetchImpl }
+    await awfAuthLogin(opts, { email: 'user@example.com', password: PASSWORD })
+
+    await awfAuthLogout(opts)
+    const logoutReq = requests.find((r) => r.url.includes('/api/auth/logout'))
+    expect(logoutReq).toBeTruthy()
+    expect(logoutReq!.method).toBe('POST')
+    expect(logoutReq!.auth).toBe(`Bearer ${ACC_1}`)
+    expect(logoutReq!.body).toEqual({ refresh_token: REF_1 })
+    expect((await awfAuthStatus(opts)).hasSession).toBe(false)
+  })
+
+  it('退出登录：平台拒绝（401）或网络抛错也照常清除本地会话', async () => {
+    // 平台返回 401（access token 已过期）：本地会话仍被清除
+    const stateDir = await newStateDir()
+    const { fetchImpl, requests } = scriptedFetch([
+      (method, url) => {
+        if (method === 'POST' && url.includes('/api/auth/login')) return { status: 200, body: PAIR_1 }
+        if (method === 'POST' && url.includes('/api/auth/logout')) return { status: 401, body: { detail: 'token 过期' } }
+        return null
+      },
+    ])
+    const opts = { stateDir, fetchImpl }
+    await awfAuthLogin(opts, { email: 'user@example.com', password: PASSWORD })
+    await awfAuthLogout(opts)
+    expect(requests.some((r) => r.url.includes('/api/auth/logout'))).toBe(true)
+    expect((await awfAuthStatus(opts)).hasSession).toBe(false)
+
+    // logout 请求直接抛网络错误：本地会话仍被清除
+    const stateDir2 = await newStateDir()
+    const { fetchImpl: fetchImpl2 } = scriptedFetch([
+      (method, url) => (method === 'POST' && url.includes('/api/auth/login') ? { status: 200, body: PAIR_1 } : null),
+    ])
+    const opts2 = { stateDir: stateDir2, fetchImpl: fetchImpl2 }
+    await awfAuthLogin(opts2, { email: 'user@example.com', password: PASSWORD })
+    const throwingFetch = (async () => {
+      throw new Error('network down')
+    }) as AwfFetch
+    await awfAuthLogout({ stateDir: stateDir2, fetchImpl: throwingFetch })
+    expect((await awfAuthStatus(opts2)).hasSession).toBe(false)
+  })
+
   it('refresh 失效：清空会话并返回 null（回退无凭据）', async () => {
     const stateDir = await newStateDir()
     const { fetchImpl } = scriptedFetch([
