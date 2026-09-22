@@ -82,7 +82,7 @@ export function needsProblemParam(workflow: Pick<WorkflowView, 'name' | 'steps'>
 /**
  * Build Host run params from a composer prompt.
  * `workspaceRoot` must be an absolute path when provided; otherwise Host falls
- * back to process.cwd() instead of treating a URL path as a directory.
+ * back to the current working directory instead of treating a URL path as a directory.
  */
 export function buildRunParams(
   workspaceId: string,
