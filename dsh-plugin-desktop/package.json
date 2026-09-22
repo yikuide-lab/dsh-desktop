@@ -457,7 +457,8 @@
       "icon": "build/app-icon.png",
       "category": "Development",
       "executableName": "dsh-desktop",
-      "artifactName": "DSH-Desktop-${version}-${arch}.${ext}"
+      "artifactName": "DSH-Desktop-${version}-${arch}.${ext}",
+      "maintainer": "yikuide@gmail.com"
     },
     "deb": {
       "depends": [
