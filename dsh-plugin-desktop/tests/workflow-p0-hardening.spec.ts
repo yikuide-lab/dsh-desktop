@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { mapEngineRun, mapEngineWorkflow, workflowViewToYaml } from '../src/client/desktop-workflow-api.ts'
+import { mapEngineRun, mapEngineWorkflow, workflowViewToYaml, computeStepDuration } from '../src/client/desktop-workflow-api.ts'
 import { parseWorkflowYaml } from '../src/client/workflow-template-clone.ts'
 import { resolveWorkflowForDeps } from '../src/client/workflow-deps-ensure.ts'
 import { buildRunParams, looksLikeAbsolutePath, pickCurrentSessionCwd, pickSessionCwd } from '../src/client/workflow-run-params.ts'
@@ -53,6 +53,82 @@ describe('workflowViewToYaml round-trip', () => {
       gates: {},
     })
     expect(run.steps?.map((step) => step.status)).toEqual(['skipped', 'completed'])
+  })
+
+  it('maps dispatch history, attempts, and step duration', () => {
+    const run = mapEngineRun({
+      id: 'run-1',
+      workflowName: 'demo',
+      status: 'running',
+      tasks: {
+        a: {
+          stepId: 'a',
+          status: 'completed',
+          startedAt: '2026-01-01T00:00:00.000Z',
+          completedAt: '2026-01-01T00:00:01.500Z',
+          dispatches: [
+            {
+              id: 'd-1',
+              stepId: 'a',
+              status: 'failed',
+              attempt: 1,
+              phase: 'execute',
+              startedAt: '2026-01-01T00:00:00.000Z',
+              completedAt: '2026-01-01T00:00:00.500Z',
+              error: 'boom',
+            },
+            {
+              id: 'd-2',
+              stepId: 'a',
+              status: 'succeeded',
+              attempt: 2,
+              phase: 'execute',
+              startedAt: '2026-01-01T00:00:00.500Z',
+              completedAt: '2026-01-01T00:00:01.500Z',
+            },
+            {
+              id: 'd-c',
+              stepId: 'a',
+              status: 'failed',
+              attempt: 3,
+              phase: 'compensate',
+            },
+          ],
+        },
+      },
+      gates: {},
+    })
+    const step = run.steps?.[0]
+    expect(step?.durationMs).toBe(1500)
+    // attempt tracks the highest execute attempt, ignoring compensate
+    expect(step?.attempt).toBe(2)
+    expect(step?.dispatches).toHaveLength(3)
+    expect(step?.dispatches?.[0]).toMatchObject({ id: 'd-1', status: 'failed', attempt: 1, phase: 'execute' })
+    expect(step?.dispatches?.[2]).toMatchObject({ id: 'd-c', phase: 'compensate' })
+  })
+
+  it('stays back-compatible when dispatches are missing', () => {
+    const run = mapEngineRun({
+      id: 'run-1',
+      workflowName: 'demo',
+      status: 'completed',
+      tasks: {
+        a: { stepId: 'a', status: 'completed' },
+      },
+      gates: {},
+    })
+    const step = run.steps?.[0]
+    expect(step?.dispatches).toBeUndefined()
+    expect(step?.attempt).toBeUndefined()
+    expect(step?.durationMs).toBeUndefined()
+  })
+
+  it('computeStepDuration handles missing and inverted timestamps', () => {
+    expect(computeStepDuration(undefined, '2026-01-01T00:00:01Z')).toBeUndefined()
+    expect(computeStepDuration('2026-01-01T00:00:00Z', undefined)).toBeUndefined()
+    expect(computeStepDuration('2026-01-01T00:00:05Z', '2026-01-01T00:00:00Z')).toBeUndefined()
+    expect(computeStepDuration('not-a-date', '2026-01-01T00:00:01Z')).toBeUndefined()
+    expect(computeStepDuration('2026-01-01T00:00:00Z', '2026-01-01T00:00:00.250Z')).toBe(250)
   })
 })
 

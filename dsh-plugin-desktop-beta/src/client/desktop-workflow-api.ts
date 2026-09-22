@@ -71,11 +71,29 @@ export interface WorkflowView {
   kind?: string
 }
 
+export interface RunDispatchView {
+  id: string
+  status: string
+  attempt?: number
+  /** Normal step work vs post-failure compensation script. */
+  phase?: 'execute' | 'compensate'
+  startedAt?: string
+  completedAt?: string
+  error?: string
+  cost?: number
+}
+
 export interface RunStepView {
   id: string
   status: string
   startedAt?: string
   completedAt?: string
+  /** Wall-clock duration once the step is terminal. */
+  durationMs?: number
+  /** Highest attempt number seen across execute dispatches. */
+  attempt?: number
+  /** Per-attempt dispatch history (engine `tasks[].dispatches[]`). */
+  dispatches?: RunDispatchView[]
   output?: string
   error?: string
 }
@@ -561,6 +579,34 @@ function mapGate(runId: string, value: unknown): PendingGateView | null {
   return gate
 }
 
+/** Map a single engine Dispatch to the UI dispatch view. */
+function mapDispatch(value: unknown): RunDispatchView | null {
+  if (!isObject(value)) return null
+  const dispatch: RunDispatchView = {
+    id: String(value.id ?? ''),
+    status: String(value.status ?? 'queued'),
+  }
+  if (typeof value.attempt === 'number') dispatch.attempt = value.attempt
+  if (value.phase === 'execute' || value.phase === 'compensate') dispatch.phase = value.phase
+  if (typeof value.startedAt === 'string') dispatch.startedAt = value.startedAt
+  if (typeof value.completedAt === 'string') dispatch.completedAt = value.completedAt
+  if (typeof value.error === 'string') dispatch.error = value.error
+  if (typeof value.cost === 'number') dispatch.cost = value.cost
+  return dispatch
+}
+
+/** Wall-clock step duration in ms, or undefined when timestamps are missing/not terminal. */
+export function computeStepDuration(
+  startedAt?: string,
+  completedAt?: string,
+): number | undefined {
+  if (!startedAt || !completedAt) return undefined
+  const start = Date.parse(startedAt)
+  const end = Date.parse(completedAt)
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return undefined
+  return end - start
+}
+
 /** Map engine Run to UI run view with flattened step statuses. */
 export function mapEngineRun(value: unknown): WorkflowRunView {
   if (!isObject(value)) throw new Error('invalid run')
@@ -576,6 +622,20 @@ export function mapEngineRun(value: unknown): WorkflowRunView {
     }
     if (typeof t.startedAt === 'string') step.startedAt = t.startedAt
     if (typeof t.completedAt === 'string') step.completedAt = t.completedAt
+    const durationMs = computeStepDuration(step.startedAt, step.completedAt)
+    if (durationMs !== undefined) step.durationMs = durationMs
+    const dispatches = Array.isArray(t.dispatches)
+      ? t.dispatches
+        .map((entry) => mapDispatch(entry))
+        .filter((d): d is RunDispatchView => d !== null)
+      : []
+    if (dispatches.length > 0) step.dispatches = dispatches
+    let attempt = 0
+    for (const dispatch of dispatches) {
+      if (dispatch.phase === 'compensate') continue
+      if (typeof dispatch.attempt === 'number' && dispatch.attempt > attempt) attempt = dispatch.attempt
+    }
+    if (attempt > 0) step.attempt = attempt
     if (typeof result === 'string') step.output = result
     else if (result !== undefined) {
       try { step.output = JSON.stringify(result) } catch { step.output = String(result) }

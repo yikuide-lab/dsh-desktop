@@ -3,6 +3,7 @@ import type { PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 import type { WorkflowRun, PendingGateView, WorkflowViewStore } from './workflow-store.js'
 import type { DesktopWorkflowApi, WorkflowTranscriptEventView } from './desktop-workflow-api.js'
+import { WorkflowRunGraph } from './WorkflowRunGraph.js'
 
 interface WorkflowRunViewProps {
   api: DesktopWorkflowApi
@@ -27,6 +28,7 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
   const [resolvingGate, setResolvingGate] = useState<string | null>(null)
   const [exportPreview, setExportPreview] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState(false)
+  const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph')
 
   const selectedRunIdRef = useRef<string | null>(null)
   const selectedStatusRef = useRef<string | null>(null)
@@ -323,7 +325,34 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
             </div>
             <div className="workflow-run-info-item">
               <label>{t('runProgress')}</label>
-              <span>{progress}%</span>
+              <span className="workflow-run-progress">
+                <svg
+                  className="workflow-run-progress-ring"
+                  viewBox="0 0 36 36"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="workflow-run-progress-track"
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    strokeWidth="3"
+                  />
+                  <circle
+                    className={`workflow-run-progress-arc${progress === 100 ? ' complete' : ''}`}
+                    cx="18"
+                    cy="18"
+                    r="15.5"
+                    fill="none"
+                    strokeWidth="3"
+                    strokeDasharray={`${(progress / 100) * 97.4} 97.4`}
+                    strokeLinecap="round"
+                    transform="rotate(-90 18 18)"
+                  />
+                </svg>
+                <span className="workflow-run-progress-value">{progress}%</span>
+              </span>
             </div>
             <div className="workflow-run-info-item">
               <label>{t('runStartedAt')}</label>
@@ -364,49 +393,84 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
             </div>
           )}
 
-          <h4>{t('runSteps')}</h4>
-          <div className="workflow-run-steps">
-            {selectedRun.steps?.map((step) => (
-              <div key={step.id} className="workflow-run-step">
-                <div className="workflow-run-step-header">
-                  <span className="workflow-run-step-id">{step.id}</span>
-                  <span
-                    className="workflow-run-step-status"
-                    style={{ backgroundColor: getStatusColor(step.status) }}
-                  >
-                    {getStatusText(step.status)}
-                  </span>
-                </div>
-                {step.output && (
-                  <pre className="workflow-run-step-output">{step.output}</pre>
-                )}
-                {step.error && (
-                  <div className="workflow-run-step-error">{step.error}</div>
-                )}
-              </div>
-            ))}
+          <div className="workflow-run-graph-toolbar" style={{ marginTop: 8 }}>
+            <div className="workflow-run-graph-legend" role="group" aria-label={t('runViewGraph')}>
+              <button
+                type="button"
+                className={`workflow-btn small${viewMode === 'graph' ? ' primary' : ''}`}
+                aria-pressed={viewMode === 'graph'}
+                onClick={() => setViewMode('graph')}
+              >
+                {t('runViewGraph')}
+              </button>
+              <button
+                type="button"
+                className={`workflow-btn small${viewMode === 'list' ? ' primary' : ''}`}
+                aria-pressed={viewMode === 'list'}
+                onClick={() => setViewMode('list')}
+              >
+                {t('runViewList')}
+              </button>
+            </div>
           </div>
 
-          <h4>{t('runTranscript')}</h4>
-          {transcript.length === 0 ? (
-            <p className="workflow-canvas-inspector-empty">{t('runTranscriptEmpty')}</p>
+          {viewMode === 'graph' ? (
+            <WorkflowRunGraph
+              api={api}
+              t={t}
+              run={selectedRun}
+              gates={selectedGates}
+              transcript={transcript}
+              onResolveGate={(gate, decision) => void handleResolveGate(gate, decision)}
+              resolvingGate={resolvingGate}
+            />
           ) : (
-            <div className="workflow-run-transcript">
-              {transcript.map((event, index) => (
-                <div key={`${event.ts}-${event.type}-${index}`} className="workflow-run-transcript-event">
-                  <div className="workflow-run-transcript-meta">
-                    <code>{event.type}</code>
-                    <span>{event.ts ? new Date(event.ts).toLocaleString() : ''}</span>
-                    {event.stepId ? <span>{event.stepId}</span> : null}
+            <>
+              <h4>{t('runSteps')}</h4>
+              <div className="workflow-run-steps">
+                {selectedRun.steps?.map((step) => (
+                  <div key={step.id} className="workflow-run-step">
+                    <div className="workflow-run-step-header">
+                      <span className="workflow-run-step-id">{step.id}</span>
+                      <span
+                        className="workflow-run-step-status"
+                        style={{ backgroundColor: getStatusColor(step.status) }}
+                      >
+                        {getStatusText(step.status)}
+                      </span>
+                    </div>
+                    {step.output && (
+                      <pre className="workflow-run-step-output">{step.output}</pre>
+                    )}
+                    {step.error && (
+                      <div className="workflow-run-step-error">{step.error}</div>
+                    )}
                   </div>
-                  {event.data && (
-                    <pre className="workflow-run-step-output">
-                      {JSON.stringify(event.data, null, 2)}
-                    </pre>
-                  )}
+                ))}
+              </div>
+
+              <h4>{t('runTranscript')}</h4>
+              {transcript.length === 0 ? (
+                <p className="workflow-canvas-inspector-empty">{t('runTranscriptEmpty')}</p>
+              ) : (
+                <div className="workflow-run-transcript">
+                  {transcript.map((event, index) => (
+                    <div key={`${event.ts}-${event.type}-${index}`} className="workflow-run-transcript-event">
+                      <div className="workflow-run-transcript-meta">
+                        <code>{event.type}</code>
+                        <span>{event.ts ? new Date(event.ts).toLocaleString() : ''}</span>
+                        {event.stepId ? <span>{event.stepId}</span> : null}
+                      </div>
+                      {event.data && (
+                        <pre className="workflow-run-step-output">
+                          {JSON.stringify(event.data, null, 2)}
+                        </pre>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
 
           {exportPreview && (

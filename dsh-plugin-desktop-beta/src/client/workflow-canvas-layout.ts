@@ -17,7 +17,23 @@ export interface CanvasNodeData {
   /** Subtitle shown under the step id (e.g. sub_workflow ref). */
   detail?: string
   unsupported?: boolean
+  /** Live run status for execution visualization ('' when the canvas is not a run). */
+  runStatus?: RunNodeStatus
+  /** Highest execute attempt seen for the step. */
+  attempts?: number
+  /** Wall-clock step duration in ms once terminal. */
+  durationMs?: number
 }
+
+/** Normalized node status used by the run graph + status animations. */
+export type RunNodeStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'skipped'
+  | 'waiting'
+  | 'aborted'
 
 export interface CanvasGraphNode {
   id: string
