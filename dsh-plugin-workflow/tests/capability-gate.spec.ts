@@ -62,3 +62,67 @@ describe('capability negotiation (AWF twin DSL)', () => {
     expect(out).toMatchObject({ dslVersion: 'workflow-wise/v1' })
   })
 })
+
+describe('resource declarations', () => {
+  function yamlWithResources(resourcesYaml: string): string {
+    return `apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: res-demo
+spec:
+  resources:
+${resourcesYaml}
+  steps:
+    - id: say
+      type: script
+      run: echo hi
+`
+  }
+
+  it('accepts concurrency resources without warnings', async () => {
+    const result = validateWorkflow(await parseWorkflow(yamlWithResources(
+      '    - name: concurrency\n      limit: 2',
+    )))
+    expect(result.ok).toBe(true)
+    expect(result.errors.filter((e) => e.code === 'resource_unenforced')).toHaveLength(0)
+  })
+
+  it('warns on non-concurrency resources (declared but not enforced)', async () => {
+    const result = validateWorkflow(await parseWorkflow(yamlWithResources(
+      '    - name: compute\n      type: compute\n      limit: 4',
+    )))
+    expect(result.ok).toBe(true) // warning only
+    const warning = result.errors.find((e) => e.code === 'resource_unenforced')
+    expect(warning?.severity).toBe('warning')
+    expect(warning?.message).toContain('compute')
+    expect(warning?.message).toContain('only "concurrency" is implemented')
+  })
+
+  it('rejects a non-positive concurrency limit', async () => {
+    const result = validateWorkflow(await parseWorkflow(yamlWithResources(
+      '    - name: concurrency\n      limit: 0',
+    )))
+    expect(result.ok).toBe(false)
+    expect(result.errors.some((e) => e.message.includes('limit must be a positive number'))).toBe(true)
+  })
+})
+
+describe('MCP argument narrowing', () => {
+  it('workflow_validate rejects a non-string yaml arg', async () => {
+    const tool = getToolByName('workflow_validate')!
+    await expect(tool.handler({ yaml: 42 }, {} as never))
+      .rejects.toThrow(/Argument "yaml" must be a non-empty string/)
+  })
+
+  it('workflow_get rejects a missing name arg', async () => {
+    const tool = getToolByName('workflow_get')!
+    await expect(tool.handler({}, {} as never))
+      .rejects.toThrow(/Argument "name" must be a non-empty string/)
+  })
+
+  it('run_create rejects a non-object params arg', async () => {
+    const tool = getToolByName('run_create')!
+    await expect(tool.handler({ workflow: 'w', params: 'not-an-object' }, {} as never))
+      .rejects.toThrow(/Argument "params" must be an object/)
+  })
+})

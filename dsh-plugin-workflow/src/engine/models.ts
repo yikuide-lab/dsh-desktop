@@ -21,9 +21,7 @@ export enum WorkflowStatus {
 
 export enum TaskStatus {
   Pending = 'pending',
-  Ready = 'ready',
   InProgress = 'in_progress',
-  Blocked = 'blocked',
   Completed = 'completed',
   Failed = 'failed',
   Skipped = 'skipped',
@@ -156,7 +154,11 @@ export interface Dispatch {
   id: string;
   stepId: string;
   status: DispatchStatus;
-  attempt: number;
+  /**
+   * Attempt number tracked by the engine (`dispatchTask` / `dispatchCompensation`).
+   * Optional because `Executor.poll` results are status probes and do not carry it.
+   */
+  attempt?: number;
   /** Normal step work vs post-failure compensation script. */
   phase?: 'execute' | 'compensate';
   startedAt?: string;
@@ -281,6 +283,162 @@ export interface Executor {
 // DSL Parser
 // ============================================================================
 
+function stepFieldError(id: string, field: string, expected: string): Error {
+  return new Error(`Step "${id}" field "${field}" must be ${expected}`);
+}
+
+function optionalString(raw: Record<string, unknown>, id: string, field: string): string | undefined {
+  const value = raw[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') throw stepFieldError(id, field, 'a string');
+  return value;
+}
+
+function optionalNonNegNumber(raw: Record<string, unknown>, id: string, field: string): number | undefined {
+  const value = raw[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw stepFieldError(id, field, 'a non-negative number');
+  }
+  return value;
+}
+
+function optionalStringArray(raw: Record<string, unknown>, id: string, field: string): string[] | undefined {
+  const value = raw[field];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    throw stepFieldError(id, field, 'an array of strings');
+  }
+  return value as string[];
+}
+
+function optionalStringRecord(raw: Record<string, unknown>, id: string, field: string): Record<string, string> | undefined {
+  const value = raw[field];
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw stepFieldError(id, field, 'a string mapping');
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (typeof item !== 'string') {
+      throw stepFieldError(id, `${field}.${key}`, 'a string');
+    }
+  }
+  return value as Record<string, string>;
+}
+
+/** Narrow a raw YAML step object to a typed {@link Step}, failing loudly on wrong field types. */
+function normalizeStep(raw: Record<string, unknown>): Step {
+  const id = raw.id as string;
+  const step: Step = {
+    id,
+    type: raw.type as StepType,
+  };
+
+  const deps = optionalStringArray(raw, id, 'deps');
+  if (deps) step.deps = deps;
+
+  const retries = optionalNonNegNumber(raw, id, 'retries');
+  if (retries !== undefined) step.retries = retries;
+
+  const onFailure = raw.on_failure;
+  if (onFailure !== undefined) {
+    if (onFailure !== 'fail' && onFailure !== 'skip' && onFailure !== 'compensate') {
+      throw stepFieldError(id, 'on_failure', 'fail, skip, or compensate');
+    }
+    step.on_failure = onFailure;
+  }
+
+  const compensation = raw.compensation;
+  if (compensation !== undefined) {
+    if (compensation === null || typeof compensation !== 'object' || Array.isArray(compensation)) {
+      throw stepFieldError(id, 'compensation', 'an object with "run"');
+    }
+    const comp = compensation as Record<string, unknown>;
+    const compRun = comp.run;
+    if (typeof compRun !== 'string') {
+      throw stepFieldError(id, 'compensation.run', 'a string');
+    }
+    const compEnv = comp.env === undefined
+      ? undefined
+      : (() => {
+        if (comp.env === null || typeof comp.env !== 'object' || Array.isArray(comp.env)) {
+          throw stepFieldError(id, 'compensation.env', 'a string mapping');
+        }
+        for (const [key, item] of Object.entries(comp.env)) {
+          if (typeof item !== 'string') {
+            throw stepFieldError(id, `compensation.env.${key}`, 'a string');
+          }
+        }
+        return comp.env as Record<string, string>;
+      })();
+    step.compensation = { run: compRun, ...(compEnv ? { env: compEnv } : {}) };
+  }
+
+  const run = optionalString(raw, id, 'run');
+  if (run !== undefined) step.run = run;
+
+  const env = optionalStringRecord(raw, id, 'env');
+  if (env) step.env = env;
+
+  const timeout = optionalNonNegNumber(raw, id, 'timeout');
+  if (timeout !== undefined) step.timeout = timeout;
+
+  const inputs = raw.inputs;
+  if (inputs !== undefined) {
+    if (inputs === null || typeof inputs !== 'object' || Array.isArray(inputs)) {
+      throw stepFieldError(id, 'inputs', 'an object');
+    }
+    step.inputs = inputs as Record<string, unknown>;
+  }
+
+  const outputs = optionalStringArray(raw, id, 'outputs');
+  if (outputs) step.outputs = outputs;
+
+  const acceptance = optionalStringArray(raw, id, 'acceptance');
+  if (acceptance) step.acceptance = acceptance;
+
+  const harness = optionalString(raw, id, 'harness');
+  if (harness !== undefined) step.harness = harness;
+
+  const role = optionalString(raw, id, 'role');
+  if (role !== undefined) step.role = role;
+
+  const prompt = optionalString(raw, id, 'prompt');
+  if (prompt !== undefined) step.prompt = prompt;
+
+  const model = optionalString(raw, id, 'model');
+  if (model !== undefined) step.model = model;
+
+  const maxTokens = optionalNonNegNumber(raw, id, 'maxTokens');
+  if (maxTokens !== undefined) step.maxTokens = maxTokens;
+
+  const question = optionalString(raw, id, 'question');
+  if (question !== undefined) step.question = question;
+
+  const options = optionalStringArray(raw, id, 'options');
+  if (options) step.options = options;
+
+  const pass = optionalStringArray(raw, id, 'pass');
+  if (pass) step.pass = pass;
+
+  const ref = optionalString(raw, id, 'ref');
+  if (ref !== undefined) step.ref = ref;
+
+  if (raw.ui !== undefined) {
+    if (raw.ui === null || typeof raw.ui !== 'object' || Array.isArray(raw.ui)) {
+      throw stepFieldError(id, 'ui', 'an object with numeric x/y');
+    }
+    const ui = raw.ui as Record<string, unknown>;
+    if (typeof ui.x === 'number' && typeof ui.y === 'number') {
+      step.ui = { x: ui.x, y: ui.y };
+    } else {
+      throw stepFieldError(id, 'ui', 'an object with numeric x/y');
+    }
+  }
+
+  return step;
+}
+
 export async function parseWorkflow(content: string): Promise<Workflow> {
   // Dynamic import for YAML parsing (ESM compatible)
   const yaml = await import('js-yaml');
@@ -338,14 +496,7 @@ export async function parseWorkflow(content: string): Promise<Workflow> {
     if (!Object.values(StepType).includes(raw.type as StepType)) {
       throw new Error(`Step "${raw.id}" has invalid type: ${raw.type}`);
     }
-    const step = raw as unknown as Step
-    if (raw.ui && typeof raw.ui === 'object' && !Array.isArray(raw.ui)) {
-      const ui = raw.ui as Record<string, unknown>
-      if (typeof ui.x === 'number' && typeof ui.y === 'number') {
-        step.ui = { x: ui.x, y: ui.y }
-      }
-    }
-    return step
+    return normalizeStep(raw);
   });
 
   // Build Workflow object
@@ -418,6 +569,26 @@ export function validateWorkflow(workflow: Workflow): ValidationResult {
         message: `Capability not available on this engine: ${cap} (platform-only types may still sync to AWF; see workflow_capabilities / the AWF /api/dsl/capabilities endpoint)`,
         severity: 'error',
         code: 'capability_missing',
+      });
+    }
+  }
+
+  // Resource declarations: only `concurrency` is enforced today.
+  // Anything else is accepted for forward compatibility but has no runtime effect.
+  for (const resource of workflow.spec.resources ?? []) {
+    const isConcurrency = resource.name === 'concurrency' || resource.type === 'concurrency';
+    if (!isConcurrency) {
+      errors.push({
+        path: 'spec.resources',
+        message: `Resource "${resource.name ?? resource.type ?? '?'}" is declared but not enforced (only "concurrency" is implemented)`,
+        severity: 'warning',
+        code: 'resource_unenforced',
+      });
+    } else if (resource.limit !== undefined && (typeof resource.limit !== 'number' || !Number.isFinite(resource.limit) || resource.limit < 1)) {
+      errors.push({
+        path: 'spec.resources',
+        message: `Resource "${resource.name ?? resource.type}" limit must be a positive number`,
+        severity: 'error',
       });
     }
   }
@@ -501,6 +672,41 @@ function validateStep(step: Step, errors: ValidationError[]): void {
   if (!Object.values(StepType).includes(step.type)) {
     errors.push({ path: `${path}.type`, message: `Invalid step type: ${step.type}`, severity: 'error' });
     return;
+  }
+
+  // Shared field types (also covers programmatic construction that bypasses parseWorkflow).
+  if (step.run !== undefined && typeof step.run !== 'string') {
+    errors.push({ path: `${path}.run`, message: 'run must be a string', severity: 'error' });
+  }
+  if (step.timeout !== undefined && (typeof step.timeout !== 'number' || !Number.isFinite(step.timeout) || step.timeout < 0)) {
+    errors.push({ path: `${path}.timeout`, message: 'timeout must be a non-negative number', severity: 'error' });
+  }
+  if (step.prompt !== undefined && typeof step.prompt !== 'string') {
+    errors.push({ path: `${path}.prompt`, message: 'prompt must be a string', severity: 'error' });
+  }
+  if (step.question !== undefined && typeof step.question !== 'string') {
+    errors.push({ path: `${path}.question`, message: 'question must be a string', severity: 'error' });
+  }
+  if (step.options !== undefined) {
+    if (!Array.isArray(step.options) || step.options.some((o) => typeof o !== 'string')) {
+      errors.push({ path: `${path}.options`, message: 'options must be an array of strings', severity: 'error' });
+    }
+  }
+  if (step.pass !== undefined) {
+    if (!Array.isArray(step.pass) || step.pass.some((p) => typeof p !== 'string')) {
+      errors.push({ path: `${path}.pass`, message: 'pass must be an array of strings', severity: 'error' });
+    }
+  }
+  if (step.ref !== undefined && typeof step.ref !== 'string') {
+    errors.push({ path: `${path}.ref`, message: 'ref must be a string', severity: 'error' });
+  }
+  if (step.env !== undefined) {
+    if (step.env === null || typeof step.env !== 'object' || Array.isArray(step.env)) {
+      errors.push({ path: `${path}.env`, message: 'env must be a string mapping', severity: 'error' });
+    }
+  }
+  if (step.maxTokens !== undefined && (typeof step.maxTokens !== 'number' || !Number.isFinite(step.maxTokens) || step.maxTokens < 0)) {
+    errors.push({ path: `${path}.maxTokens`, message: 'maxTokens must be a non-negative number', severity: 'error' });
   }
 
   // Type-specific validation

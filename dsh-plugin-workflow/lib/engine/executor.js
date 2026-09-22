@@ -66,7 +66,6 @@ export function createDesktopExecutor(options = {}) {
                     id: dispatchId,
                     stepId: '',
                     status: DispatchStatus.Failed,
-                    attempt: 1,
                     error: `Unknown dispatch: ${dispatchId}`,
                 };
             }
@@ -74,7 +73,6 @@ export function createDesktopExecutor(options = {}) {
                 id: dispatchId,
                 stepId: job.stepId,
                 status: job.status,
-                attempt: 1,
                 startedAt: job.startedAt,
                 completedAt: job.completedAt,
                 result: job.result,
@@ -146,14 +144,18 @@ function runShellCommand(command, opts) {
             resolve({ ok: false, error: 'aborted' });
             return;
         }
+        const isWindows = process.platform === 'win32';
         const child = spawn(opts.shell, [opts.useShellFlag, command], {
             cwd: opts.cwd,
             env: opts.env,
             stdio: ['ignore', 'pipe', 'pipe'],
+            // Own process group on POSIX so abort/timeout can reap grandchildren.
+            detached: !isWindows,
         });
         let stdout = '';
         let stderr = '';
         let settled = false;
+        let killTimer;
         const settle = (outcome) => {
             if (settled)
                 return;
@@ -162,13 +164,41 @@ function runShellCommand(command, opts) {
             opts.signal.removeEventListener('abort', onAbort);
             resolve(outcome);
         };
+        /** SIGTERM the shell (and its process group on POSIX), escalating to SIGKILL. */
+        const terminate = () => {
+            if (isWindows) {
+                child.kill();
+                return;
+            }
+            const pid = child.pid;
+            if (pid === undefined)
+                return;
+            try {
+                process.kill(-pid, 'SIGTERM');
+            }
+            catch {
+                child.kill('SIGTERM');
+            }
+            // Keep escalating even after settle() — the promise can resolve before the
+            // process group is actually gone.
+            if (!killTimer) {
+                killTimer = setTimeout(() => {
+                    try {
+                        process.kill(-pid, 'SIGKILL');
+                    }
+                    catch {
+                        child.kill('SIGKILL');
+                    }
+                }, 2_000);
+            }
+        };
         const onAbort = () => {
-            child.kill('SIGTERM');
+            terminate();
             settle({ ok: false, error: 'aborted', output: { stdout, stderr } });
         };
         opts.signal.addEventListener('abort', onAbort, { once: true });
         const timer = setTimeout(() => {
-            child.kill('SIGTERM');
+            terminate();
             settle({ ok: false, error: `Timed out after ${opts.timeoutMs}ms`, output: { stdout, stderr } });
         }, opts.timeoutMs);
         child.stdout?.on('data', (chunk) => { stdout += chunk.toString(); });
@@ -177,6 +207,11 @@ function runShellCommand(command, opts) {
             settle({ ok: false, error: error.message, output: { stdout, stderr } });
         });
         child.on('close', (code) => {
+            // Natural exit — no need to escalate.
+            if (killTimer) {
+                clearTimeout(killTimer);
+                killTimer = undefined;
+            }
             const output = { stdout: stdout.slice(0, 32_000), stderr: stderr.slice(0, 32_000), exitCode: code };
             if (code === 0)
                 settle({ ok: true, output });

@@ -22,7 +22,6 @@
     "lib/**/*.js",
     "lib/**/*.map",
     "lib/**/*.d.ts",
-    "ui/**",
     "examples/**",
     "README.md"
   ],
@@ -40,9 +39,6 @@
     "@types/node": "^22.20.0",
     "typescript": "^5.7.0",
     "vitest": "^3.0.0"
-  },
-  "peerDependencies": {
-    "@deepseek-ai/cordis": "^4.0.0"
   },
   "engines": {
     "node": "^22.19.0 || >=24.0.0"

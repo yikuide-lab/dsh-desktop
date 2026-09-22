@@ -57,7 +57,7 @@ spec:
     {
       id: 'multi-llm-code-review',
       name: 'Multi-LLM Code Review',
-      description: '并行多视角 LLM 审核代码变更，并汇总成总结报告',
+      description: 'Parallel multi-perspective LLM review of code changes, summarized into a report',
       category: 'development',
       yaml: `apiVersion: ${WORKFLOW_API_VERSION}
 kind: Workflow
@@ -161,7 +161,7 @@ spec:
     {
       id: 'multi-llm-problem-review',
       name: 'Multi-LLM Problem Review',
-      description: '针对指定问题做并行多视角 LLM 审核与总结（需传入 PROBLEM）',
+      description: 'Parallel multi-perspective LLM review of a stated problem, summarized (pass PROBLEM)',
       category: 'analysis',
       yaml: `apiVersion: ${WORKFLOW_API_VERSION}
 kind: Workflow
@@ -279,7 +279,7 @@ spec:
     {
       id: 'multi-llm-coder',
       name: 'Multi-LLM Coder',
-      description: 'Router 判断问题是否匹配预置模板，再并行实现/验证/批判并汇总（需 PROMPT）',
+      description: 'Route a coding prompt, then parallel implement/verify/critique and synthesize (pass PROMPT)',
       category: 'development',
       yaml: `apiVersion: ${WORKFLOW_API_VERSION}
 kind: Workflow
@@ -464,7 +464,7 @@ spec:
     {
       id: 'stock-trading-signal-review-approval-gate',
       name: 'Stock Signal Review Gate',
-      description: 'A股盘中买入信号 AI评估：三路并行 LLM → 合议 → 纯 JSON 裁决（无人工审批）；供 stock_trader_client 本地 OpenAI 口',
+      description: 'Intraday A-share buy-signal AI triage: 3-way parallel LLM review → deliberation → pure-JSON verdict (no human gate); feeds stock_trader_client local OpenAI API',
       category: 'analysis',
       yaml: `apiVersion: ${WORKFLOW_API_VERSION}
 kind: Workflow

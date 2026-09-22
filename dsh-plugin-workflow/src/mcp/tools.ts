@@ -1,6 +1,6 @@
 /**
  * MCP Tools for Workflow Engine
- * Provides 27 tools for workflow lifecycle management
+ * Provides 13 tools for workflow lifecycle management
  */
 
 import type { WorkflowPlugin } from '../plugin.js';
@@ -24,6 +24,35 @@ function assertDangerousMcp(plugin: WorkflowPlugin): void {
   }
 }
 
+/** Narrow an MCP arg to a non-empty string, failing loudly on wrong types. */
+function requireString(args: Record<string, unknown>, field: string): string {
+  const value = args[field];
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error(`Argument "${field}" must be a non-empty string`);
+  }
+  return value;
+}
+
+/** Narrow an MCP arg to a string when present. */
+function optionalString(args: Record<string, unknown>, field: string): string | undefined {
+  const value = args[field];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') {
+    throw new Error(`Argument "${field}" must be a string`);
+  }
+  return value;
+}
+
+/** Narrow an MCP arg to a plain object when present. */
+function optionalObject(args: Record<string, unknown>, field: string): Record<string, unknown> | undefined {
+  const value = args[field];
+  if (value === undefined) return undefined;
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+    throw new Error(`Argument "${field}" must be an object`);
+  }
+  return value as Record<string, unknown>;
+}
+
 // ============================================================================
 // Workflow Tools
 // ============================================================================
@@ -41,7 +70,7 @@ export const workflowTools: MCPTool[] = [
     },
     async handler(args, _plugin) {
       const { parseWorkflow, validateWorkflow } = await import('../engine/models.js');
-      const workflow = await parseWorkflow(args.yaml as string);
+      const workflow = await parseWorkflow(requireString(args, 'yaml'));
       const result = validateWorkflow(workflow);
       return { valid: result.ok, errors: result.errors, order: result.order };
     },
@@ -58,7 +87,7 @@ export const workflowTools: MCPTool[] = [
       required: ['yaml'],
     },
     async handler(args, plugin) {
-      const result = await plugin.createWorkflow(args.yaml as string);
+      const result = await plugin.createWorkflow(requireString(args, 'yaml'));
       return {
         name: result.workflow.metadata.name,
         valid: result.validation.ok,
@@ -93,7 +122,7 @@ export const workflowTools: MCPTool[] = [
       required: ['name'],
     },
     async handler(args, plugin) {
-      const workflow = await plugin.getWorkflow(args.name as string);
+      const workflow = await plugin.getWorkflow(requireString(args, 'name'));
       if (!workflow) return { error: 'Workflow not found' };
       return workflow;
     },
@@ -111,7 +140,7 @@ export const workflowTools: MCPTool[] = [
     },
     async handler(args, plugin) {
       assertDangerousMcp(plugin);
-      const deleted = await plugin.deleteWorkflow(args.name as string);
+      const deleted = await plugin.deleteWorkflow(requireString(args, 'name'));
       return { deleted };
     },
   },
@@ -134,7 +163,7 @@ export const runTools: MCPTool[] = [
       required: ['workflow'],
     },
     async handler(args, plugin) {
-      const run = await plugin.startRun(args.workflow as string, args.params as Record<string, unknown>);
+      const run = await plugin.startRun(requireString(args, 'workflow'), optionalObject(args, 'params'));
       return {
         runId: run.id,
         status: run.status,
@@ -153,7 +182,7 @@ export const runTools: MCPTool[] = [
       },
     },
     async handler(args, plugin) {
-      const runs = await plugin.listRuns(args.workflow as string | undefined);
+      const runs = await plugin.listRuns(optionalString(args, 'workflow'));
       return runs.map(r => ({
         id: r.id,
         workflow: r.workflowName,
@@ -175,7 +204,7 @@ export const runTools: MCPTool[] = [
       required: ['runId'],
     },
     async handler(args, plugin) {
-      const run = await plugin.getRun(args.runId as string);
+      const run = await plugin.getRun(requireString(args, 'runId'));
       if (!run) return { error: 'Run not found' };
       return run;
     },
@@ -193,7 +222,7 @@ export const runTools: MCPTool[] = [
     },
     async handler(args, plugin) {
       assertDangerousMcp(plugin);
-      const run = await plugin.stopRun(args.runId as string);
+      const run = await plugin.stopRun(requireString(args, 'runId'));
       return { id: run.id, status: run.status };
     },
   },
@@ -221,11 +250,11 @@ export const gateTools: MCPTool[] = [
     async handler(args, plugin) {
       assertDangerousMcp(plugin);
       await plugin.resolveGate(
-        args.runId as string,
-        args.stepId as string,
-        args.decision as string,
-        args.resolvedBy as string,
-        args.token as string,
+        requireString(args, 'runId'),
+        requireString(args, 'stepId'),
+        requireString(args, 'decision'),
+        requireString(args, 'resolvedBy'),
+        requireString(args, 'token'),
       );
       return { resolved: true };
     },
@@ -242,7 +271,7 @@ export const gateTools: MCPTool[] = [
       required: ['runId'],
     },
     async handler(args, plugin) {
-      const gates = await plugin.listPendingGates(args.runId as string);
+      const gates = await plugin.listPendingGates(requireString(args, 'runId'));
       return gates.map((gate) => ({
         runId: gate.runId,
         stepId: gate.stepId,

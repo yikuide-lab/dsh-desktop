@@ -55,16 +55,8 @@ export function summarizeWorkflowRuns(workflowName, runs, title) {
             failed += 1;
         else if (run.status === WorkflowStatus.Aborted || run.status === WorkflowStatus.Rejected)
             aborted += 1;
-        else if (run.status === WorkflowStatus.Running
-            || run.status === WorkflowStatus.Draft
-            || run.status === WorkflowStatus.Proposed
-            || run.status === WorkflowStatus.Reviewing
-            || run.status === WorkflowStatus.Approved) {
+        else
             running += 1;
-        }
-        else {
-            running += 1;
-        }
         const dur = durationMs(run);
         if (dur !== null && TERMINAL.has(run.status))
             durations.push(dur);

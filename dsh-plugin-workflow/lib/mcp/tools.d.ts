@@ -1,6 +1,6 @@
 /**
  * MCP Tools for Workflow Engine
- * Provides 27 tools for workflow lifecycle management
+ * Provides 13 tools for workflow lifecycle management
  */
 import type { WorkflowPlugin } from '../plugin.js';
 export interface MCPTool {

@@ -28,7 +28,7 @@ import {
   transitionWorkflow,
   isRunComplete,
   markAborted,
-  isGatePass,
+  resolveGate,
   resolveEffectiveConcurrency,
   DEFAULT_FAILURE_POLICY,
   type FailurePolicyDefaults,
@@ -44,6 +44,36 @@ export interface TickStats {
   dispatches: number;
   settlements: number;
   errors: number;
+}
+
+/**
+ * First string-valued param among `keys`, in priority order.
+ * Used to map run params onto well-known env vars (PROMPT / PROBLEM).
+ */
+export function pickParam(
+  params: Record<string, unknown> | undefined,
+  keys: readonly string[],
+): string | undefined {
+  if (!params) return undefined;
+  for (const key of keys) {
+    const value = params[key];
+    if (typeof value === 'string') return value;
+  }
+  return undefined;
+}
+
+/** Env vars derived from run params for script/LLM steps. */
+export function buildStepEnv(params: Record<string, unknown> | undefined): Record<string, string> {
+  const env: Record<string, string> = {};
+  const workspaceRoot = params?.workspaceRoot;
+  if (typeof workspaceRoot === 'string') env.WORKSPACE_ROOT = workspaceRoot;
+  const sessionId = params?.sessionId;
+  if (typeof sessionId === 'string') env.SESSION_ID = sessionId;
+  const prompt = pickParam(params, ['PROMPT', 'prompt']);
+  if (prompt !== undefined) env.PROMPT = prompt;
+  const problem = pickParam(params, ['PROBLEM', 'problem', 'QUESTION', 'question', 'PROMPT', 'prompt']);
+  if (problem !== undefined) env.PROBLEM = problem;
+  return env;
 }
 
 export interface CoordinatorOptions {
@@ -78,6 +108,21 @@ export interface CoordinatorEvents {
 // ============================================================================
 
 export class Coordinator extends EventEmitter {
+  /** Typed event contract — see {@link CoordinatorEvents}. */
+  override on<K extends keyof CoordinatorEvents>(
+    event: K,
+    listener: CoordinatorEvents[K],
+  ): this {
+    return super.on(event, listener as (...args: any[]) => void);
+  }
+
+  override emit<K extends keyof CoordinatorEvents>(
+    event: K,
+    ...args: Parameters<CoordinatorEvents[K]>
+  ): boolean {
+    return super.emit(event, ...args);
+  }
+
   private state: CoordinatorState | null = null;
   private options: CoordinatorOptions;
   private stats: TickStats = { ticks: 0, dispatches: 0, settlements: 0, errors: 0 };
@@ -287,32 +332,7 @@ export class Coordinator extends EventEmitter {
             runId: this.state.run.id,
             workflow: this.state.workflow,
             stateDir: '.',
-            env: {
-              ...(typeof this.state.run.params?.workspaceRoot === 'string'
-                ? { WORKSPACE_ROOT: this.state.run.params.workspaceRoot }
-                : {}),
-              ...(typeof this.state.run.params?.sessionId === 'string'
-                ? { SESSION_ID: this.state.run.params.sessionId }
-                : {}),
-              ...(typeof this.state.run.params?.PROMPT === 'string'
-                ? { PROMPT: this.state.run.params.PROMPT }
-                : typeof this.state.run.params?.prompt === 'string'
-                  ? { PROMPT: this.state.run.params.prompt }
-                  : {}),
-              ...(typeof this.state.run.params?.PROBLEM === 'string'
-                ? { PROBLEM: this.state.run.params.PROBLEM }
-                : typeof this.state.run.params?.problem === 'string'
-                  ? { PROBLEM: this.state.run.params.problem }
-                  : typeof this.state.run.params?.QUESTION === 'string'
-                    ? { PROBLEM: this.state.run.params.QUESTION }
-                    : typeof this.state.run.params?.question === 'string'
-                      ? { PROBLEM: this.state.run.params.question }
-                      : typeof this.state.run.params?.PROMPT === 'string'
-                        ? { PROBLEM: this.state.run.params.PROMPT }
-                        : typeof this.state.run.params?.prompt === 'string'
-                          ? { PROBLEM: this.state.run.params.prompt }
-                          : {}),
-            },
+            env: buildStepEnv(this.state.run.params),
             params: this.state.run.params,
             ...(Object.keys(stepOutputs).length > 0 ? { stepOutputs } : {}),
             ...(Object.keys(this.shared).length > 0 ? { shared: { ...this.shared } } : {}),
@@ -397,9 +417,7 @@ export class Coordinator extends EventEmitter {
                     workflow: this.state.workflow,
                     stateDir: '.',
                     env: {
-                      ...(typeof this.state.run.params?.workspaceRoot === 'string'
-                        ? { WORKSPACE_ROOT: this.state.run.params.workspaceRoot }
-                        : {}),
+                      ...buildStepEnv(this.state.run.params),
                       ...(compensation.env ?? {}),
                     },
                     params: this.state.run.params,
@@ -502,46 +520,16 @@ export class Coordinator extends EventEmitter {
   }
 
   /**
-   * Resolve an approval gate
+   * Resolve an approval gate (delegates to engine.resolveGate).
    */
   resolveGate(stepId: string, decision: string, resolvedBy: string, token: string): void {
     if (!this.state) {
       throw new Error('Coordinator not initialized');
     }
 
-    const gate = this.state.run.gates[stepId];
-    if (!gate) {
-      throw new Error(`Gate not found: ${stepId}`);
-    }
-
-    if (gate.token !== token) {
-      throw new Error('Invalid gate token');
-    }
-
-    // Update gate and task status
-    this.state.run = {
-      ...this.state.run,
-      gates: {
-        ...this.state.run.gates,
-        [stepId]: {
-          ...gate,
-          resolved: decision,
-          resolvedBy,
-          resolvedAt: new Date().toISOString(),
-        },
-      },
-      tasks: {
-        ...this.state.run.tasks,
-        [stepId]: {
-          ...this.state.run.tasks[stepId],
-          status: isGatePass(gate, decision)
-            ? TaskStatus.Completed
-            : TaskStatus.Failed,
-          result: decision,
-          completedAt: new Date().toISOString(),
-        },
-      },
-    };
+    this.state.run = resolveGate(this.state.run, stepId, decision, resolvedBy, token, {
+      workflow: this.state.workflow,
+    });
   }
 }
 

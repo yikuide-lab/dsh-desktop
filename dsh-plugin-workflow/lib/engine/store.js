@@ -166,7 +166,9 @@ export class WorkflowStore {
         }
         const state = {
             workflow: nextWorkflow,
-            status: nextWorkflow.apiVersion ? WorkflowStatus.Approved : WorkflowStatus.Draft,
+            // Draft→Proposed→Reviewing→Approved lifecycle is modeled in WorkflowStatus
+            // and VALID_TRANSITIONS but not yet exposed; saved docs are always Approved.
+            status: WorkflowStatus.Approved,
             createdAt: existing?.createdAt ?? now,
             updatedAt: now,
         };

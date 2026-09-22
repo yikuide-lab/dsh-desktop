@@ -14,9 +14,11 @@ Workflow engine plugin for DSH Desktop - visual workflow designer and execution 
 - **Triggers**: Cron / event / manual triggers with filter expressions; Desktop Triggers tab + `triggers.json` persistence
 - **Retention**: Configurable run retention + purge/export APIs
 - **Script policy**: `allow` | `workspace-only` | `deny` (cwd jail under `WORKSPACE_ROOT`)
+- **Resources**: `spec.resources` entries named/typed `concurrency` cap dispatch parallelism; other resource types are accepted but **not enforced** (validate emits `resource_unenforced` warnings)
 
 > Concurrent runs are capped by `maxActiveRuns` (default 4). Nested `sub_workflow` runs count toward that budget and inherit workspace params; stopping a parent aborts its children.
 > Run documents use `schemaVersion` (currently `1`). Desktop HTTP API version is `DESKTOP_WORKFLOW_API_VERSION`.
+> Workflow documents are saved as `approved`; the draft→proposed→reviewing→approved lifecycle is modeled in `WorkflowStatus` but not yet exposed.
 
 ## Installation
 
@@ -107,7 +109,7 @@ npm test
 
 ## MCP Integration
 
-The workflow engine exposes **12** MCP tools for AI agent integration:
+The workflow engine exposes **13** MCP tools for AI agent integration:
 
 ```bash
 # Start MCP server in stdio mode
@@ -124,7 +126,7 @@ npm run mcp
 | **Workflow** | `workflow_validate`, `workflow_save`, `workflow_list`, `workflow_get`, `workflow_delete` |
 | **Run** | `run_create`, `run_list`, `run_get`, `run_stop` |
 | **Gate** | `gate_resolve`, `gate_list` |
-| **Stats** | `stats_get` |
+| **Stats** | `stats_get`, `workflow_capabilities` |
 
 ### Example MCP Call
 
@@ -149,6 +151,11 @@ Cron / event / manual triggers are available on `WorkflowPlugin` when constructe
 Desktop UI exposes trigger management on the **Triggers** tab (cron / event / manual, filter `path=value` clauses). Triggers persist to `triggers.json` when enabled.
 
 ### Cron Triggers
+
+Cron uses a simplified 5-field expression (`minute hour day-of-month month day-of-week`)
+supporting `*`, lists, ranges, and steps. Named fields (`MON`, `JAN`), `L`, `W`, `#`, `?`,
+and day-of-week `7` (Sunday) are **not** supported. Schedules are evaluated in the
+process-local timezone; a `timezone` field on trigger configs is accepted but ignored.
 
 ```typescript
 plugin.addTrigger({
@@ -181,22 +188,30 @@ plugin.fireEvent('manual', 'deploy', { version: '1.0.0' });
 dsh-plugin-workflow/
 ├── src/
 │   ├── engine/
-│   │   ├── models.ts      # Type definitions
-│   │   ├── engine.ts      # State transitions
-│   │   ├── coordinator.ts # Execution coordinator
-│   │   ├── executor.ts    # Script + Host hooks
-│   │   └── store.ts       # File persistence
+│   │   ├── models.ts          # DSL types + parser + validation
+│   │   ├── engine.ts          # Pure state-machine / reducers
+│   │   ├── coordinator.ts     # Tick loop + dispatch orchestration
+│   │   ├── executor.ts        # Script runner + Host hooks
+│   │   ├── store.ts           # File persistence (uid-keyed workflows + runs)
+│   │   ├── transcript.ts      # Append-only JSONL interaction logs
+│   │   ├── shared-vision.ts   # Run-level blackboard merge
+│   │   ├── workflow-stats.ts  # Run-history aggregates
+│   │   ├── script-policy.ts   # allow | deny | workspace-only
+│   │   ├── path-sandbox.ts    # cwd jail under WORKSPACE_ROOT
+│   │   └── index.ts           # Public engine barrel
 │   ├── mcp/
-│   │   ├── server.ts      # MCP server
-│   │   ├── tools.ts       # Tool definitions (12 tools)
-│   │   └── index.ts       # Entry point
+│   │   ├── server.ts          # JSON-RPC/stdio MCP server
+│   │   ├── tools.ts           # 13 tool definitions
+│   │   └── index.ts           # bin entry `dsh-workflow`
 │   ├── triggers/
-│   │   └── trigger.ts     # Cron/Event triggers (opt-in)
-│   └── plugin.ts          # DSH plugin entry
-├── ui-legacy/             # Archived static prototypes (unused by Desktop)
-└── examples/
-    ├── code-review.yaml
-    └── deploy-pipeline.yaml
+│   │   └── trigger.ts         # Cron / event / manual triggers (opt-in)
+│   ├── templates.ts           # Built-in template catalog
+│   ├── user-templates.ts      # User template persistence
+│   └── plugin.ts              # WorkflowPlugin facade
+├── tests/                     # Vitest specs
+├── ui-legacy/                 # Archived static prototypes (unused by Desktop)
+└── examples/                  # 6 sample workflows (code-review, deploy-pipeline,
+                               #   multi-llm-*, stock-trading-signal-review-approval-gate)
 ```
 
 ## License

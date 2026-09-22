@@ -13,7 +13,7 @@ import { MCPServer } from './mcp/server.js';
 import { listBuiltinTemplates } from './templates.js';
 import { allocateUserTemplateId, loadUserTemplates, removeUserTemplate, writeUserTemplate, } from './user-templates.js';
 import { parseWorkflow, validateWorkflow, serializeWorkflow, WorkflowStatus, TaskStatus, StepType, DispatchStatus, RUN_SCHEMA_VERSION, } from './engine/models.js';
-import { isGatePass, markAborted, isRunComplete } from './engine/engine.js';
+import { isGatePass, markAborted, isRunComplete, resolveGate } from './engine/engine.js';
 import { truncateTranscriptText } from './engine/transcript.js';
 import { buildWorkflowStatsDetail, buildWorkflowStatsSummaries, summarizeWorkflowRuns, } from './engine/workflow-stats.js';
 /** Internal params key tracking workflow names already on the call stack. */
@@ -726,33 +726,11 @@ export class WorkflowPlugin {
         const run = await this.store.loadRun(runId);
         if (!run)
             throw new Error(`Run not found: ${runId}`);
-        const gate = run.gates[stepId];
-        if (!gate)
-            throw new Error(`Gate not found: ${stepId}`);
-        if (gate.token !== token)
-            throw new Error('Invalid gate token');
-        const approved = isGatePass(gate, decision);
-        const updated = {
-            ...run,
-            gates: {
-                ...run.gates,
-                [stepId]: {
-                    ...gate,
-                    resolved: decision,
-                    resolvedBy,
-                    resolvedAt: new Date().toISOString(),
-                },
-            },
-            tasks: {
-                ...run.tasks,
-                [stepId]: {
-                    ...run.tasks[stepId],
-                    status: approved ? TaskStatus.Completed : TaskStatus.Failed,
-                    result: decision,
-                    completedAt: new Date().toISOString(),
-                },
-            },
-        };
+        const workflow = await this.getWorkflow(run.workflowName);
+        const updated = resolveGate(run, stepId, decision, resolvedBy, token, {
+            ...(workflow ? { workflow } : {}),
+        });
+        const approved = isGatePass(updated.gates[stepId], decision);
         await this.store.saveRun(updated);
         await this.safeTranscript(runId, {
             type: 'gate.resolve',

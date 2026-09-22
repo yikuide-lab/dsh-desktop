@@ -218,9 +218,9 @@ export function settleDispatch(run, dispatchId, result, options) {
     if (!targetTask || !targetStepId || !settledDispatch) {
         throw new Error(`Dispatch not found: ${dispatchId}`);
     }
-    const workflow = options?.workflow;
-    const defaults = options?.defaults ?? DEFAULT_FAILURE_POLICY;
-    const step = workflow?.spec.steps.find((entry) => entry.id === targetStepId);
+    const workflow = options.workflow;
+    const defaults = options.defaults ?? DEFAULT_FAILURE_POLICY;
+    const step = workflow.spec.steps.find((entry) => entry.id === targetStepId);
     // Update dispatch status
     const dispatches = targetTask.dispatches.map(d => {
         if (d.id !== dispatchId)
@@ -253,7 +253,7 @@ export function settleDispatch(run, dispatchId, result, options) {
                 [targetStepId]: updatedTask,
             },
         };
-        if (!result.success && workflow) {
+        if (!result.success) {
             nextRun = skipUnreachableTasks(nextRun, workflow);
         }
         return { run: nextRun };
@@ -316,7 +316,7 @@ export function settleDispatch(run, dispatchId, result, options) {
             },
         };
     }
-    if (onFailure === 'compensate' && step?.compensation?.run && workflow) {
+    if (onFailure === 'compensate' && step?.compensation?.run) {
         const updatedTask = {
             ...targetTask,
             dispatches,
@@ -346,16 +346,13 @@ export function settleDispatch(run, dispatchId, result, options) {
         error: result.error,
         completedAt: new Date().toISOString(),
     };
-    let nextRun = {
+    const nextRun = skipUnreachableTasks({
         ...run,
         tasks: {
             ...run.tasks,
             [targetStepId]: updatedTask,
         },
-    };
-    if (workflow) {
-        nextRun = skipUnreachableTasks(nextRun, workflow);
-    }
+    }, workflow);
     return { run: nextRun };
 }
 /** Allocate a compensation dispatch on an in-progress failed task. */
@@ -443,7 +440,11 @@ export function isGatePass(gate, decision) {
     const pass = resolveGatePassDecisions(gate.options, gate.pass);
     return pass.includes(decision);
 }
-export function resolveGate(run, stepId, decision, resolvedBy, token) {
+/**
+ * Single source of truth for gate resolution (live coordinator + offline paths).
+ * A failing decision cascades `skipUnreachableTasks` when `workflow` is provided.
+ */
+export function resolveGate(run, stepId, decision, resolvedBy, token, options) {
     const gate = run.gates[stepId];
     if (!gate) {
         throw new Error(`Gate not found: ${stepId}`);
@@ -461,10 +462,11 @@ export function resolveGate(run, stepId, decision, resolvedBy, token) {
         resolvedAt: new Date().toISOString(),
     };
     const task = run.tasks[stepId];
-    const newTaskStatus = isGatePass(gate, decision)
+    const passed = isGatePass(gate, decision);
+    const newTaskStatus = passed
         ? TaskStatus.Completed
         : TaskStatus.Failed;
-    return {
+    const updated = {
         ...run,
         gates: {
             ...run.gates,
@@ -480,6 +482,10 @@ export function resolveGate(run, stepId, decision, resolvedBy, token) {
             },
         },
     };
+    if (!passed && options?.workflow) {
+        return skipUnreachableTasks(updated, options.workflow);
+    }
+    return updated;
 }
 // ============================================================================
 // Abort & Compensation

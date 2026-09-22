@@ -15,9 +15,7 @@ export declare enum WorkflowStatus {
 }
 export declare enum TaskStatus {
     Pending = "pending",
-    Ready = "ready",
     InProgress = "in_progress",
-    Blocked = "blocked",
     Completed = "completed",
     Failed = "failed",
     Skipped = "skipped"
@@ -122,7 +120,11 @@ export interface Dispatch {
     id: string;
     stepId: string;
     status: DispatchStatus;
-    attempt: number;
+    /**
+     * Attempt number tracked by the engine (`dispatchTask` / `dispatchCompensation`).
+     * Optional because `Executor.poll` results are status probes and do not carry it.
+     */
+    attempt?: number;
     /** Normal step work vs post-failure compensation script. */
     phase?: 'execute' | 'compensate';
     startedAt?: string;

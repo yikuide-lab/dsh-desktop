@@ -37,6 +37,7 @@ export declare function dispatchTask(run: Run, stepId: string, concurrencyBudget
     dispatchId: string;
 };
 export interface SettleDispatchOptions {
+    /** Required so retry/failback/compensate/skipUnreachable can see the step definition. */
     workflow: Workflow;
     defaults?: FailurePolicyDefaults;
 }
@@ -49,7 +50,7 @@ export interface SettleDispatchResult {
         originalError?: string;
     };
 }
-export declare function settleDispatch(run: Run, dispatchId: string, result: StepResult, options?: SettleDispatchOptions): SettleDispatchResult;
+export declare function settleDispatch(run: Run, dispatchId: string, result: StepResult, options: SettleDispatchOptions): SettleDispatchResult;
 /** Allocate a compensation dispatch on an in-progress failed task. */
 export declare function dispatchCompensation(run: Run, stepId: string): {
     run: Run;
@@ -68,7 +69,13 @@ export declare function buildApprovalGate(step: Step): Gate;
 export declare function resolveGatePassDecisions(options: readonly string[], pass?: readonly string[]): string[];
 /** Whether a gate decision should mark the approval task completed. */
 export declare function isGatePass(gate: Pick<Gate, 'options' | 'pass'>, decision: string): boolean;
-export declare function resolveGate(run: Run, stepId: string, decision: string, resolvedBy: string, token: string): Run;
+/**
+ * Single source of truth for gate resolution (live coordinator + offline paths).
+ * A failing decision cascades `skipUnreachableTasks` when `workflow` is provided.
+ */
+export declare function resolveGate(run: Run, stepId: string, decision: string, resolvedBy: string, token: string, options?: {
+    workflow?: Workflow;
+}): Run;
 export declare function markAborted(run: Run, reason?: string): Run;
 export declare function isRunComplete(run: Run): boolean;
 export declare function getRunProgress(run: Run): {

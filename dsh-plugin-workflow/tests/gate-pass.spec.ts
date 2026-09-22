@@ -4,6 +4,7 @@ import {
   isGatePass,
   resolveGate,
   resolveGatePassDecisions,
+  skipUnreachableTasks,
 } from '../src/engine/engine.ts'
 import {
   StepType,
@@ -59,6 +60,109 @@ describe('gate pass semantics', () => {
       run.gates.approve!.token!,
     )
     expect(updated.tasks.approve?.status).toBe(TaskStatus.Completed)
+  })
+
+  it('rejects resolving an already-resolved gate', () => {
+    const run = createRun(approvalWorkflow())
+    const token = run.gates.approve!.token!
+    const once = resolveGate(run, 'approve', 'approved', 'tester', token)
+    expect(() => resolveGate(once, 'approve', 'rejected', 'tester', token))
+      .toThrow(/already resolved/)
+  })
+
+  it('rejects an invalid gate token', () => {
+    const run = createRun(approvalWorkflow())
+    expect(() => resolveGate(run, 'approve', 'approved', 'tester', 'wrong-token'))
+      .toThrow(/Invalid gate token/)
+  })
+
+  it('cascades skipUnreachableTasks on a failing decision when workflow is provided', () => {
+    const workflow: Workflow = {
+      apiVersion: 'workflow-wise/v1',
+      kind: 'Workflow',
+      metadata: { name: 'gate-cascade' },
+      spec: {
+        steps: [
+          {
+            id: 'approve',
+            type: StepType.Approval,
+            question: 'ok?',
+            options: ['approved', 'rejected'],
+          },
+          {
+            id: 'ship',
+            type: StepType.Script,
+            deps: ['approve'],
+            run: 'echo ship',
+          },
+        ],
+      },
+    }
+    const run = createRun(workflow)
+    const token = run.gates.approve!.token!
+    const updated = resolveGate(run, 'approve', 'rejected', 'tester', token, { workflow })
+    expect(updated.tasks.approve?.status).toBe(TaskStatus.Failed)
+    expect(updated.tasks.ship?.status).toBe(TaskStatus.Skipped)
+    expect(updated.tasks.ship?.error).toContain('dependency failed')
+  })
+
+  it('does not cascade on a passing decision', () => {
+    const workflow: Workflow = {
+      apiVersion: 'workflow-wise/v1',
+      kind: 'Workflow',
+      metadata: { name: 'gate-pass-no-cascade' },
+      spec: {
+        steps: [
+          {
+            id: 'approve',
+            type: StepType.Approval,
+            question: 'ok?',
+            options: ['approved', 'rejected'],
+          },
+          {
+            id: 'ship',
+            type: StepType.Script,
+            deps: ['approve'],
+            run: 'echo ship',
+          },
+        ],
+      },
+    }
+    const run = createRun(workflow)
+    const token = run.gates.approve!.token!
+    const updated = resolveGate(run, 'approve', 'approved', 'tester', token, { workflow })
+    expect(updated.tasks.approve?.status).toBe(TaskStatus.Completed)
+    expect(updated.tasks.ship?.status).toBe(TaskStatus.Pending)
+  })
+
+  it('skipUnreachableTasks after a bare fail decision matches the cascaded result', () => {
+    const workflow: Workflow = {
+      apiVersion: 'workflow-wise/v1',
+      kind: 'Workflow',
+      metadata: { name: 'gate-bare-vs-cascade' },
+      spec: {
+        steps: [
+          {
+            id: 'approve',
+            type: StepType.Approval,
+            question: 'ok?',
+            options: ['approved', 'rejected'],
+          },
+          {
+            id: 'ship',
+            type: StepType.Script,
+            deps: ['approve'],
+            run: 'echo ship',
+          },
+        ],
+      },
+    }
+    const run = createRun(workflow)
+    const token = run.gates.approve!.token!
+    const bare = resolveGate(run, 'approve', 'rejected', 'tester', token)
+    const cascaded = resolveGate(run, 'approve', 'rejected', 'tester', token, { workflow })
+    const manual = skipUnreachableTasks(bare, workflow)
+    expect(manual.tasks.ship?.status).toBe(cascaded.tasks.ship?.status)
   })
 })
 

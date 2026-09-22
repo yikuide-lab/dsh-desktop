@@ -12,6 +12,13 @@ export interface TickStats {
     settlements: number;
     errors: number;
 }
+/**
+ * First string-valued param among `keys`, in priority order.
+ * Used to map run params onto well-known env vars (PROMPT / PROBLEM).
+ */
+export declare function pickParam(params: Record<string, unknown> | undefined, keys: readonly string[]): string | undefined;
+/** Env vars derived from run params for script/LLM steps. */
+export declare function buildStepEnv(params: Record<string, unknown> | undefined): Record<string, string>;
 export interface CoordinatorOptions {
     maxConcurrency: number;
     tickInterval: number;
@@ -33,6 +40,9 @@ export interface CoordinatorEvents {
     'error': (error: Error) => void;
 }
 export declare class Coordinator extends EventEmitter {
+    /** Typed event contract — see {@link CoordinatorEvents}. */
+    on<K extends keyof CoordinatorEvents>(event: K, listener: CoordinatorEvents[K]): this;
+    emit<K extends keyof CoordinatorEvents>(event: K, ...args: Parameters<CoordinatorEvents[K]>): boolean;
     private state;
     private options;
     private stats;
@@ -89,7 +99,7 @@ export declare class Coordinator extends EventEmitter {
      */
     getStats(): TickStats;
     /**
-     * Resolve an approval gate
+     * Resolve an approval gate (delegates to engine.resolveGate).
      */
     resolveGate(stepId: string, decision: string, resolvedBy: string, token: string): void;
 }
