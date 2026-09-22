@@ -60,7 +60,14 @@ export function WorkflowPanel({
   const handleEdit = (workflow: Workflow) => {
     setEditingWorkflow(workflow)
     setInitialYaml(null)
-    setPreferVisual(false)
+    setPreferVisual(true)
+    setShowEditor(true)
+  }
+
+  const handleCopyWorkflow = (yaml: string) => {
+    setEditingWorkflow(null)
+    setInitialYaml(yaml)
+    setPreferVisual(true)
     setShowEditor(true)
   }
 
@@ -152,6 +159,7 @@ export function WorkflowPanel({
             api={api}
             onCreate={handleCreate}
             onEdit={handleEdit}
+            onCopy={handleCopyWorkflow}
             onRunStarted={() => actions.setActiveTab('runs')}
             onOpenSettings={() => actions.setActiveTab('settings')}
             onOpenStats={(name) => {

@@ -1,35 +1,36 @@
 {
   "name": "dsh-plugin-workflow",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Workflow plugin for DSH Desktop - visual workflow designer and execution engine",
   "type": "module",
   "main": "lib/plugin.js",
-  "types": "lib/types/plugin.d.ts",
+  "types": "lib/plugin.d.ts",
   "exports": {
     ".": {
-      "types": "./lib/types/plugin.d.ts",
+      "types": "./lib/plugin.d.ts",
       "default": "./lib/plugin.js"
     },
     "./engine": {
-      "types": "./lib/types/engine/models.d.ts",
-      "default": "./lib/engine/models.js"
+      "types": "./lib/engine/index.d.ts",
+      "default": "./lib/engine/index.js"
     }
   },
   "bin": {
-    "dsh-workflow": "lib/mcp/server.js"
+    "dsh-workflow": "lib/mcp/index.js"
   },
   "files": [
     "lib/**/*.js",
     "lib/**/*.map",
-    "lib/types/**/*.d.ts",
+    "lib/**/*.d.ts",
     "ui/**",
+    "examples/**",
     "README.md"
   ],
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "mcp": "node lib/mcp/server.js"
+    "mcp": "node lib/mcp/index.js"
   },
   "dependencies": {
     "js-yaml": "^4.1.0"

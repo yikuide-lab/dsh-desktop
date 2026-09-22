@@ -45,16 +45,17 @@ export function flattenMessageContent(content: unknown): string {
   return String(content)
 }
 
-/** Last user message text (PROMPT / PROBLEM input). */
+/** Flatten chat messages into the workflow PROMPT (system + user; drop assistant). */
 export function extractUserPrompt(messages: readonly OpenAiChatMessage[] | undefined): string {
   if (!messages?.length) return ''
-  for (let i = messages.length - 1; i >= 0; i -= 1) {
-    const message = messages[i]
-    if (message?.role === 'user') {
-      return flattenMessageContent(message.content).trim()
-    }
+  const parts: string[] = []
+  for (const message of messages) {
+    const role = String(message?.role ?? '').toLowerCase()
+    if (role !== 'system' && role !== 'user') continue
+    const text = flattenMessageContent(message.content).trim()
+    if (text) parts.push(text)
   }
-  return ''
+  return parts.join('\n\n').trim()
 }
 
 export function buildRunParamsFromPrompt(

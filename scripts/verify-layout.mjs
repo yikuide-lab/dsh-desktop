@@ -31,10 +31,12 @@ if (workspace.packageManager !== 'yarn@4.18.0') {
 if (JSON.stringify(workspace.workspaces) !== JSON.stringify([
   'dsh-plugin-desktop',
   'dsh-plugin-desktop-beta',
+  'dsh-plugin-workflow',
+  'awf-runner',
   'dsh-community-fabric',
   'dsh-community-market',
 ])) {
-  fail('the root Yarn workspace must contain the desktop, community-fabric, and community-market packages')
+  fail('the root Yarn workspace must contain the desktop, workflow, awf-runner, community-fabric, and community-market packages')
 }
 for (const [name, manifest] of [
   ['dsh-plugin-desktop', stablePlugin],

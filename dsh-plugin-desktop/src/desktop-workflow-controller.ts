@@ -16,6 +16,7 @@ import type { AwfExecutorController } from './desktop-awf-executor.ts'
 export interface DesktopWorkflowOpExtras {
   readonly openAiApi?: WorkflowOpenAiApiController
   readonly awf?: AwfBridge
+  readonly awfBridge?: AwfBridge
   readonly awfExecutor?: AwfExecutorController
 }
 
@@ -391,6 +392,18 @@ export async function executeDesktopWorkflowOp(
       if (enabled === true) extras.awfExecutor.start()
       if (enabled === false) await extras.awfExecutor.stop()
       return status
+    }
+    case 'awfGetTunnelStatus': {
+      if (!extras?.awfBridge) throw new Error('AWF bridge unavailable')
+      return extras.awfBridge.getTunnelStatus()
+    }
+    case 'awfSetTunnelSettings': {
+      if (!extras?.awfBridge) throw new Error('AWF bridge unavailable')
+      const { tunnelEnabled, localPort } = request.awfTunnelSettings ?? {}
+      return extras.awfBridge.setTunnelSettings(
+        typeof tunnelEnabled === 'boolean' ? tunnelEnabled : false,
+        typeof localPort === 'number' ? localPort : 8787,
+      )
     }
     default: {
       const _exhaustive: never = request.op

@@ -28,6 +28,7 @@ import {
   type AwfAuthMethods,
   type AwfAuthStatusView,
 } from './desktop-awf-auth.ts'
+import { createTunnelClient, type TunnelClientHandle } from 'awf-runner'
 
 export interface AwfBridgeOptions {
   readonly plugin: WorkflowPlugin
@@ -43,6 +44,9 @@ export interface AwfPublicStatus {
   readonly apiTokenEnv: string
   readonly hasToken: boolean
   readonly tokenFingerprint: string
+  readonly telemetryEnabled: boolean
+  readonly executorEnabled: boolean
+  readonly tunnelEnabled: boolean
 }
 
 export interface AwfPreflightEntry {
@@ -78,6 +82,8 @@ export interface AwfBridge {
     apiToken?: string
     telemetryEnabled?: boolean
     executorEnabled?: boolean
+    tunnelEnabled?: boolean
+    tunnelLocalPort?: number
   }): Promise<AwfPublicStatus>
   checkConnection(): Promise<AwfConnectionResult>
   syncWorkflow(input: { name: string; yaml?: string; visibility?: string; publish?: boolean }): Promise<AwfSyncReceipt>
@@ -99,6 +105,15 @@ export interface AwfBridge {
     errorKind?: string
     errorMessage?: string
   }>
+  /** 反向隧道：节点外拨 WS 连接 + 本地 OpenAI 兼容 HTTP 出口。 */
+  getTunnelStatus(): Promise<{
+    connected: boolean
+    localPort: number
+    executorId: number | null
+    since: string | null
+    error: string | null
+  }>
+  setTunnelSettings(tunnelEnabled: boolean, localPort: number): Promise<AwfPublicStatus>
 }
 
 /** 失败视图：状态 view 携带错误信息（与 AwfConnectionResult 字段对齐）。 */
@@ -111,6 +126,11 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
   const log = options.log ?? ((): void => {})
   const fetchImpl = options.fetchImpl
   const env = options.env
+
+  // Tunnel client state
+  let tunnelClient: TunnelClientHandle | null = null
+  let tunnelEnabled = false
+  let tunnelLocalPort = 8787
 
   async function currentSettings(): Promise<AwfSettings> {
     return readAwfSettings(stateDir)
@@ -222,6 +242,8 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         apiToken: typeof input.apiToken === 'string' ? input.apiToken : prev.apiToken,
         telemetryEnabled: typeof input.telemetryEnabled === 'boolean' ? input.telemetryEnabled : prev.telemetryEnabled,
         executorEnabled: typeof input.executorEnabled === 'boolean' ? input.executorEnabled : prev.executorEnabled,
+        tunnelEnabled: typeof input.tunnelEnabled === 'boolean' ? input.tunnelEnabled : prev.tunnelEnabled,
+        tunnelLocalPort: typeof input.tunnelLocalPort === 'number' ? input.tunnelLocalPort : prev.tunnelLocalPort,
       })
       const token = resolveAwfToken(next, env ?? process.env)
       log(`AWF settings updated (baseUrl=${next.baseUrl}, tokenEnv=${next.apiTokenEnv})`)
@@ -334,6 +356,52 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         }
         return { ok: false, errorKind: 'network', errorMessage: String(error) }
       }
+    },
+
+    async getTunnelStatus() {
+      if (!tunnelClient) {
+        return { connected: false, localPort: tunnelLocalPort, executorId: null, since: null, error: 'tunnel not initialized' }
+      }
+      return tunnelClient.status()
+    },
+
+    async setTunnelSettings(enabled: boolean, localPort: number): Promise<AwfPublicStatus> {
+      const prev = await currentSettings()
+      tunnelEnabled = enabled
+      tunnelLocalPort = localPort
+      if (enabled) {
+        if (!tunnelClient) {
+          tunnelClient = createTunnelClient({
+            stateDir,
+            localPort,
+            log: (msg) => log(`[tunnel] ${msg}`),
+            ...(fetchImpl ? { fetchImpl } : {}),
+            ...(env ? { env } : {}),
+          })
+        }
+        try {
+          await tunnelClient.start()
+        } catch (error) {
+          log(`[tunnel] start failed: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      } else {
+        if (tunnelClient) {
+          await tunnelClient.stop()
+          tunnelClient = null
+        }
+      }
+
+      const next = await writeAwfSettings(stateDir, {
+        baseUrl: prev.baseUrl,
+        apiTokenEnv: prev.apiTokenEnv,
+        apiToken: prev.apiToken,
+        telemetryEnabled: prev.telemetryEnabled,
+        executorEnabled: prev.executorEnabled,
+        tunnelEnabled: tunnelEnabled,
+        tunnelLocalPort: tunnelLocalPort,
+      })
+      const token = resolveAwfToken(next, env ?? process.env)
+      return toPublicAwfSettings(next, token)
     },
   }
 }

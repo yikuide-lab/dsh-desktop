@@ -42,22 +42,27 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
     input.accept = '.yaml,.yml'
     input.onchange = (e) => {
       const file = (e.target as HTMLInputElement).files?.[0]
-      if (file) {
-        const reader = new FileReader()
-        reader.onload = (event) => {
-          const yaml = event.target?.result as string
-          const newTemplate: WorkflowTemplate = {
-            id: `imported-${Date.now()}`,
-            name: file.name.replace(/\.(yaml|yml)$/, ''),
-            description: t('templateImported'),
-            category: 'custom',
-            yaml,
+      if (!file) return
+      const reader = new FileReader()
+      reader.onload = (event) => {
+        const yaml = event.target?.result as string
+        void (async () => {
+          setError(null)
+          try {
+            const saved = await api.saveTemplate({
+              yaml,
+              name: file.name.replace(/\.(yaml|yml)$/i, ''),
+              description: t('templateImported'),
+              category: 'custom',
+            })
+            await loadTemplates()
+            setSelectedTemplate(saved)
+          } catch (err) {
+            setError(err instanceof Error ? err.message : t('error'))
           }
-          setTemplates([...templates, newTemplate])
-          setSelectedTemplate(newTemplate)
-        }
-        reader.readAsText(file)
+        })()
       }
+      reader.readAsText(file)
     }
     input.click()
   }
@@ -70,6 +75,22 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
     a.download = `${template.name}.yaml`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDelete = async (template: WorkflowTemplate) => {
+    if (template.builtin === true) return
+    if (!confirm(t('templateDeleteConfirm').replace('{name}', template.name))) return
+    setBusyId(template.id)
+    setError(null)
+    try {
+      await api.deleteTemplate(template.id)
+      if (selectedTemplate?.id === template.id) setSelectedTemplate(null)
+      await loadTemplates()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setBusyId(null)
+    }
   }
 
   const handleCopyRedesign = async (template: WorkflowTemplate) => {
@@ -120,7 +141,11 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
             >
               <div className="workflow-template-header">
                 <h4>{template.name}</h4>
-                <span className="workflow-template-category">{template.category}</span>
+                <span className="workflow-template-category">
+                  {template.builtin === true ? t('templateBuiltin') : t('templateUser')}
+                  {' · '}
+                  {template.category}
+                </span>
               </div>
               <p className="workflow-template-description">{template.description}</p>
               <div className="workflow-template-actions">
@@ -143,6 +168,18 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
                 >
                   {busyId === template.id ? t('loading') : t('templateCopyRedesign')}
                 </button>
+                {template.builtin !== true && (
+                  <button
+                    className="workflow-btn small danger"
+                    disabled={busyId === template.id}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDelete(template)
+                    }}
+                  >
+                    {t('delete')}
+                  </button>
+                )}
               </div>
             </div>
           ))}

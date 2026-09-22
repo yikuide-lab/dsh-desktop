@@ -793,14 +793,6 @@ export function openDesktopTerminal(options: DesktopTerminalOptions): DesktopTer
     command = '/usr/bin/open'
     args = ['-a', 'Terminal', files.welcomePath]
   } else if (options.platform === 'linux') {
-    // Try common Linux terminal emulators
-    const linuxTerminals = [
-      { cmd: 'gnome-terminal', args: ['--', '/bin/sh', files.welcomePath] },
-      { cmd: 'konsole', args: ['-e', '/bin/sh', files.welcomePath] },
-      { cmd: 'xfce4-terminal', args: ['-e', '/bin/sh', files.welcomePath] },
-      { cmd: 'xterm', args: ['-e', '/bin/sh', files.welcomePath] },
-      { cmd: 'x-terminal-emulator', args: ['-e', '/bin/sh', files.welcomePath] },
-    ]
     // Default to x-terminal-emulator which should be available on most Linux systems
     command = 'x-terminal-emulator'
     args = ['-e', '/bin/sh', files.welcomePath]

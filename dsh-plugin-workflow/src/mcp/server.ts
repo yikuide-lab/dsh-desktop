@@ -4,8 +4,8 @@
  */
 
 import { createInterface } from 'node:readline';
-import type { WorkflowPlugin } from '../plugin.ts';
-import { allMCPTools, getToolByName } from './tools.ts';
+import type { WorkflowPlugin } from '../plugin.js';
+import { allMCPTools, getToolByName } from './tools.js';
 
 // ============================================================================
 // MCP Protocol Types
@@ -83,7 +83,7 @@ export class MCPServer {
 
       switch (method) {
         case 'initialize':
-          result = this.handleInitialize(params);
+          result = this.handleInitialize();
           break;
 
         case 'tools/list':
@@ -129,7 +129,7 @@ export class MCPServer {
   /**
    * Handle initialize request
    */
-  private handleInitialize(params?: Record<string, unknown>): unknown {
+  private handleInitialize(): unknown {
     return {
       protocolVersion: '2024-11-05',
       capabilities: {

@@ -29,6 +29,10 @@ import {
   requiresTls,
   type WorkflowOpenAiTlsMaterial,
 } from './desktop-workflow-openai-tls.ts'
+import {
+  appendWorkflowOpenAiApiCall,
+  type WorkflowOpenAiApiCallLogAppendInput,
+} from './desktop-workflow-openai-call-log.ts'
 
 export interface WorkflowOpenAiServerStatus {
   listening: boolean
@@ -192,25 +196,42 @@ export class WorkflowOpenAiServer {
   }
 
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    const url = new URL(req.url ?? '/', 'http://localhost')
+    const path = url.pathname
     try {
       const token = parseBearer(req.headers.authorization)
       if (!token || !safeEqualToken(this.settings.apiKey, token)) {
+        this.recordCall({
+          method: req.method ?? 'GET',
+          path,
+          clientIp: clientIp(req),
+          statusCode: 401,
+          ok: false,
+          error: 'invalid_api_key',
+        })
         writeJson(res, 401, openaiError('Invalid API key', { type: 'invalid_request_error', code: 'invalid_api_key' }))
         return
       }
 
-      const url = new URL(req.url ?? '/', 'http://localhost')
-      if (req.method === 'GET' && (url.pathname === '/v1/models' || url.pathname === '/models')) {
+      if (req.method === 'GET' && (path === '/v1/models' || path === '/models')) {
         const workflows = await this.options.plugin.listWorkflows()
         writeJson(res, 200, buildModelsList(workflows))
         return
       }
 
       if (req.method === 'POST' && (
-        url.pathname === '/v1/chat/completions'
-        || url.pathname === '/chat/completions'
+        path === '/v1/chat/completions'
+        || path === '/chat/completions'
       )) {
         if (this.active >= this.settings.maxConcurrent) {
+          this.recordCall({
+            method: 'POST',
+            path,
+            clientIp: clientIp(req),
+            statusCode: 429,
+            ok: false,
+            error: 'rate_limit_exceeded',
+          })
           writeJson(res, 429, openaiError('Too many concurrent workflow runs', {
             type: 'rate_limit_error',
             code: 'rate_limit_exceeded',
@@ -222,10 +243,18 @@ export class WorkflowOpenAiServer {
         try {
           body = JSON.parse(raw) as OpenAiChatCompletionRequest
         } catch {
+          this.recordCall({
+            method: 'POST',
+            path,
+            clientIp: clientIp(req),
+            statusCode: 400,
+            ok: false,
+            error: 'invalid_json',
+          })
           writeJson(res, 400, openaiError('Invalid JSON body'))
           return
         }
-        await this.handleCompletion(req, res, body)
+        await this.handleCompletion(req, res, body, path)
         return
       }
 
@@ -236,6 +265,14 @@ export class WorkflowOpenAiServer {
         : 500
       const message = error instanceof Error ? error.message : 'internal error'
       this.options.log?.(`[workflow-openai-api] ${clientIp(req)} error: ${message}`)
+      this.recordCall({
+        method: req.method ?? 'GET',
+        path,
+        clientIp: clientIp(req),
+        statusCode: status,
+        ok: false,
+        error: message,
+      })
       if (!res.headersSent) {
         writeJson(res, status, openaiError(status >= 500 ? 'Internal server error' : message, {
           type: status >= 500 ? 'server_error' : 'invalid_request_error',
@@ -246,19 +283,46 @@ export class WorkflowOpenAiServer {
     }
   }
 
+  private recordCall(input: WorkflowOpenAiApiCallLogAppendInput): void {
+    void appendWorkflowOpenAiApiCall(this.options.stateDir, input).catch((error) => {
+      this.options.log?.(
+        `[workflow-openai-api] call log write failed: ${error instanceof Error ? error.message : String(error)}`,
+      )
+    })
+  }
+
   private async handleCompletion(
     req: IncomingMessage,
     res: ServerResponse,
     body: OpenAiChatCompletionRequest,
+    path: string,
   ): Promise<void> {
     const model = typeof body.model === 'string' ? body.model.trim() : ''
     if (!model) {
+      this.recordCall({
+        method: 'POST',
+        path,
+        clientIp: clientIp(req),
+        statusCode: 400,
+        ok: false,
+        error: 'model_required',
+      })
       writeJson(res, 400, openaiError('model is required', { param: 'model' }))
       return
     }
 
     const workflow = await this.options.plugin.getWorkflow(model)
     if (!workflow) {
+      this.recordCall({
+        method: 'POST',
+        path,
+        clientIp: clientIp(req),
+        model,
+        workflowName: model,
+        statusCode: 404,
+        ok: false,
+        error: 'model_not_found',
+      })
       writeJson(res, 404, openaiError(`Workflow not found: ${model}`, {
         type: 'invalid_request_error',
         code: 'model_not_found',
@@ -272,10 +336,17 @@ export class WorkflowOpenAiServer {
     const workspaceId = typeof body.workspace === 'string' && body.workspace.trim()
       ? body.workspace.trim()
       : (typeof workspaceHeader === 'string' ? workspaceHeader.trim() : undefined)
-    const params = buildRunParamsFromPrompt(prompt, workspaceId)
+    const params = {
+      ...buildRunParamsFromPrompt(prompt, workspaceId),
+      source: 'openai-api',
+    }
 
     this.active += 1
     const started = Date.now()
+    let runId: string | undefined
+    let statusCode = 500
+    let ok = false
+    let errorText: string | undefined
     try {
       const run = workspaceId
         ? await this.options.plugin.startBoundRun(workspaceId, params).catch(async (error) => {
@@ -286,6 +357,7 @@ export class WorkflowOpenAiServer {
           return this.options.plugin.startRun(model, params)
         })
         : await this.options.plugin.startRun(model, params)
+      runId = run.id
 
       this.options.log?.(
         `[workflow-openai-api] ${clientIp(req)} start run=${run.id} workflow=${model}`,
@@ -293,17 +365,23 @@ export class WorkflowOpenAiServer {
 
       if (body.stream) {
         await this.streamRun(res, model, run.id)
+        statusCode = 200
+        ok = true
       } else {
         const finished = await this.waitForRun(run.id)
         const transcript = await this.options.plugin.getTranscript(run.id, { limit: 500 })
         const content = extractRunAssistantText(finished, transcript.events ?? [])
         if (finished.status !== 'completed') {
+          statusCode = 502
+          errorText = finished.error ?? `Workflow ended with status ${finished.status}`
           writeJson(res, 502, openaiError(
-            finished.error ?? `Workflow ended with status ${finished.status}`,
+            errorText,
             { type: 'server_error', code: finished.status },
           ))
           return
         }
+        statusCode = 200
+        ok = true
         writeJson(res, 200, buildChatCompletionResponse({
           id: `chatcmpl-${run.id}`,
           model,
@@ -311,8 +389,32 @@ export class WorkflowOpenAiServer {
           created: Math.floor(started / 1000),
         }))
       }
+    } catch (error) {
+      statusCode = typeof (error as { statusCode?: number }).statusCode === 'number'
+        ? (error as { statusCode: number }).statusCode
+        : 500
+      errorText = error instanceof Error ? error.message : 'internal error'
+      this.options.log?.(`[workflow-openai-api] ${clientIp(req)} completion error: ${errorText}`)
+      if (!res.headersSent) {
+        writeJson(res, statusCode, openaiError(statusCode >= 500 ? 'Internal server error' : errorText, {
+          type: statusCode >= 500 ? 'server_error' : 'invalid_request_error',
+        }))
+      }
     } finally {
       this.active = Math.max(0, this.active - 1)
+      this.recordCall({
+        method: 'POST',
+        path,
+        clientIp: clientIp(req),
+        model,
+        workflowName: model,
+        statusCode,
+        ok,
+        durationMs: Date.now() - started,
+        stream: Boolean(body.stream),
+        ...(runId ? { runId } : {}),
+        ...(errorText ? { error: errorText } : {}),
+      })
     }
   }
 

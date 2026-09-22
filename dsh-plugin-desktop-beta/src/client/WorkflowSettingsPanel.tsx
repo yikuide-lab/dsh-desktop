@@ -14,6 +14,7 @@ import type {
   AwfStatusView,
   AwfConnectionView,
   AwfSyncReceiptView,
+  AwfTunnelStatusView,
 } from './desktop-workflow-api.js'
 
 interface WorkflowSettingsPanelProps {
@@ -87,6 +88,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
   const [awfRunPrompt, setAwfRunPrompt] = useState('')
   const [awfRunResult, setAwfRunResult] = useState<string | null>(null)
   const [awfExecutorStatus, setAwfExecutorStatus] = useState<AwfExecutorStatusView | null>(null)
+  const [awfTunnelStatus, setAwfTunnelStatus] = useState<AwfTunnelStatusView | null>(null)
   const [awfAuth, setAwfAuth] = useState<AwfAuthAccountView | null>(null)
   const [awfAuthMethodsView, setAwfAuthMethodsView] = useState<AwfAuthMethodsView | null>(null)
   const [awfAuthMode, setAwfAuthMode] = useState<'email' | 'phone'>('email')
@@ -122,6 +124,7 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
         setAwfDraftEnv(nextAwf.apiTokenEnv)
       }
       setAwfExecutorStatus(await api.getAwfExecutorStatus().catch(() => null))
+      setAwfTunnelStatus(await api.getAwfTunnelStatus().catch(() => null))
       setAwfAuth(await api.getAwfAuthStatus().catch(() => null))
       setAwfAuthMethodsView(await api.getAwfAuthMethods().catch(() => null))
     } catch (err) {
@@ -424,6 +427,17 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
       setAwf(await api.setAwfExecutorSettings(enabled))
       setMessage(t('awfSaved'))
       setAwfExecutorStatus(await api.getAwfExecutorStatus())
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    }
+  }
+
+  const toggleAwfTunnel = async (enabled: boolean): Promise<void> => {
+    setError(null)
+    try {
+      setAwf(await api.setAwfTunnelSettings(enabled, 8787))
+      setMessage(t('awfSaved'))
+      setAwfTunnelStatus(await api.getAwfTunnelStatus())
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error'))
     }
@@ -950,6 +964,24 @@ export function WorkflowSettingsPanel({ api, t }: WorkflowSettingsPanelProps) {
                 ? `${t('awfExecutorRunning')}${awfExecutorStatus.executorId !== null ? ` #${awfExecutorStatus.executorId}` : ''}`
                 : t('awfExecutorIdle')}
               {awfExecutorStatus.lastError ? ` — ${t('awfExecutorError')}: ${awfExecutorStatus.lastError}` : ''}
+            </p>
+          )}
+          <label className="workflow-settings-field" style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <input
+              type="checkbox"
+              checked={awf?.tunnelEnabled ?? false}
+              onChange={(event) => { void toggleAwfTunnel(event.target.checked) }}
+            />
+            <span>{t('awfTunnel')}</span>
+          </label>
+          <p className="workflow-settings-lead" style={{ margin: 0 }}>{t('awfTunnelHint')}</p>
+          {awfTunnelStatus && (
+            <p className="workflow-settings-lead" style={{ margin: 0 }}>
+              {awfTunnelStatus.connected
+                ? `${t('awfTunnelConnected')} :${awfTunnelStatus.localPort}${awfTunnelStatus.executorId !== null ? ` (executor #${awfTunnelStatus.executorId})` : ''}`
+                : t('awfTunnelDisconnected')}
+              {awfTunnelStatus.error ? ` — ${awfTunnelStatus.error}` : ''}
+              {awfTunnelStatus.since ? ` (${t('since')} ${new Date(awfTunnelStatus.since).toLocaleString()})` : ''}
             </p>
           )}
         </div>

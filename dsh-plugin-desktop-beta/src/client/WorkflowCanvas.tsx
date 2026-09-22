@@ -2,6 +2,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type DragEvent,
   type MouseEvent as ReactMouseEvent,
@@ -19,7 +20,9 @@ import {
   type Connection,
   type Edge,
   type Node,
+  type NodeChange,
   type OnSelectionChangeParams,
+  type ReactFlowInstance,
 } from '@xyflow/react'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 import type { DesktopWorkflowApi, WorkflowStepType } from './desktop-workflow-api.js'
@@ -72,6 +75,27 @@ function toFlowEdges(steps: WorkflowStep[]): Edge[] {
   }))
 }
 
+/** Topology + positions — property text edits must not trigger a full node replace. */
+function canvasStructureKey(steps: readonly WorkflowStep[]): string {
+  return steps.map((step) => (
+    `${step.id}\0${step.type}\0${(step.deps ?? []).join(',')}\0${step.ui?.x ?? ''},${step.ui?.y ?? ''}`
+  )).join('\n')
+}
+
+function applySelection(nodes: WorkflowFlowNode[], selectedStepId: string | null): Node[] {
+  return nodes.map((node) => ({
+    ...node,
+    selected: selectedStepId != null && node.id === selectedStepId,
+  })) as Node[]
+}
+
+function isInspectorTypingTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  if (target.closest('.workflow-canvas-inspector')) return true
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable
+}
+
 function WorkflowCanvasInner({
   steps,
   onStepsChange,
@@ -84,31 +108,60 @@ function WorkflowCanvasInner({
   const [nodes, setNodes, onNodesChange] = useNodesState(toFlowNodes(steps) as Node[])
   const [edges, setEdges, onEdgesChange] = useEdgesState(toFlowEdges(steps))
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null)
+  const selectedStepIdRef = useRef<string | null>(null)
+  const structureKeyRef = useRef(canvasStructureKey(steps))
+  const didFitRef = useRef(false)
+
+  selectedStepIdRef.current = selectedStepId
 
   const commitSteps = useCallback((next: WorkflowStep[]) => {
     if (readOnly) return
     onStepsChange?.(next)
   }, [readOnly, onStepsChange])
 
-  // Sync from parent steps when the document changes outside the canvas (YAML, etc.).
-  // Do not depend on selectedStepId: rebuilding nodes on selection clears React Flow's
-  // selection and immediately empties the inspector.
+  const structureKey = useMemo(() => canvasStructureKey(steps), [steps])
+
+  // Sync graph from parent. Full replace only on topology/position changes;
+  // property edits only refresh node.data so React Flow does not drop selection.
   useEffect(() => {
-    setNodes(toFlowNodes(steps).map((node) => ({
-      ...node,
-      selected: selectedStepId != null && node.id === selectedStepId,
-    })) as Node[])
-    setEdges(toFlowEdges(steps))
-    if (selectedStepId && !steps.some((step) => step.id === selectedStepId)) {
+    const selected = selectedStepIdRef.current
+    if (structureKey !== structureKeyRef.current) {
+      structureKeyRef.current = structureKey
+      setNodes(applySelection(toFlowNodes(steps), selected))
+      setEdges(toFlowEdges(steps))
+    } else {
+      const dataById = new Map(toFlowNodes(steps).map((node) => [node.id, node.data]))
+      setNodes((current) => current.map((node) => {
+        const data = dataById.get(node.id)
+        if (!data) return node
+        return {
+          ...node,
+          data,
+          selected: selected != null && node.id === selected,
+        }
+      }))
+    }
+    if (selected && !steps.some((step) => step.id === selected)) {
       setSelectedStepId(null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- selection must not rebuild the graph
-  }, [steps, setNodes, setEdges])
+  }, [steps, structureKey, setNodes, setEdges])
 
   const selectedStep = useMemo(
     () => steps.find((step) => step.id === selectedStepId) ?? null,
     [steps, selectedStepId],
   )
+
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    const locked = selectedStepIdRef.current
+    const filtered = changes.filter((change) => {
+      // Keep the inspector's step selected across controlled node updates.
+      if (change.type === 'select' && locked && change.id === locked && change.selected === false) {
+        return false
+      }
+      return true
+    })
+    if (filtered.length > 0) onNodesChange(filtered)
+  }, [onNodesChange])
 
   const commitPositions = useCallback((nextNodes: Node[]) => {
     if (readOnly) return
@@ -153,9 +206,29 @@ function WorkflowCanvasInner({
     setSelectedStepId(null)
   }, [steps, commitSteps, readOnly])
 
+  const onBeforeDelete = useCallback(async () => {
+    if (isInspectorTypingTarget(document.activeElement)) return false
+    return true
+  }, [])
+
+  const onNodeClick = useCallback((_event: ReactMouseEvent, node: Node) => {
+    setSelectedStepId(node.id)
+  }, [])
+
   const onSelectionChange = useCallback((params: OnSelectionChangeParams) => {
-    const id = params.nodes[0]?.id ?? null
-    setSelectedStepId(id)
+    const id = params.nodes.find((node) => node.selected)?.id ?? params.nodes[0]?.id ?? null
+    // Ignore empty selection events from node rebuilds — pane clears via onPaneClick.
+    if (id) setSelectedStepId(id)
+  }, [])
+
+  const onPaneClick = useCallback(() => {
+    setSelectedStepId(null)
+  }, [])
+
+  const onInit = useCallback((instance: ReactFlowInstance) => {
+    if (didFitRef.current) return
+    didFitRef.current = true
+    void instance.fitView({ padding: 0.2 })
   }, [])
 
   const addStepOfType = useCallback((type: WorkflowStepType, position?: { x: number; y: number }) => {
@@ -215,19 +288,23 @@ function WorkflowCanvasInner({
           edges={edges}
           nodeTypes={nodeTypes as never}
           {...(readOnly ? {} : {
-            onNodesChange,
+            onNodesChange: handleNodesChange,
             onEdgesChange,
             onConnect,
             onEdgesDelete,
             onNodesDelete,
             onNodeDragStop,
+            onBeforeDelete,
           })}
+          onInit={onInit}
+          onNodeClick={onNodeClick}
           onSelectionChange={onSelectionChange}
+          onPaneClick={onPaneClick}
           nodesDraggable={!readOnly}
           nodesConnectable={!readOnly}
+          nodesFocusable={false}
           elementsSelectable
           edgesReconnectable={!readOnly}
-          fitView
           deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
           proOptions={{ hideAttribution: true }}
         >

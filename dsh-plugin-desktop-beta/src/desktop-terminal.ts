@@ -49,7 +49,7 @@ const WINDOWS_SHELL_COMMANDS = ['pwsh.exe', 'powershell.exe', 'cmd.exe'] as cons
 const ELECTRON_HEADERS_URL = 'https://electronjs.org/headers'
 
 /** Platforms with a native terminal launch contract owned by DSH Desktop. */
-export type DesktopTerminalPlatform = 'darwin' | 'win32'
+export type DesktopTerminalPlatform = 'darwin' | 'win32' | 'linux'
 
 /** Process launcher injected by the Electron adapter. */
 export type DesktopTerminalSpawn = (
@@ -289,6 +289,108 @@ function windowsPnpmShim(): string {
   ].join('\r\n')
 }
 
+/** Build a command shim that enables Electron's Node mode only for its child (Linux). */
+function linuxShim(appExecutable: string, binPath?: string): string {
+  const entry = binPath === undefined ? '' : ` ${quoteSh(binPath)}`
+  return [
+    '#!/bin/sh',
+    `${RUN_AS_NODE}=1 exec ${quoteSh(appExecutable)}${entry} "$@"`,
+    '',
+  ].join('\n')
+}
+
+/** Build the DSH shim with Loader internals and one process-local default profile (Linux). */
+function linuxDshShim(options: DesktopTerminalOptions): string {
+  return [
+    '#!/bin/sh',
+    [
+      `${DEFAULT_PROFILE}=${quoteSh(options.profileName)}`,
+      `${RUN_AS_NODE}=1`,
+      `exec ${quoteSh(options.appExecutable)} --expose-internals ${quoteSh(options.dshBootstrapPath)} "$@"`,
+    ].join(' '),
+    '',
+  ].join('\n')
+}
+
+/** Build a pnpm shim with Electron native-module settings scoped to its process tree (Linux). */
+function linuxPnpmShim(options: DesktopTerminalOptions): string {
+  return [
+    '#!/bin/sh',
+    [
+      `${RUN_AS_NODE}=1`,
+      'npm_config_runtime=electron',
+      `npm_config_target=${quoteSh(options.electronVersion)}`,
+      `npm_config_disturl=${quoteSh(ELECTRON_HEADERS_URL)}`,
+      `exec ${quoteSh(options.appExecutable)} ${quoteSh(options.pnpmBinPath)} ${PNPM_IGNORE_MINIMUM_RELEASE_AGE} "$@"`,
+    ].join(' '),
+    '',
+  ].join('\n')
+}
+
+/** Build a bash startup file that preserves the user's rc and then restores desktop variables (Linux). */
+function linuxBashRc(options: DesktopTerminalOptions, shimDir: string): string {
+  return [
+    'if [ -n "${DSH_DESKTOP_USER_BASHRC:-}" ] && [ -r "${DSH_DESKTOP_USER_BASHRC}" ]; then',
+    '  . "${DSH_DESKTOP_USER_BASHRC}"',
+    'fi',
+    `unset ${RUN_AS_NODE}`,
+    `export ${DSH_HOME}=${quoteSh(options.homeDir)}`,
+    'case ":${PATH:-}:" in',
+    `  *:${quoteSh(shimDir)}:*) ;;`,
+    `  *) export PATH=${quoteSh(shimDir)}:"\${PATH:-}" ;;`,
+    'esac',
+    'unset DSH_DESKTOP_USER_BASHRC',
+    '',
+  ].join('\n')
+}
+
+/** Build the Linux script opened by the terminal emulator. */
+function linuxWelcome(
+  options: DesktopTerminalOptions,
+  shimDir: string,
+  bashRcPath: string,
+): string {
+  const commandHelp = 'dsh --dump-config'
+  const pluginAdd = 'dsh plugin add <third-party-plugin>'
+  const pluginRemove = 'dsh plugin remove <third-party-plugin>'
+  const pluginUpdate = 'dsh plugin update'
+  return [
+    '#!/bin/sh',
+    `unset ${RUN_AS_NODE}`,
+    `export ${DSH_HOME}=${quoteSh(options.homeDir)}`,
+    `export PATH=${quoteSh(shimDir)}:"\${PATH:-}"`,
+    `cd ${quoteSh(options.profileDir)}`,
+    "printf '\\033[2J\\033[3J\\033[H'",
+    `printf '%s\\n' ${quoteSh(`DSH Desktop ${options.productVersion} terminal`)}`,
+    `printf '%s\\n' ${quoteSh(`Profile: ${options.profileName}`)}`,
+    `printf '%s\\n' ${quoteSh(`Profile directory: ${options.profileDir}`)}`,
+    `printf '%s\\n' ${quoteSh(`Harness home: ${options.homeDir}`)}`,
+    `printf '%s\\n' ${quoteSh(`Plugin commands without --profile modify the ${options.profileName} profile.`)}`,
+    `printf '%s\\n' ${quoteSh('Commands:')}`,
+    `printf '  %s\\n' ${quoteSh(commandHelp)}`,
+    `printf '  %s\\n' ${quoteSh(pluginAdd)}`,
+    `printf '  %s\\n' ${quoteSh(pluginRemove)}`,
+    `printf '  %s\\n' ${quoteSh(pluginUpdate)}`,
+    `printf '%s\\n' ${quoteSh('Restart DSH Desktop after plugin changes.')}`,
+    'case "${SHELL:-/bin/bash}" in',
+    '  */bash)',
+    '    export DSH_DESKTOP_USER_BASHRC="${HOME:-}/.bashrc"',
+    `    exec "\${SHELL}" --noprofile --rcfile ${quoteSh(bashRcPath)} -i`,
+    '    ;;',
+    '  */zsh)',
+    '    export DSH_DESKTOP_USER_ZDOTDIR="${ZDOTDIR:-${HOME:-}}"',
+    `    export ZDOTDIR=${quoteSh(options.stateDir)}`,
+    '    exec "${SHELL}" -i',
+    '    ;;',
+    '  *)',
+    '    export DSH_DESKTOP_USER_BASHRC="${HOME:-}/.bashrc"',
+    `    exec /bin/bash --noprofile --rcfile ${quoteSh(bashRcPath)} -i`,
+    '    ;;',
+    'esac',
+    '',
+  ].join('\n')
+}
+
 /** Build a zsh startup file that preserves the user's rc and then restores desktop variables. */
 function macZshRc(options: DesktopTerminalOptions, shimDir: string): string {
   return [
@@ -427,7 +529,7 @@ function windowsCmdWelcome(): string {
 
 /** Create command shims and the interactive welcome script. */
 function prepareDesktopTerminalFiles(options: DesktopTerminalOptions): DesktopTerminalFiles {
-  if (options.platform !== 'darwin' && options.platform !== 'win32') {
+  if (options.platform !== 'darwin' && options.platform !== 'win32' && options.platform !== 'linux') {
     throw new Error(`dsh-plugin-desktop: terminal is unsupported on ${options.platform}`)
   }
   assertDesktopProfileName(options.profileName)
@@ -460,6 +562,22 @@ function prepareDesktopTerminalFiles(options: DesktopTerminalOptions): DesktopTe
     replacePrivateFile(join(options.stateDir, '.zshrc'), macZshRc(options, shimDir), PRIVATE_FILE_MODE)
     replacePrivateFile(bashRcPath, macBashRc(options, shimDir), PRIVATE_FILE_MODE)
     replacePrivateFile(files.welcomePath, macWelcome(options, shimDir, bashRcPath), EXECUTABLE_FILE_MODE)
+    return files
+  }
+  if (options.platform === 'linux') {
+    const files: DesktopTerminalFiles = {
+      shimDir,
+      dshShimPath: join(shimDir, 'dsh'),
+      pnpmShimPath: join(shimDir, 'pnpm'),
+      nodeShimPath: join(shimDir, 'node'),
+      welcomePath: join(options.stateDir, 'welcome.sh'),
+    }
+    const bashRcPath = join(options.stateDir, 'bashrc')
+    replacePrivateFile(files.dshShimPath, linuxDshShim(options), EXECUTABLE_FILE_MODE)
+    replacePrivateFile(files.pnpmShimPath, linuxPnpmShim(options), EXECUTABLE_FILE_MODE)
+    replacePrivateFile(files.nodeShimPath, linuxShim(options.appExecutable), EXECUTABLE_FILE_MODE)
+    replacePrivateFile(bashRcPath, linuxBashRc(options, shimDir), PRIVATE_FILE_MODE)
+    replacePrivateFile(files.welcomePath, linuxWelcome(options, shimDir, bashRcPath), EXECUTABLE_FILE_MODE)
     return files
   }
   if (options.platform === 'win32') {
@@ -636,7 +754,7 @@ function windowsLaunchBroker(
   return [
     '@echo off',
     'setlocal EnableDelayedExpansion',
-    `start "DSH Desktop Beta" /D "!${WINDOWS_PROFILE_DIRECTORY}!" ${target}`,
+    `start "DSH Desktop" /D "!${WINDOWS_PROFILE_DIRECTORY}!" ${target}`,
     'exit /b %errorlevel%',
     '',
   ].join('\r\n')
@@ -674,6 +792,11 @@ export function openDesktopTerminal(options: DesktopTerminalOptions): DesktopTer
   if (options.platform === 'darwin') {
     command = '/usr/bin/open'
     args = ['-a', 'Terminal', files.welcomePath]
+  } else if (options.platform === 'linux') {
+    // Default to x-terminal-emulator which should be available on most Linux systems
+    command = 'x-terminal-emulator'
+    args = ['-e', '/bin/sh', files.welcomePath]
+    detached = true
   } else {
     const shell = resolveWindowsShell(options, env)
     const shellArgs = windowsShellArgv(shell, files)

@@ -38,6 +38,25 @@ describe('workflow template clone', () => {
     expect(sampleYaml).toContain('name: multi-llm-coder')
   })
 
+  it('strips source uid so a copy gets a fresh identity on save', () => {
+    const withUid = `apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  uid: 11111111-1111-4111-8111-111111111111
+  name: demo
+  title: Demo
+spec:
+  steps:
+    - id: echo
+      type: script
+      run: echo hi
+`
+    const cloned = cloneTemplateYaml(withUid, ['demo'])
+    expect(cloned.yaml).not.toContain('11111111-1111-4111-8111-111111111111')
+    expect(cloned.view.uid).toBeUndefined()
+    expect(cloned.name).toBe('demo-copy')
+  })
+
   it('parses yaml into the visual editor model', () => {
     const view = parseWorkflowYaml(sampleYaml)
     expect(view.steps).toHaveLength(1)

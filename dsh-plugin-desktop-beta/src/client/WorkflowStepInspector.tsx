@@ -109,7 +109,11 @@ export function WorkflowStepInspector({
 
   if (!step) {
     return (
-      <aside className="workflow-canvas-inspector">
+      <aside
+        className="workflow-canvas-inspector"
+        onPointerDown={(event) => event.stopPropagation()}
+        onMouseDown={(event) => event.stopPropagation()}
+      >
         <h4>{t('canvasInspector')}</h4>
         <p className="workflow-canvas-inspector-empty">{t('canvasInspectorEmpty')}</p>
       </aside>
@@ -119,7 +123,12 @@ export function WorkflowStepInspector({
   const patch = (partial: StepPatch) => onChange(step.id, partial)
 
   return (
-    <aside className="workflow-canvas-inspector">
+    <aside
+      className="workflow-canvas-inspector"
+      onPointerDown={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
       <div className="workflow-canvas-inspector-header">
         <h4>{t('canvasInspector')}</h4>
         <button
@@ -135,6 +144,7 @@ export function WorkflowStepInspector({
         <span>{t('canvasStepId')}</span>
         <input
           type="text"
+          className="nodrag nopan nowheel"
           value={idDraft}
           onChange={(event) => setIdDraft(event.target.value)}
           onBlur={() => {
@@ -147,7 +157,7 @@ export function WorkflowStepInspector({
 
       <label className="workflow-form-group">
         <span>{t('canvasStepType')}</span>
-        <select
+        <select className="nodrag nopan nowheel"
           value={step.type}
           onChange={(event) => patch({ type: event.target.value as WorkflowStepType })}
         >
@@ -162,7 +172,7 @@ export function WorkflowStepInspector({
       {step.type === 'script' && (
         <label className="workflow-form-group">
           <span>{t('commandPlaceholder')}</span>
-          <input
+          <input className="nodrag nopan nowheel"
             type="text"
             value={step.run || ''}
             onChange={(event) => patch({ run: event.target.value })}
@@ -174,7 +184,7 @@ export function WorkflowStepInspector({
         <>
           <label className="workflow-form-group">
             <span>{t('promptPlaceholder')}</span>
-            <textarea
+            <textarea className="nodrag nopan nowheel"
               rows={4}
               value={step.prompt || ''}
               onChange={(event) => patch({ prompt: event.target.value })}
@@ -182,7 +192,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepRole')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={step.role || ''}
               onChange={(event) => {
@@ -195,7 +205,7 @@ export function WorkflowStepInspector({
             <span>{t('stepModel')}</span>
             {api ? (
               <>
-                <select
+                <select className="nodrag nopan nowheel"
                   value={step.model || ''}
                   disabled={llmRoutesLoading}
                   onChange={(event) => {
@@ -233,7 +243,7 @@ export function WorkflowStepInspector({
                 )}
               </>
             ) : (
-              <input
+              <input className="nodrag nopan nowheel"
                 type="text"
                 value={step.model || ''}
                 placeholder="provider/model"
@@ -251,7 +261,7 @@ export function WorkflowStepInspector({
         <>
           <label className="workflow-form-group">
             <span>{t('stepRole')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={step.role || ''}
               onChange={(event) => {
@@ -262,7 +272,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepInputsJson')}</span>
-            <textarea
+            <textarea className="nodrag nopan nowheel"
               rows={3}
               value={step.inputs ? JSON.stringify(step.inputs, null, 2) : ''}
               onChange={(event) => {
@@ -284,7 +294,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepOutputs')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={(step.outputs ?? []).join(', ')}
               onChange={(event) => patch({
@@ -294,7 +304,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepAcceptance')}</span>
-            <textarea
+            <textarea className="nodrag nopan nowheel"
               rows={2}
               value={(step.acceptance ?? []).join('\n')}
               onChange={(event) => patch({
@@ -308,7 +318,7 @@ export function WorkflowStepInspector({
       {(step.type === 'script' || step.type === 'task') && (
         <label className="workflow-form-group">
           <span>{t('stepEnv')}</span>
-          <textarea
+          <textarea className="nodrag nopan nowheel"
             rows={2}
             value={Object.entries(step.env ?? {}).map(([key, value]) => `${key}=${value}`).join('\n')}
             onChange={(event) => {
@@ -329,7 +339,7 @@ export function WorkflowStepInspector({
       {(step.type === 'task' || step.type === 'llm') && (
         <label className="workflow-form-group">
           <span>{t('stepHarness')}</span>
-          <input
+          <input className="nodrag nopan nowheel"
             type="text"
             value={step.harness || ''}
             onChange={(event) => {
@@ -343,7 +353,7 @@ export function WorkflowStepInspector({
 
       <label className="workflow-form-group">
         <span>{t('stepTimeout')}</span>
-        <input
+        <input className="nodrag nopan nowheel"
           type="number"
           min={1}
           value={step.timeout ?? ''}
@@ -361,7 +371,7 @@ export function WorkflowStepInspector({
         <>
           <label className="workflow-form-group">
             <span>{t('questionPlaceholder')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={step.question || ''}
               onChange={(event) => patch({ question: event.target.value })}
@@ -369,7 +379,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepOptions')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={(step.options ?? ['approved', 'rejected']).join(', ')}
               onChange={(event) => patch({
@@ -379,7 +389,7 @@ export function WorkflowStepInspector({
           </label>
           <label className="workflow-form-group">
             <span>{t('stepPass')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={(step.pass ?? ['approved']).join(', ')}
               onChange={(event) => patch({
@@ -396,7 +406,7 @@ export function WorkflowStepInspector({
           <p className="workflow-canvas-inspector-empty">{t('subWorkflowHint')}</p>
           <label className="workflow-form-group">
             <span>{t('refPlaceholder')}</span>
-            <input
+            <input className="nodrag nopan nowheel"
               type="text"
               value={step.ref || ''}
               onChange={(event) => patch({ ref: event.target.value })}
@@ -407,7 +417,7 @@ export function WorkflowStepInspector({
 
       <label className="workflow-form-group">
         <span>{t('stepRetries')}</span>
-        <input
+        <input className="nodrag nopan nowheel"
           type="number"
           min={0}
           value={step.retries ?? ''}
@@ -423,7 +433,7 @@ export function WorkflowStepInspector({
 
       <label className="workflow-form-group">
         <span>{t('stepOnFailure')}</span>
-        <select
+        <select className="nodrag nopan nowheel"
           value={step.onFailure ?? ''}
           onChange={(event) => {
             const value = event.target.value
@@ -444,7 +454,7 @@ export function WorkflowStepInspector({
       {(step.onFailure === 'compensate' || step.compensation) && (
         <label className="workflow-form-group">
           <span>{t('stepCompensationPlaceholder')}</span>
-          <input
+          <input className="nodrag nopan nowheel"
             type="text"
             value={step.compensation?.run || ''}
             onChange={(event) => {

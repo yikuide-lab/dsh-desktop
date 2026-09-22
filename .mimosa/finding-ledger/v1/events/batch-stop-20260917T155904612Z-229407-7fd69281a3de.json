@@ -1,0 +1,170 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "stop-20260917T155904612Z-229407-7fd69281a3de",
+  "runId": "20260917T155904612Z-229407-7fd69281a3de",
+  "runStatus": "inconclusive",
+  "coverage": {
+    "status": "partial",
+    "reasons": [
+      {
+        "code": "bash_discovery_incomplete",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/file-upload/src/client/runtime.ts",
+        "detail": "project enumeration exceeded 5000 reviewable files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "candidate_limit_exceeded",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop/src/desktop-awf-executor.ts",
+        "detail": "43 changed reviewable file(s) were not scanned because the limit is 20",
+        "affectsCompletion": true
+      },
+      {
+        "code": "baseline_partial",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/connection/src/client/random-uuid.ts",
+        "detail": "baseline exceeded 5000 candidate files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/file-upload/src/client/runtime.ts",
+        "detail": "bash_discovery_incomplete: project enumeration exceeded 5000 reviewable files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop/src/desktop-awf-executor.ts",
+        "detail": "candidate_limit_exceeded: 43 changed reviewable file(s) were not scanned because the limit is 20",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/connection/src/client/random-uuid.ts",
+        "detail": "baseline_partial: baseline exceeded 5000 candidate files",
+        "affectsCompletion": true
+      }
+    ]
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "Stop"
+  },
+  "revision": "7be05142841f522bf86bffdeda4cb55b5d0257f4",
+  "diffHash": "1b6c73918d3f230f8b757a199fe7ecd9c865fdc1118785f81f830c09bdb48265",
+  "rulesVersion": "unavailable",
+  "sessionHash": "b2dcdad0da8177211f5e47706695f0dffb589b83b16018ff365f350b27e7c00a",
+  "reportRef": ".mimosa/reports/task-review-sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f-20260917T155904612Z-229407-7fd69281a3de.json",
+  "events": [],
+  "observedFindingIds": [
+    "mimosa-10ed9cef2365cc92494a24c7",
+    "mimosa-13e901049b364b534d799dbf"
+  ],
+  "verifiedFiles": [
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-workflow-openai-settings.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-settings.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-client.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-telemetry.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-executor.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-workflow-executor.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/tests/awf-telemetry.spec.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/tests/awf-executor.spec.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/tests/workflow-openai-default-bind.spec.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-openai-settings.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-settings.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-client.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-bridge.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-executor.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-contract.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-controller.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-route.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/workflow.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-telemetry.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    }
+  ],
+  "recordedAt": "2026-09-17T15:59:04.888Z"
+}

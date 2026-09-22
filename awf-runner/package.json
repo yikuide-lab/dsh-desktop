@@ -1,0 +1,68 @@
+{
+  "name": "awf-runner",
+  "version": "0.1.0",
+  "description": "Headless AWF platform node runner (awf-node): registers an executor, claims tasks, and runs them through the DSH workflow engine without Electron",
+  "license": "MIT",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "bin": {
+    "awf-node": "lib/bin.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./awf-settings": {
+      "types": "./lib/awf/settings.d.ts",
+      "default": "./lib/awf/settings.js"
+    },
+    "./awf-client": {
+      "types": "./lib/awf/client.d.ts",
+      "default": "./lib/awf/client.js"
+    },
+    "./awf-auth": {
+      "types": "./lib/awf/auth.d.ts",
+      "default": "./lib/awf/auth.js"
+    },
+    "./awf-executor": {
+      "types": "./lib/awf/executor.d.ts",
+      "default": "./lib/awf/executor.js"
+    },
+    "./node-hooks": {
+      "types": "./lib/node/hooks.d.ts",
+      "default": "./lib/node/hooks.js"
+    },
+    "./serve": {
+      "types": "./lib/serve.d.ts",
+      "default": "./lib/serve.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/**/*.js",
+    "lib/**/*.map",
+    "lib/**/*.d.ts",
+    "Dockerfile",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "dsh-plugin-workflow": "^0.2.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  }
+}

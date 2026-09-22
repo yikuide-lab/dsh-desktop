@@ -1,4 +1,4 @@
-apiVersion: wfwise.io/v1
+apiVersion: workflow-wise/v1
 kind: Workflow
 metadata:
   name: deploy-pipeline

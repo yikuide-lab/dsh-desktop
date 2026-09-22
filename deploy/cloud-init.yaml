@@ -1,0 +1,86 @@
+#cloud-config
+# Cloud-init user-data for provisioning a headless AWF runner node.
+#
+# What it does:
+#   1. installs Node.js 24 (NodeSource) and git
+#   2. fetches the dsh-desktop repo and builds ONLY dsh-plugin-workflow and
+#      awf-runner with plain npm (the workspace package is linked via file:;
+#      no Electron/desktop dependency tree is installed)
+#   3. writes /etc/awf-node/awf-node.env from the bootstrap values below
+#   4. installs and starts the awf-node systemd unit
+#
+# Fill in the four placeholders before use (or edit the env file after first
+# boot and `systemctl restart awf-node`). The bootstrap token is the
+# publisher's platform user token; the runner exchanges it once for an
+# executor token (stored 0600 under /var/lib/awf-node) on first start.
+# Alternatively, log in once instead of using a token:
+#   sudo -u awf-node AWF_NODE_PASSWORD=... node /opt/awf-node/lib/bin.js login \
+#     --platform https://awf.example.com --email you@example.com
+#
+# Docker alternative: build awf-runner/Dockerfile from the repo root and run
+# the container with the same environment; see the Dockerfile header.
+
+write_files:
+  - path: /etc/awf-node/awf-node.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      AWF_PLATFORM_URL=https://awf.example.com
+      AWF_API_TOKEN=__BOOTSTRAP_PLATFORM_USER_TOKEN__
+      AWF_NODE_LLM_BASE_URL=__OPENAI_COMPATIBLE_BASE_URL__
+      AWF_NODE_LLM_API_KEY=__LLM_API_KEY__
+      AWF_NODE_LLM_MODEL=__LLM_MODEL__
+      AWF_NODE_LABELS=
+  - path: /etc/systemd/system/awf-node.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=AWF headless workflow node runner (awf-node)
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      User=awf-node
+      Group=awf-node
+      EnvironmentFile=-/etc/awf-node/awf-node.env
+      Environment=AWF_NODE_STATE_DIR=/var/lib/awf-node
+      # NOTE: systemd drops words that expand to nothing; --flag=${VAR} keeps
+      # an empty value parseable ("unset").
+      ExecStart=/usr/bin/node /opt/awf-node/lib/bin.js serve --platform=${AWF_PLATFORM_URL} --labels=${AWF_NODE_LABELS}
+      Restart=on-failure
+      RestartSec=5s
+      NoNewPrivileges=true
+      ProtectSystem=strict
+      ProtectHome=true
+      ReadWritePaths=/var/lib/awf-node
+      PrivateTmp=true
+
+      [Install]
+      WantedBy=multi-user.target
+
+package_update: true
+packages:
+  - git
+  - curl
+
+runcmd:
+  # Node.js 24 via NodeSource.
+  - curl -fsSL https://deb.nodesource.com/setup_24.x | bash -
+  - apt-get install -y nodejs
+  # Fetch the repo and build the two packages standalone with npm.
+  # dsh-plugin-workflow is a workspace package (not on npm), linked via file:.
+  - git clone --depth 1 https://github.com/anywhere-labs/deepseek-harness-desktop.git /srv/awf-node/src
+  - npm --prefix /srv/awf-node/src/dsh-plugin-workflow install
+  - npm --prefix /srv/awf-node/src/dsh-plugin-workflow run build
+  - npm --prefix /srv/awf-node/src/dsh-plugin-workflow prune --omit=dev
+  - cd /srv/awf-node/src/awf-runner && npm pkg set 'dependencies.dsh-plugin-workflow=file:../dsh-plugin-workflow' && npm install && npm run build && npm prune --omit=dev
+  # Stable install path used by the unit.
+  - ln -sfn /srv/awf-node/src/awf-runner /opt/awf-node
+  # Service user + state dir.
+  - useradd --system --home-dir /var/lib/awf-node --create-home awf-node
+  - chown -R awf-node:awf-node /var/lib/awf-node
+  - chown -R root:awf-node /etc/awf-node && chmod 0750 /etc/awf-node
+  - systemctl daemon-reload
+  - systemctl enable --now awf-node

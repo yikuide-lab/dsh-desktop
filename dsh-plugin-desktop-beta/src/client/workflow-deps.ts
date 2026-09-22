@@ -1,4 +1,9 @@
-import type { WorkflowSettingsView, WorkflowStepView, WorkflowView } from './desktop-workflow-api.js'
+import type {
+  WorkflowModelCatalogView,
+  WorkflowSettingsView,
+  WorkflowStepView,
+  WorkflowView,
+} from './desktop-workflow-api.js'
 
 /** One missing or weak dependency required by a workflow. */
 export interface WorkflowDependencyIssue {
@@ -15,14 +20,32 @@ export interface WorkflowDependencyReport {
   issues: WorkflowDependencyIssue[]
 }
 
+export interface WorkflowDependencyOptions {
+  prompt?: string | undefined
+  requirePrompt?: boolean | undefined
+  /**
+   * DSH Models catalog (system providers). Distinct from workflow settings.providers
+   * (bias → provider/model preferences). Either source can satisfy LLM routing.
+   */
+  catalog?: Pick<WorkflowModelCatalogView, 'providers'> | undefined
+}
+
 function stepNeedsLlmRoute(step: WorkflowStepView): boolean {
   return step.type === 'llm' || step.type === 'task'
+}
+
+function isProviderModelRoute(value: string | undefined): boolean {
+  return typeof value === 'string' && value.includes('/')
+}
+
+function catalogHasModels(catalog: WorkflowDependencyOptions['catalog']): boolean {
+  return (catalog?.providers ?? []).some((group) => group.models.length > 0)
 }
 
 function providerCoversRole(settings: WorkflowSettingsView, role: string): boolean {
   const want = role.toLowerCase()
   return settings.providers.some((provider) => (
-    provider.model.includes('/')
+    isProviderModelRoute(provider.model)
     && provider.bias.some((tag) => {
       const t = tag.toLowerCase()
       return t === want || want.includes(t) || t.includes(want)
@@ -33,7 +56,7 @@ function providerCoversRole(settings: WorkflowSettingsView, role: string): boole
 function providerCoversDefault(settings: WorkflowSettingsView): boolean {
   const want = settings.defaultBias.trim().toLowerCase() || 'coding'
   return settings.providers.some((provider) => (
-    provider.model.includes('/')
+    isProviderModelRoute(provider.model)
     && (
       provider.bias.length === 0
       || provider.bias.some((tag) => tag.toLowerCase() === want)
@@ -44,11 +67,17 @@ function providerCoversDefault(settings: WorkflowSettingsView): boolean {
 /**
  * Inspect a workflow against LLM preference settings before start.
  * Incomplete provider/bias coverage yields issues the UI can prompt to fix.
+ *
+ * Routing sources (any one is enough to avoid a hard block), matching Host executor:
+ * 1. workflow settings.providers (bias → provider/model)
+ * 2. DSH Models catalog
+ * 3. per-step model: provider/model
+ * 4. soft fallback: session agentDefaultModel (warned, not blocked)
  */
 export function checkWorkflowDependencies(
   workflow: Pick<WorkflowView, 'name' | 'steps'>,
   settings: WorkflowSettingsView,
-  options: { prompt?: string | undefined; requirePrompt?: boolean | undefined } = {},
+  options: WorkflowDependencyOptions = {},
 ): WorkflowDependencyReport {
   const issues: WorkflowDependencyIssue[] = []
 
@@ -72,26 +101,31 @@ export function checkWorkflowDependencies(
       .filter(Boolean),
   )]
 
-  const hasAnyProvider = settings.providers.some((p) => p.model.includes('/'))
-  if (!hasAnyProvider) {
+  const hasWorkflowPrefs = settings.providers.some((p) => isProviderModelRoute(p.model))
+  const hasCatalog = catalogHasModels(options.catalog)
+  const hasStepModels = routed.some((step) => isProviderModelRoute(step.model))
+  const hasAnyRoute = hasWorkflowPrefs || hasCatalog || hasStepModels
+
+  if (!hasAnyRoute) {
     const onlyRouted = workflow.steps.every(
       (step) => step.type === 'llm' || step.type === 'task' || step.type === 'approval',
     )
+    // Host executor can still fall back to the session default model — warn, do not hard-block.
     issues.push({
       id: 'providers-empty',
       kind: 'llm-route',
       detail: onlyRouted
-        ? '未配置工作流 LLM provider/model；纯 LLM/task 工作流无法可靠启动'
-        : '未配置工作流 LLM provider/model；LLM/task 步骤将回退到会话默认模型（若也没有则会失败）',
-      blocking: onlyRouted,
+        ? '未配置工作流 LLM 路由偏好（工作流设置 → Providers，格式 provider/model），也未在 DSH Models 中发现可用模型；将尝试会话默认模型（若也没有则会失败）。可在「工作流 → 设置」从已配置模型添加路由，或给步骤指定 model'
+        : '未配置工作流 LLM 路由偏好；LLM/task 步骤将回退到会话默认模型（若也没有则会失败）',
+      blocking: false,
     })
-  } else {
+  } else if (hasWorkflowPrefs) {
     for (const role of roles) {
       if (!providerCoversRole(settings, role)) {
         issues.push({
           id: `role:${role}`,
           kind: 'llm-route',
-          detail: `角色 “${role}” 没有匹配的 provider 能力倾向（bias）；将回退默认倾向 “${settings.defaultBias || 'coding'}”`,
+          detail: `角色 “${role}” 没有匹配的 provider 能力倾向（bias）；将回退默认倾向 “${settings.defaultBias || 'coding'}”${hasCatalog ? '或 DSH 默认模型' : ''}`,
           blocking: false,
         })
       }
@@ -104,6 +138,14 @@ export function checkWorkflowDependencies(
         blocking: false,
       })
     }
+  } else if (hasCatalog && !hasStepModels) {
+    // Catalog alone: executor still needs workflow prefs or session default for role routing.
+    issues.push({
+      id: 'prefs-from-catalog',
+      kind: 'llm-route',
+      detail: '已检测到 DSH Models，但工作流设置中尚未添加路由偏好；运行时将优先用会话默认模型。建议在「工作流 → 设置」从目录添加 provider/model，并把 bias 设为步骤 role（如 risk-control）',
+      blocking: false,
+    })
   }
 
   const taskSteps = workflow.steps.filter((step) => step.type === 'task')
@@ -118,15 +160,14 @@ export function checkWorkflowDependencies(
 
   const explicitModels = routed
     .map((step) => step.model)
-    .filter((model): model is string => typeof model === 'string' && model.includes('/'))
+    .filter((model): model is string => typeof model === 'string' && model.length > 0)
   for (const model of explicitModels) {
-    // Informational only — host still needs the adapter; we cannot probe adapters from the client.
-    if (!model.trim()) {
+    if (!isProviderModelRoute(model)) {
       issues.push({
         id: `model:${model}`,
         kind: 'llm-route',
-        detail: `步骤写死了无效 model：${model}`,
-        blocking: true,
+        detail: `步骤 model “${model}” 不是 provider/model 路由；需配合工作流 Providers 或会话默认 provider`,
+        blocking: false,
       })
     }
   }

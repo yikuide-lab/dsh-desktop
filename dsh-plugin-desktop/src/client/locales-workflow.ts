@@ -402,6 +402,11 @@ export const zh = {
   awfExecutorRunning: '执行器运行中',
   awfExecutorIdle: '执行器未运行',
   awfExecutorError: '最近错误',
+  awfTunnel: '反向隧道（默认关闭）',
+  awfTunnelHint: '开启后建立到平台的 WebSocket 长连接（需 executor 凭据），并在本地 :8787 暴露 OpenAI 兼容 HTTP 端点。平台 /s/{slug} 流量经隧道转发至本地执行。请仅在可信平台开启。',
+  awfTunnelConnected: '隧道已连接',
+  awfTunnelDisconnected: '隧道未连接',
+  since: '自',
   awfRunIdRequired: '请输入平台工作流 ID',
 } as const
 
@@ -811,5 +816,10 @@ export const en: Record<WorkflowLocaleKey, string> = {
   awfExecutorRunning: 'Executor running',
   awfExecutorIdle: 'Executor idle',
   awfExecutorError: 'Last error',
+  awfTunnel: 'Reverse tunnel (off by default)',
+  awfTunnelHint: 'When enabled, establishes a WebSocket tunnel to the platform (requires executor credentials) and exposes a local OpenAI-compatible HTTP endpoint on :8787. Platform /s/{slug} traffic is forwarded through the tunnel to local execution. Only enable for a platform you trust.',
+  awfTunnelConnected: 'Tunnel connected',
+  awfTunnelDisconnected: 'Tunnel disconnected',
+  since: 'since',
   awfRunIdRequired: 'Enter the platform workflow ID',
 }

@@ -174,7 +174,36 @@ access token 临期自动刷新、401 自动重试一次；token 解析链 env >
   （仅 工作流名/步骤状态/token 估算/耗时；**不含 prompt 与输出**）；
   AWF 侧端点属 awf-a3c 平台部分，未上线前客户端只做开关与本地缓存。
 
-## 5. 流程门禁（每期相同）
+## 5. C-P5 反向隧道客户端 + 桌面 UI（awf-45y，Phase 3b）
+
+### 新增文件（beta 先行，两侧同名镜像）
+
+| 文件 | 职责 |
+|------|------|
+| `awf-runner/src/tunnel.ts` | 反向隧道客户端：`createTunnelClient()`（WebSocket 连接到 `wss://host/api/tunnel/ws`，executor token 鉴权、重连踢旧 4001、in-flight 信号量 16、ping 30s/读 90s、SSE chunk 透传、帧协议 request/response/error）；本地 OpenAI 兼容 HTTP 服务器（默认 :8787）转发平台请求经隧道回传响应 |
+| `awf-runner/tests/tunnel.spec.ts` | mock WS 服务器验证：连接/重连/请求转发/SSE chunk/超时/满载 |
+
+### 改动文件
+
+- `awf-runner/src/cli.ts`：新增 `tunnel` 命令（`awf-node tunnel --platform <baseUrl> --port 8787`）。
+- `awf-runner/src/index.ts`：导出 tunnel 模块。
+- `awf-runner/package.json`：新增 `ws` 依赖 + `@types/ws`。
+- `dsh-plugin-desktop-beta/src/desktop-awf-bridge.ts`：AwfBridge 接口新增 `getTunnelStatus()`、`setTunnelSettings(enabled, localPort)`；实现内部管理 `createTunnelClient` 生命周期，设置持久化 `tunnelEnabled`、`tunnelLocalPort`。
+- `dsh-plugin-desktop-beta/src/desktop-workflow-contract.ts`：新增 op `awfGetTunnelStatus`、`awfSetTunnelSettings`、payload `awfTunnelSettings{ tunnelEnabled?, localPort? }`。
+- `dsh-plugin-desktop-beta/src/desktop-workflow-controller.ts`：处理 `awfGetTunnelStatus`、`awfSetTunnelSettings`。
+- `dsh-plugin-desktop-beta/src/desktop-workflow-route.ts`：注入 `awfBridge` 到 extras。
+- `dsh-plugin-desktop-beta/src/client/desktop-workflow-api.ts`：新增 `AwfTunnelStatusView` 接口、API 方法 `getAwfTunnelStatus()`、`setAwfTunnelSettings(tunnelEnabled, localPort)`。
+- `dsh-plugin-desktop-beta/src/client/WorkflowSettingsPanel.tsx`：AWF 平台连接区新增「反向隧道」开关、本地端口、状态显示（已连接/未连接、executor ID、启动时间、错误信息）。
+- `dsh-plugin-desktop-beta/src/client/locales-workflow.ts`：新增文案键 `awfTunnel`、`awfTunnelHint`、`awfTunnelConnected`、`awfTunnelDisconnected`、`since`（中英）。
+
+### 验收（awf-45y）
+
+- `corepack yarn check`（beta）+ `check:desktop-variants` 后同步 stable，双包绿。
+- 开启隧道后平台 `/s/{slug}/v1/chat/completions` 经隧道转发至本地引擎执行，响应 SSE 透传；
+  关闭隧道后回落平台执行；多 executor 并发、重连、断网恢复均正确。
+- 设置面板隧道状态实时更新：Connected/Disconnected、executor ID、启动时间、错误信息。
+
+## 6. 流程门禁（每期相同）
 
 ```bash
 # beta 开发
@@ -196,4 +225,5 @@ awf-9zy (C-P1 连接器) ──► awf-0bx (C-P2 远程运行)
         │                        │
         └──► awf-66p (C-P3 协商) ─┘   （C-P3 只依赖平台 capabilities，已上线，可与 C-P1 并行）
 awf-a3c (C-P4) 依赖 C-P2
+awf-45y (C-P5 反向隧道) 依赖 C-P2、S-P5（平台侧 Phase 3a 已交付）
 ```

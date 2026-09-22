@@ -1,0 +1,114 @@
+apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: multi-llm-problem-review
+  title: Multi-LLM Problem Review & Summary
+  description: Analyze a user-specified problem with parallel LLM reviews, then summarize. Pass run param PROBLEM (or QUESTION).
+spec:
+  max_concurrency: 3
+  steps:
+    - id: collect-context
+      type: script
+      run: |
+        set -e
+        echo "## Problem"
+        echo "${PROBLEM:-<not provided>}"
+        echo
+        echo "## Workspace"
+        pwd
+        echo
+        echo "## Status"
+        git status -sb || true
+        echo
+        echo "## Recent commits"
+        git log --oneline -n 8 || true
+        echo
+        echo "## Diff (truncated)"
+        if git rev-parse --verify HEAD >/dev/null 2>&1; then
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            git diff --stat HEAD~1..HEAD || true
+            echo
+            git diff HEAD~1..HEAD | head -n 400 || true
+          else
+            git diff --stat || true
+            echo
+            git diff | head -n 400 || true
+          fi
+        else
+          echo "Not a git repository; code context is limited."
+        fi
+      timeout: 120
+
+    - id: review-security
+      type: llm
+      deps: [collect-context]
+      role: security-reviewer
+      prompt: |
+        You are a security-focused analyst.
+        User problem / question:
+        $PROBLEM
+
+        Using the collected workspace/diff context and the problem above, assess:
+        1. Security risks related to the problem
+        2. Exploitability and blast radius
+        3. Concrete mitigations and verification steps
+        Return markdown with severity (critical/high/medium/low) and actionable fixes.
+        If the problem is unrelated to security, say so briefly and note residual risks.
+
+    - id: review-quality
+      type: llm
+      deps: [collect-context]
+      role: quality-reviewer
+      prompt: |
+        You are a software quality analyst.
+        User problem / question:
+        $PROBLEM
+
+        Using the collected context, analyze:
+        1. Likely root causes and failure modes
+        2. Correctness, edge cases, and missing tests
+        3. Debugging steps and evidence to gather
+        4. Practical code/process fixes
+        Return concise markdown findings tied to the stated problem.
+
+    - id: review-architecture
+      type: llm
+      deps: [collect-context]
+      role: architecture-reviewer
+      prompt: |
+        You are an architecture analyst.
+        User problem / question:
+        $PROBLEM
+
+        Using the collected context, analyze:
+        1. Whether the issue is local, cross-module, or systemic
+        2. Boundary, coupling, and design mismatches
+        3. Longer-term structural options vs short-term patches
+        4. Risks of each option
+        Return prioritized markdown recommendations for this problem.
+
+    - id: summarize
+      type: llm
+      deps: [review-security, review-quality, review-architecture]
+      role: summary-editor
+      prompt: |
+        User problem / question:
+        $PROBLEM
+
+        Merge the three parallel analyses into one executive summary in markdown:
+        1. Problem restatement (one sentence)
+        2. Overall severity / urgency with rationale
+        3. Top findings table: severity | area | summary | suggested action
+        4. Most likely root cause
+        5. Recommended next steps (ordered, concrete)
+        6. Open questions / missing evidence
+        Keep it actionable and do not invent findings absent from the reviews.
+
+    - id: approve
+      type: approval
+      deps: [summarize]
+      question: Accept the multi-LLM problem analysis summary?
+      options:
+        - approved
+        - rejected
+        - needs-changes

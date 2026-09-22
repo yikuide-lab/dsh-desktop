@@ -55,7 +55,12 @@ export enum TriggerType {
 // ============================================================================
 
 export interface WorkflowMetadata {
-  name: string;          // [a-z0-9-]+, <=63 chars, globally unique
+  /**
+   * Stable document identity (UUID). Storage and updates key on this field.
+   * Generated on first save when missing; never change for an existing workflow.
+   */
+  uid?: string;
+  name: string;          // [a-z0-9-]+, <=63 chars, unique among workflows
   title?: string;        // human-readable title
   description?: string;
   version?: string;
@@ -104,6 +109,8 @@ export interface Step {
   // LLM step
   prompt?: string;
   model?: string;
+  /** Optional completion token budget for LLM steps (Host executor). */
+  maxTokens?: number;
 
   // Approval step
   question?: string;
@@ -307,6 +314,9 @@ export async function parseWorkflow(content: string): Promise<Workflow> {
   if (typeof meta.name !== 'string') {
     throw new Error('metadata.name is required and must be a string');
   }
+  const uid = typeof meta.uid === 'string' && meta.uid.trim()
+    ? meta.uid.trim()
+    : undefined
 
   // Parse spec
   if (!root.spec || typeof root.spec !== 'object') {
@@ -344,6 +354,7 @@ export async function parseWorkflow(content: string): Promise<Workflow> {
     kind: root.kind as string,
     metadata: {
       name: meta.name as string,
+      ...(uid ? { uid } : {}),
       ...(typeof meta.title === 'string' ? { title: meta.title } : {}),
       ...(typeof meta.description === 'string' ? { description: meta.description } : {}),
       ...(typeof meta.version === 'string' ? { version: meta.version } : {}),

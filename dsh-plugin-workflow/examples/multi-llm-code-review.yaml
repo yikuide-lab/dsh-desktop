@@ -1,0 +1,100 @@
+apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: multi-llm-code-review
+  title: Multi-LLM Code Review & Summary
+  description: Collect recent diffs, run parallel LLM reviews (security / quality / architecture), then summarize
+spec:
+  max_concurrency: 3
+  steps:
+    - id: collect-diff
+      type: script
+      run: |
+        set -e
+        echo "## Workspace"
+        pwd
+        echo
+        echo "## Status"
+        git status -sb || true
+        echo
+        echo "## Recent commits"
+        git log --oneline -n 8 || true
+        echo
+        echo "## Diff (truncated)"
+        if git rev-parse --verify HEAD >/dev/null 2>&1; then
+          if git rev-parse --verify HEAD~1 >/dev/null 2>&1; then
+            git diff --stat HEAD~1..HEAD || true
+            echo
+            git diff HEAD~1..HEAD | head -n 500 || true
+          else
+            git diff --stat || true
+            echo
+            git diff | head -n 500 || true
+          fi
+        else
+          echo "Not a git repository; listing tracked sources is skipped."
+        fi
+      timeout: 120
+
+    - id: review-security
+      type: llm
+      deps: [collect-diff]
+      role: security-reviewer
+      prompt: |
+        You are a security-focused code reviewer.
+        Using the collected git status/diff context from the previous step and any
+        workflow params (workspaceRoot, workspaceId), review for:
+        1. Injection, XSS, SSRF, path traversal, and secret leakage
+        2. AuthZ / AuthN mistakes
+        3. Unsafe deserialization or command execution
+        4. Dependency / supply-chain risks visible in the diff
+        Return markdown with severity (critical/high/medium/low), file hints, and fixes.
+        If context is insufficient, state assumptions explicitly.
+
+    - id: review-quality
+      type: llm
+      deps: [collect-diff]
+      role: quality-reviewer
+      prompt: |
+        You are a software quality reviewer.
+        Using the collected diff/context, review for:
+        1. Correctness and edge cases
+        2. Readability, naming, and API clarity
+        3. Error handling and observability
+        4. Tests that should be added or updated
+        Return markdown findings with concrete suggestions. Avoid restating the whole diff.
+
+    - id: review-architecture
+      type: llm
+      deps: [collect-diff]
+      role: architecture-reviewer
+      prompt: |
+        You are an architecture reviewer.
+        Using the collected diff/context, review for:
+        1. Layering / module boundary issues
+        2. Coupling, duplication, and abstraction fit
+        3. Scalability, performance, and operational risks
+        4. Migration or compatibility concerns
+        Return markdown findings prioritized by impact.
+
+    - id: summarize
+      type: llm
+      deps: [review-security, review-quality, review-architecture]
+      role: summary-editor
+      prompt: |
+        Merge the three parallel review outputs into one executive summary in markdown:
+        1. Overall risk level (critical/high/medium/low) with one-sentence rationale
+        2. Top findings table: severity | area | summary | suggested action
+        3. Consensus themes across reviewers
+        4. Disagreements or open questions
+        5. Recommended next steps (ordered)
+        Keep it concise and actionable. Do not invent findings not present in the reviews.
+
+    - id: approve
+      type: approval
+      deps: [summarize]
+      question: Accept the multi-LLM review summary?
+      options:
+        - approved
+        - rejected
+        - needs-changes

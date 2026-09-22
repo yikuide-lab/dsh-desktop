@@ -1,0 +1,119 @@
+apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: multi-llm-coder
+  title: Multi-LLM Coder Pipeline
+  description: Route a coding prompt to a plan, then parallel implement/verify/critique and synthesize. Pass run param PROMPT.
+spec:
+  max_concurrency: 3
+  steps:
+    - id: route
+      type: llm
+      role: router
+      prompt: |
+        You are a workflow router for a multi-LLM coding pipeline.
+        User prompt:
+        $PROMPT
+
+        Known preset template ids (prefer match when clearly applicable):
+        - multi-llm-code-review: review a diff for security/quality/architecture
+        - multi-llm-problem-review: analyze a stated defect/question with code context
+        - multi-llm-coder: general implement/verify/critique coding work (this pipeline)
+
+        Return ONLY a JSON object:
+        {
+          "match": "<templateId>|null",
+          "plan": [{"id":"string","role":"implement|verify|critique|other","goal":"string"}],
+          "rationale": "string",
+          "shared": {
+            "problem": "one-sentence restatement",
+            "constraints": ["..."]
+          }
+        }
+        If match is not null, still provide a short plan for this coder skeleton.
+        Do not invent repository facts you cannot verify from the prompt.
+
+    - id: dispatch
+      type: llm
+      deps: [route]
+      role: dispatcher
+      prompt: |
+        User prompt:
+        $PROMPT
+
+        Read the router JSON from upstream. Publish a concise shared vision for downstream coders:
+        1. Restate the goal
+        2. If match is a different preset, note "suggested_preset: <id>" but continue this coder pipeline
+        3. Expand the plan into concrete implementation/verify/critique goals
+        Return markdown plus a final JSON block:
+        { "shared": { "goal": "...", "plan": [...], "suggested_preset": null|"..." } }
+
+    - id: implement
+      type: llm
+      deps: [dispatch]
+      role: implement
+      prompt: |
+        You are an implementation-focused coder.
+        User prompt:
+        $PROMPT
+
+        Using shared vision and upstream outputs, propose concrete code changes:
+        - files to touch
+        - unified-diff style patches when possible
+        - risks / test gaps
+        Keep changes minimal and tied to the plan.
+
+    - id: verify
+      type: llm
+      deps: [dispatch]
+      role: verify
+      prompt: |
+        You are a verification engineer.
+        User prompt:
+        $PROMPT
+
+        Using shared vision, list how to validate the implementation:
+        - commands/tests to run
+        - edge cases
+        - acceptance checks
+        Do not rewrite the whole feature; focus on evidence.
+
+    - id: critique
+      type: llm
+      deps: [dispatch]
+      role: critique
+      prompt: |
+        You are a critical reviewer.
+        User prompt:
+        $PROMPT
+
+        Challenge the plan and likely implementation:
+        - correctness holes
+        - security/performance risks
+        - simpler alternatives
+        Be specific and actionable.
+
+    - id: synthesize
+      type: llm
+      deps: [implement, verify, critique]
+      role: synthesize
+      prompt: |
+        User prompt:
+        $PROMPT
+
+        Merge implement/verify/critique into one markdown delivery:
+        1. Goal
+        2. Recommended changes (ordered)
+        3. Verification checklist
+        4. Residual risks
+        5. Whether a different preset (suggested_preset) would fit better
+        Do not invent findings absent from upstream outputs.
+
+    - id: approve
+      type: approval
+      deps: [synthesize]
+      question: Accept the Multi-LLM Coder synthesis?
+      options:
+        - approved
+        - rejected
+        - needs-changes

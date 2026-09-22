@@ -31,6 +31,9 @@ const OPS = new Set<DesktopWorkflowOp>([
   'listGates',
   'resolveGate',
   'listTemplates',
+  'saveTemplate',
+  'deleteTemplate',
+  'promoteWorkflowToTemplate',
   'listBindings',
   'getBinding',
   'setBinding',
@@ -56,6 +59,8 @@ const OPS = new Set<DesktopWorkflowOp>([
   'getOpenAiApiStatus',
   'setOpenAiApiSettings',
   'rotateOpenAiApiKey',
+  'listOpenAiApiCalls',
+  'clearOpenAiApiCalls',
 ])
 
 class BodyTooLargeError extends Error {}
@@ -174,6 +179,10 @@ function parseRequest(value: unknown): DesktopWorkflowRequest | undefined {
   copyString('after')
   copyString('since')
   copyString('awfVisibility')
+  copyString('templateName')
+  copyString('templateDescription')
+  copyString('templateCategory')
+  copyString('templateId')
   if (typeof record.limit === 'number' && Number.isFinite(record.limit)) {
     withFields.limit = record.limit
   }
@@ -232,7 +241,7 @@ export async function handleDesktopWorkflowRequest(
   reportError: (operation: string, cause: unknown) => void,
   hostCtx?: import('@deepseek-ai/cordis').Context,
   openAiApi?: WorkflowOpenAiApiController,
-  awf?: import('./desktop-awf-bridge.ts').AwfBridge,
+  awfBridge?: import('./desktop-awf-bridge.ts').AwfBridge,
   awfExecutor?: import('./desktop-awf-executor.ts').AwfExecutorController,
 ): Promise<void> {
   if (req.method !== 'POST') {
@@ -273,7 +282,7 @@ export async function handleDesktopWorkflowRequest(
       hostCtx,
       {
         ...(openAiApi ? { openAiApi } : {}),
-        ...(awf ? { awf } : {}),
+        ...(awfBridge ? { awf: awfBridge, awfBridge } : {}),
         ...(awfExecutor ? { awfExecutor } : {}),
       },
     )

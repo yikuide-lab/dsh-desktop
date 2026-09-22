@@ -27,10 +27,14 @@ export interface EnsureWorkflowDepsOptions {
 export async function ensureWorkflowDependencies(
   options: EnsureWorkflowDepsOptions,
 ): Promise<{ proceed: boolean; report: WorkflowDependencyReport; settings: WorkflowSettingsView }> {
-  const settings = await options.api.getSettings()
+  const [settings, catalog] = await Promise.all([
+    options.api.getSettings(),
+    options.api.listModelCatalog().catch(() => ({ protocols: [] as string[], providers: [] })),
+  ])
   const report = checkWorkflowDependencies(options.workflow, settings, {
     prompt: options.prompt,
     requirePrompt: options.requirePrompt,
+    catalog,
   })
 
   const blocking = report.issues.filter((issue) => issue.blocking)

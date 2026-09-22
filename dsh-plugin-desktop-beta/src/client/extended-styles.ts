@@ -49,10 +49,19 @@ body:is([data-dsh-desktop-mode="compatibility"], [data-dsh-desktop-mode="extende
   top: var(--dsh-desktop-frame-height) !important;
   transform: translateZ(0);
 }
+/* Stack footer actions even when the slot anchor is display:contents. */
+body:is([data-dsh-desktop-mode="compatibility"], [data-dsh-desktop-mode="extended"])
+  [class*="footerActions"] {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
 body:is([data-dsh-desktop-mode="compatibility"], [data-dsh-desktop-mode="extended"])
   [data-slot="sidebar.footer.action"] {
   display: flex !important;
-  flex-direction: column;
+  flex-direction: column !important;
   gap: 6px;
   min-width: 0;
   width: 100%;
@@ -66,6 +75,7 @@ body:is([data-dsh-desktop-mode="compatibility"], [data-dsh-desktop-mode="extende
   [data-slot="sidebar.footer.action"] > * {
   flex: none;
   min-width: 0;
+  width: 100%;
 }
 body[data-dsh-desktop-mode="extended"] .dshDesktopSidebarSurface {
   --dsw-specific-sidebar-fill: transparent;

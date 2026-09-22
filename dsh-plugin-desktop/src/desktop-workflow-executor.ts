@@ -154,6 +154,16 @@ function buildLlmPrompt(step: Step, context: ExecutionContext): string {
   return appendContextSections(substituteParams(step.prompt ?? '', context), context)
 }
 
+/** Default / clamp LLM completion budget for workflow steps. */
+function resolveLlmMaxTokens(step: Step): number {
+  const raw = step.maxTokens
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) {
+    return Math.min(Math.max(Math.floor(raw), 256), 32_768)
+  }
+  // Stock-review / multi-LLM steps often need more than the old 2048 default.
+  return 8192
+}
+
 async function runLlmStep(
   services: DesktopWorkflowHostServices,
   step: Step,
@@ -177,7 +187,7 @@ async function runLlmStep(
       'Return only the step result the workflow needs.',
       step.role ? `Role: ${step.role}` : '',
     ].filter(Boolean).join('\n'),
-    maxTokens: 2048,
+    maxTokens: resolveLlmMaxTokens(step),
     signal,
   }
 

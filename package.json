@@ -10,6 +10,8 @@
   "workspaces": [
     "dsh-plugin-desktop",
     "dsh-plugin-desktop-beta",
+    "dsh-plugin-workflow",
+    "awf-runner",
     "dsh-community-fabric",
     "dsh-community-market"
   ],

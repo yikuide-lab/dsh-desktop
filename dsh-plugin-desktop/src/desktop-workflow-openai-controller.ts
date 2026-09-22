@@ -16,6 +16,10 @@ import {
   type WorkflowOpenAiApiPublicSettings,
   type WorkflowOpenAiApiSettings,
 } from './desktop-workflow-openai-settings.ts'
+import {
+  clearWorkflowOpenAiApiCallLog,
+  readWorkflowOpenAiApiCallLog,
+} from './desktop-workflow-openai-call-log.ts'
 
 export interface WorkflowOpenAiApiController {
   getStatus(): Promise<WorkflowOpenAiApiPublicSettings>
@@ -28,6 +32,8 @@ export interface WorkflowOpenAiApiController {
     settings: WorkflowOpenAiApiPublicSettings
     apiKey: string
   }>
+  listCalls(limit?: number): Promise<import('./desktop-workflow-openai-call-log.ts').WorkflowOpenAiApiCallRecord[]>
+  clearCalls(): Promise<void>
   stop(): Promise<void>
 }
 
@@ -106,6 +112,12 @@ export function createWorkflowOpenAiApiController(input: {
       const apiKey = generateWorkflowOpenAiApiKey()
       const settings = await refresh({ ...current, apiKey })
       return { settings, apiKey }
+    },
+    async listCalls(limit) {
+      return readWorkflowOpenAiApiCallLog(input.stateDir, limit)
+    },
+    async clearCalls() {
+      await clearWorkflowOpenAiApiCallLog(input.stateDir)
     },
     async stop() {
       await server.stop()

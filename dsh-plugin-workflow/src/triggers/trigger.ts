@@ -4,7 +4,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
-import type { Trigger, TriggerType } from '../engine/models.ts';
+import type { TriggerType } from '../engine/models.js';
 
 // ============================================================================
 // Types
@@ -13,7 +13,6 @@ import type { Trigger, TriggerType } from '../engine/models.ts';
 export interface TriggerConfig {
   type: TriggerType;
   schedule?: string;     // 5-field cron expression
-  timezone?: string;
   source?: string;       // event source
   on?: string;           // event name
   filter?: string;       // filter expression
@@ -35,6 +34,43 @@ export interface TriggerEvent {
   name: string;
   data?: Record<string, unknown>;
   timestamp: string;
+}
+
+/**
+ * Evaluate a trigger filter against an event.
+ * Empty filter matches all. Clauses are comma-separated AND expressions of `path=value`.
+ * Paths: `source`, `name`, or dotted `data.*` (e.g. `data.status=ok`).
+ */
+export function evaluateTriggerFilter(
+  filter: string | undefined,
+  event: TriggerEvent,
+): boolean {
+  if (!filter || !filter.trim()) return true;
+  const clauses = filter.split(',').map((part) => part.trim()).filter(Boolean);
+  return clauses.every((clause) => {
+    const eq = clause.indexOf('=');
+    if (eq <= 0) return false;
+    const path = clause.slice(0, eq).trim();
+    const expected = clause.slice(eq + 1).trim();
+    const actual = lookupTriggerPath(event, path);
+    return String(actual ?? '') === expected;
+  });
+}
+
+function lookupTriggerPath(event: TriggerEvent, path: string): unknown {
+  if (path === 'source') return event.source;
+  if (path === 'name') return event.name;
+  if (path === 'timestamp') return event.timestamp;
+  if (path === 'data') return event.data;
+  if (path.startsWith('data.')) {
+    let current: unknown = event.data;
+    for (const segment of path.slice(5).split('.')) {
+      if (!segment || current === null || typeof current !== 'object') return undefined;
+      current = (current as Record<string, unknown>)[segment];
+    }
+    return current;
+  }
+  return undefined;
 }
 
 // ============================================================================
@@ -62,14 +98,27 @@ function parseCronField(field: string, min: number, max: number): CronField {
   const values: number[] = [];
 
   for (const part of field.split(',')) {
-    if (part.includes('-')) {
+    if (part.includes('-') && !part.includes('/')) {
       const [start, end] = part.split('-').map(Number);
       for (let i = start; i <= end; i++) {
         values.push(i);
       }
     } else if (part.includes('/')) {
-      const [start, step] = part.split('/').map(Number);
-      for (let i = start; i <= max; i += step) {
+      const [range, stepRaw] = part.split('/');
+      const step = Number(stepRaw);
+      if (!Number.isFinite(step) || step <= 0) continue;
+      let start = min;
+      let end = max;
+      if (range === '*') {
+        start = min;
+      } else if (range.includes('-')) {
+        const [rangeStart, rangeEnd] = range.split('-').map(Number);
+        start = rangeStart;
+        end = rangeEnd;
+      } else if (range !== '') {
+        start = Number(range);
+      }
+      for (let i = start; i <= end; i += step) {
         values.push(i);
       }
     } else {
@@ -163,6 +212,17 @@ export class TriggerManager {
     return record;
   }
 
+  /** Rehydrate a previously persisted trigger record. */
+  restore(record: TriggerRecord): void {
+    const existing = this.timers.get(record.id);
+    if (existing) {
+      clearTimeout(existing);
+      this.timers.delete(record.id);
+    }
+    this.triggers.set(record.id, record);
+    this.scheduleTrigger(record);
+  }
+
   /**
    * Remove a trigger
    */
@@ -180,10 +240,11 @@ export class TriggerManager {
    */
   enable(id: string): void {
     const trigger = this.triggers.get(id);
-    if (trigger) {
-      trigger.enabled = true;
-      this.scheduleTrigger(trigger);
+    if (!trigger) {
+      throw new Error(`Trigger not found: ${id}`);
     }
+    trigger.enabled = true;
+    this.scheduleTrigger(trigger);
   }
 
   /**
@@ -191,13 +252,14 @@ export class TriggerManager {
    */
   disable(id: string): void {
     const trigger = this.triggers.get(id);
-    if (trigger) {
-      trigger.enabled = false;
-      const timer = this.timers.get(id);
-      if (timer) {
-        clearTimeout(timer);
-        this.timers.delete(id);
-      }
+    if (!trigger) {
+      throw new Error(`Trigger not found: ${id}`);
+    }
+    trigger.enabled = false;
+    const timer = this.timers.get(id);
+    if (timer) {
+      clearTimeout(timer);
+      this.timers.delete(id);
     }
   }
 
@@ -226,10 +288,7 @@ export class TriggerManager {
       if (trigger.config.source && trigger.config.source !== event.source) continue;
       if (trigger.config.on && trigger.config.on !== event.name) continue;
 
-      // TODO: Evaluate filter expression
-      if (trigger.config.filter) {
-        // Simplified filter evaluation
-      }
+      if (!evaluateTriggerFilter(trigger.config.filter, event)) continue;
 
       this.triggerWorkflow(trigger, event);
     }
@@ -266,7 +325,6 @@ export class TriggerManager {
       throw new Error(`Trigger not found: ${triggerId}`);
     }
 
-    const config = { ...trigger.config, params };
     this.triggerWorkflow(trigger, {
       source: 'manual',
       name: 'manual',
@@ -323,112 +381,5 @@ export class TriggerManager {
       clearTimeout(timer);
     }
     this.timers.clear();
-  }
-}
-
-// ============================================================================
-// Event Sources
-// ============================================================================
-
-export interface EventSource {
-  name: string;
-  start(): void;
-  stop(): void;
-  on(event: string, handler: (data: unknown) => void): void;
-}
-
-/**
- * Webhook Event Source
- */
-export class WebhookSource implements EventSource {
-  name = 'webhook';
-  private handlers: Map<string, Set<(data: unknown) => void>> = new Map();
-  private server: ReturnType<typeof import('node:http').createServer> | null = null;
-
-  constructor(private port: number = 18080) {}
-
-  start(): void {
-    const http = require('node:http');
-    this.server = http.createServer((req, res) => {
-      if (req.method === 'POST') {
-        let body = '';
-        req.on('data', chunk => { body += chunk; });
-        req.on('end', () => {
-          try {
-            const data = JSON.parse(body);
-            const eventName = req.url?.slice(1) || 'default';
-            this.emit(eventName, data);
-            res.writeHead(200);
-            res.end(JSON.stringify({ ok: true }));
-          } catch {
-            res.writeHead(400);
-            res.end(JSON.stringify({ error: 'Invalid JSON' }));
-          }
-        });
-      } else {
-        res.writeHead(405);
-        res.end(JSON.stringify({ error: 'Method not allowed' }));
-      }
-    });
-
-    this.server.listen(this.port);
-  }
-
-  stop(): void {
-    this.server?.close();
-  }
-
-  on(event: string, handler: (data: unknown) => void): void {
-    if (!this.handlers.has(event)) {
-      this.handlers.set(event, new Set());
-    }
-    this.handlers.get(event)!.add(handler);
-  }
-
-  private emit(event: string, data: unknown): void {
-    const handlers = this.handlers.get(event);
-    if (handlers) {
-      for (const handler of handlers) {
-        handler(data);
-      }
-    }
-  }
-}
-
-/**
- * File Watcher Event Source
- */
-export class FileWatcherSource implements EventSource {
-  name = 'file';
-  private watcher: ReturnType<typeof import('node:fs').watch> | null = null;
-  private handlers: Map<string, Set<(data: unknown) => void>> = new Map();
-
-  constructor(private watchPath: string) {}
-
-  start(): void {
-    const fs = require('node:fs');
-    this.watcher = fs.watch(this.watchPath, { recursive: true }, (event, filename) => {
-      this.emit('change', { event, filename, path: this.watchPath });
-    });
-  }
-
-  stop(): void {
-    this.watcher?.close();
-  }
-
-  on(event: string, handler: (data: unknown) => void): void {
-    if (!this.handlers.has(event)) {
-      this.handlers.set(event, new Set());
-    }
-    this.handlers.get(event)!.add(handler);
-  }
-
-  private emit(event: string, data: unknown): void {
-    const handlers = this.handlers.get(event);
-    if (handlers) {
-      for (const handler of handlers) {
-        handler(data);
-      }
-    }
   }
 }

@@ -255,11 +255,16 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
               >
                 <div className="workflow-run-header">
                   <span className="workflow-run-name">{run.workflowName}</span>
-                  <span
-                    className="workflow-run-status"
-                    style={{ backgroundColor: getStatusColor(run.status) }}
-                  >
-                    {getStatusText(run.status)}
+                  <span className="workflow-run-badges">
+                    {run.params?.source === 'openai-api' && (
+                      <span className="workflow-run-source-badge">{t('runSourceApi')}</span>
+                    )}
+                    <span
+                      className="workflow-run-status"
+                      style={{ backgroundColor: getStatusColor(run.status) }}
+                    >
+                      {getStatusText(run.status)}
+                    </span>
                   </span>
                 </div>
                 <div className="workflow-run-meta">

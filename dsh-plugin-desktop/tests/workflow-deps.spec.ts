@@ -10,18 +10,25 @@ function workflow(partial: Partial<WorkflowView> & Pick<WorkflowView, 'name'>): 
   }
 }
 
+const emptySettings = {
+  providers: [] as { id: string; model: string; bias: string[] }[],
+  defaultBias: 'coding',
+  defaultRetries: 2,
+  defaultOnFailure: 'fail' as const,
+}
+
 describe('workflow dependency check', () => {
   it('flags missing prompt when required', () => {
     const report = checkWorkflowDependencies(
       workflow({ name: 'multi-llm-coder', steps: [{ id: 'route', type: 'llm', role: 'router' }] }),
-      { providers: [], defaultBias: 'coding', defaultRetries: 2, defaultOnFailure: 'fail' },
+      emptySettings,
       { requirePrompt: true, prompt: '  ' },
     )
     expect(report.ok).toBe(false)
     expect(report.issues.some((issue) => issue.id === 'prompt' && issue.blocking)).toBe(true)
   })
 
-  it('blocks pure LLM workflows when providers are empty', () => {
+  it('soft-warns pure LLM workflows when providers are empty (session default may still work)', () => {
     const report = checkWorkflowDependencies(
       workflow({
         name: 'multi-llm-coder',
@@ -30,11 +37,41 @@ describe('workflow dependency check', () => {
           { id: 'implement', type: 'llm', role: 'implement' },
         ],
       }),
-      { providers: [], defaultBias: 'coding', defaultRetries: 2, defaultOnFailure: 'fail' },
+      emptySettings,
       { requirePrompt: true, prompt: 'fix bug' },
     )
-    expect(report.ok).toBe(false)
-    expect(report.issues.some((issue) => issue.id === 'providers-empty' && issue.blocking)).toBe(true)
+    expect(report.ok).toBe(true)
+    expect(report.issues.some((issue) => issue.id === 'providers-empty' && !issue.blocking)).toBe(true)
+  })
+
+  it('does not hard-block when DSH Models catalog has routes', () => {
+    const report = checkWorkflowDependencies(
+      workflow({
+        name: 'stock-trading-signal-review-approval-gate',
+        steps: [{ id: 'review', type: 'llm', role: 'risk-control' }],
+      }),
+      emptySettings,
+      {
+        catalog: {
+          providers: [{ id: 'deepseek', name: 'DeepSeek', models: [{ id: 'chat', name: 'Chat' }] }],
+        },
+      },
+    )
+    expect(report.ok).toBe(true)
+    expect(report.issues.some((issue) => issue.id === 'providers-empty')).toBe(false)
+    expect(report.issues.some((issue) => issue.id === 'prefs-from-catalog' && !issue.blocking)).toBe(true)
+  })
+
+  it('accepts explicit step model routes without workflow prefs', () => {
+    const report = checkWorkflowDependencies(
+      workflow({
+        name: 'x',
+        steps: [{ id: 'a', type: 'llm', role: 'risk-control', model: 'deepseek/chat' }],
+      }),
+      emptySettings,
+    )
+    expect(report.ok).toBe(true)
+    expect(report.issues.some((issue) => issue.id === 'providers-empty')).toBe(false)
   })
 
   it('soft-warns when providers are empty but script steps remain runnable', () => {
@@ -46,7 +83,7 @@ describe('workflow dependency check', () => {
           { id: 'llm', type: 'llm', role: 'router' },
         ],
       }),
-      { providers: [], defaultBias: 'coding', defaultRetries: 2, defaultOnFailure: 'fail' },
+      emptySettings,
     )
     expect(report.ok).toBe(true)
     expect(report.issues.some((issue) => issue.id === 'providers-empty' && !issue.blocking)).toBe(true)

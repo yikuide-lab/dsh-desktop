@@ -1,0 +1,44 @@
+# systemd unit for the headless AWF node runner (awf-node).
+#
+# Install:
+#   sudo cp awf-node.service /etc/systemd/system/awf-node.service
+#   sudo mkdir -p /etc/awf-node
+#   sudo install -m 0600 /dev/null /etc/awf-node/awf-node.env  # see below
+#   sudo systemctl daemon-reload && sudo systemctl enable --now awf-node
+#
+# /etc/awf-node/awf-node.env (0600, root:awf-node) carries the secrets:
+#   AWF_PLATFORM_URL=https://awf.example.com
+#   AWF_API_TOKEN=<platform user token>          # or use `awf-node login`
+#   AWF_NODE_LLM_BASE_URL=https://api.openai.com/v1
+#   AWF_NODE_LLM_API_KEY=<llm key>
+#   AWF_NODE_LLM_MODEL=<model>
+#   AWF_NODE_LABELS=region=eu,owner=team-a       # optional
+#
+# The unit assumes awf-runner is installed at /opt/awf-node (see
+# deploy/cloud-init.yaml) with a dedicated awf-node user.
+
+[Unit]
+Description=AWF headless workflow node runner (awf-node)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=awf-node
+Group=awf-node
+EnvironmentFile=-/etc/awf-node/awf-node.env
+Environment=AWF_NODE_STATE_DIR=/var/lib/awf-node
+# NOTE: systemd removes words that expand to nothing, so flags use the
+# --flag=${VAR} equals form (an empty value is parsed as "unset").
+ExecStart=/usr/bin/node /opt/awf-node/lib/bin.js serve --platform=${AWF_PLATFORM_URL} --labels=${AWF_NODE_LABELS}
+Restart=on-failure
+RestartSec=5s
+# Hardening: the runner needs only its state dir and outbound HTTPS.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/awf-node
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,5 +1,5 @@
 /**
- * Clone built-in / imported workflow templates into editable drafts.
+ * Clone workflow / template YAML into an editable draft under a new name.
  *
  * Client-side YAML uses the `yaml` package for fast preview/clone.
  * Host save/validate always re-parses with the engine's `js-yaml` path —
@@ -54,6 +54,8 @@ export function cloneTemplateYaml(
   const baseName = typeof metadata.name === 'string' ? metadata.name : 'workflow'
   const name = allocateCloneName(baseName, existingNames)
   metadata.name = name
+  // Copies must get a fresh uid on save — never inherit the source document id.
+  delete metadata.uid
   if (typeof metadata.title === 'string' && metadata.title.trim()) {
     metadata.title = `${metadata.title} (copy)`
   } else {

@@ -254,6 +254,8 @@ export interface AwfStatusView {
   tokenFingerprint: string
   telemetryEnabled: boolean
   executorEnabled: boolean
+  tunnelEnabled: boolean
+  tunnelLocalPort: number
 }
 
 export interface AwfAuthAccountView {
@@ -280,6 +282,14 @@ export interface AwfExecutorStatusView {
   executingTaskId: number | null
   lastClaimAt: string | null
   lastError: string | null
+}
+
+export interface AwfTunnelStatusView {
+  connected: boolean
+  localPort: number
+  executorId: number | null
+  since: string | null
+  error: string | null
 }
 
 export interface AwfConnectionView {
@@ -419,6 +429,8 @@ export interface DesktopWorkflowApi {
   setAwfTelemetrySettings(telemetryEnabled: boolean): Promise<AwfStatusView>
   getAwfExecutorStatus(): Promise<AwfExecutorStatusView>
   setAwfExecutorSettings(executorEnabled: boolean): Promise<AwfStatusView>
+  getAwfTunnelStatus(): Promise<AwfTunnelStatusView>
+  setAwfTunnelSettings(tunnelEnabled: boolean, localPort: number): Promise<AwfStatusView>
   getAwfAuthStatus(): Promise<AwfAuthAccountView>
   getAwfAuthMethods(): Promise<AwfAuthMethodsView>
   awfAuthRegister(input: { email: string; password: string; displayName?: string }): Promise<AwfAuthAccountView>
@@ -949,6 +961,8 @@ function mapAwfStatus(value: unknown): AwfStatusView {
       tokenFingerprint: '',
       telemetryEnabled: false,
       executorEnabled: false,
+      tunnelEnabled: false,
+      tunnelLocalPort: 8787,
     }
   }
   return {
@@ -958,6 +972,8 @@ function mapAwfStatus(value: unknown): AwfStatusView {
     tokenFingerprint: typeof value.tokenFingerprint === 'string' ? value.tokenFingerprint : '',
     telemetryEnabled: value.telemetryEnabled === true,
     executorEnabled: value.executorEnabled === true,
+    tunnelEnabled: value.tunnelEnabled === true,
+    tunnelLocalPort: typeof value.tunnelLocalPort === 'number' ? value.tunnelLocalPort : 8787,
   }
 }
 
@@ -1310,6 +1326,25 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
         awfExecutorSettings: { executorEnabled },
       })
       if (!isObject(result)) throw new Error('invalid awfSetExecutorSettings response')
+      return mapAwfStatus(result)
+    },
+    async getAwfTunnelStatus() {
+      const result = await callOp(fetchImpl, { op: 'awfGetTunnelStatus' })
+      if (!isObject(result)) throw new Error('invalid awfGetTunnelStatus response')
+      return {
+        connected: result.connected === true,
+        localPort: typeof result.localPort === 'number' ? result.localPort : 8787,
+        executorId: typeof result.executorId === 'number' ? result.executorId : null,
+        since: typeof result.since === 'string' ? result.since : null,
+        error: typeof result.error === 'string' ? result.error : null,
+      }
+    },
+    async setAwfTunnelSettings(tunnelEnabled, localPort) {
+      const result = await callOp(fetchImpl, {
+        op: 'awfSetTunnelSettings',
+        awfTunnelSettings: { tunnelEnabled, localPort },
+      })
+      if (!isObject(result)) throw new Error('invalid awfSetTunnelSettings response')
       return mapAwfStatus(result)
     },
     async getAwfAuthStatus() {

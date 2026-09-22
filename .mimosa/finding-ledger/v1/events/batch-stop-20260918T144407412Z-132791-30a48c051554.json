@@ -1,0 +1,471 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "stop-20260918T144407412Z-132791-30a48c051554",
+  "runId": "20260918T144407412Z-132791-30a48c051554",
+  "runStatus": "inconclusive",
+  "coverage": {
+    "status": "partial",
+    "reasons": [
+      {
+        "code": "bash_discovery_incomplete",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts",
+        "detail": "project enumeration exceeded 5000 reviewable files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "candidate_limit_exceeded",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts",
+        "detail": "19 changed reviewable file(s) were not scanned because the limit is 20",
+        "affectsCompletion": true
+      },
+      {
+        "code": "baseline_partial",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+        "detail": "baseline exceeded 5000 candidate files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts",
+        "detail": "bash_discovery_incomplete: project enumeration exceeded 5000 reviewable files",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts",
+        "detail": "candidate_limit_exceeded: 19 changed reviewable file(s) were not scanned because the limit is 20",
+        "affectsCompletion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+        "detail": "baseline_partial: baseline exceeded 5000 candidate files",
+        "affectsCompletion": true
+      }
+    ]
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "Stop"
+  },
+  "revision": "fb3ab6b9a2905d3c4bf7cf26ea8c949eb24e2717",
+  "diffHash": "9f077d4134435870203bf678e3c3a5c28f9f87cd8cf7d8b1ded2661ae5b8a594",
+  "rulesVersion": "unavailable",
+  "sessionHash": "b2dcdad0da8177211f5e47706695f0dffb589b83b16018ff365f350b27e7c00a",
+  "reportRef": ".mimosa/reports/task-review-sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f-20260918T144407412Z-132791-30a48c051554.json",
+  "events": [
+    {
+      "eventId": "hook-4ed1961833ce010bf954f4139e4a338a",
+      "findingId": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 69,
+      "endLine": 69,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804"
+      },
+      "sequence": 0
+    },
+    {
+      "eventId": "hook-c3c244811507cb81868da74d093b5d65",
+      "findingId": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 140,
+      "endLine": 140,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca"
+      },
+      "sequence": 1
+    },
+    {
+      "eventId": "hook-3eeffd149e6231d3b287bf7ee207c7b2",
+      "findingId": "mimosa-780b1f9c6becc03afc90e942",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 141,
+      "endLine": 141,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c"
+      },
+      "sequence": 2
+    },
+    {
+      "eventId": "hook-1de33a2bb48972af86ccfc624e33c4cf",
+      "findingId": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "type": "static_fix_verified",
+      "at": "2026-09-18T14:23:21.994Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 69,
+      "endLine": 69,
+      "reasonCode": "static_rescan_passed",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "evidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804"
+      },
+      "sequence": 3
+    },
+    {
+      "eventId": "hook-9bfe33301cd81df89e0be17a25a887fa",
+      "findingId": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "type": "static_fix_verified",
+      "at": "2026-09-18T14:23:21.994Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 140,
+      "endLine": 140,
+      "reasonCode": "static_rescan_passed",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "evidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca"
+      },
+      "sequence": 4
+    },
+    {
+      "eventId": "hook-7b2fde52dd2780c97f72c5258d96f1bb",
+      "findingId": "mimosa-780b1f9c6becc03afc90e942",
+      "type": "static_fix_verified",
+      "at": "2026-09-18T14:23:21.994Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 141,
+      "endLine": 141,
+      "reasonCode": "static_rescan_passed",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "evidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c"
+      },
+      "sequence": 5
+    },
+    {
+      "eventId": "hook-44c5596e6e0610b2f2c3022a4c450849",
+      "findingId": "mimosa-e1f5a781eaacea582632d672",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "87ac685d1896ef0a722da060e83d8d8d1c54a2267e7bb1babdac9c72a54f8d34",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 776,
+      "endLine": 776,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "87ac685d1896ef0a722da060e83d8d8d1c54a2267e7bb1babdac9c72a54f8d34"
+      },
+      "sequence": 6
+    },
+    {
+      "eventId": "hook-676c9c49525a9da485fc8984a9a31f04",
+      "findingId": "mimosa-0fb0ee9fbffd99e3abc02491",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "9c91ee84eae2e3dddaa0303901b203a7296dcacab6b28d4dd8ebbcc1f7fe987f",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 791,
+      "endLine": 791,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "9c91ee84eae2e3dddaa0303901b203a7296dcacab6b28d4dd8ebbcc1f7fe987f"
+      },
+      "sequence": 7
+    },
+    {
+      "eventId": "hook-4b3bd56431cabc11f2586a5143e5d692",
+      "findingId": "mimosa-b4219075cbd9c4c4f5f7ed07",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/lib/client.js",
+        "ruleId": "security",
+        "codeEvidenceHash": "3af3ece4c8acc258d3a0e2c541248aa3441f6412ad453c68fe56940ce2547c54",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 62156,
+      "endLine": 62156,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "3af3ece4c8acc258d3a0e2c541248aa3441f6412ad453c68fe56940ce2547c54"
+      },
+      "sequence": 8
+    },
+    {
+      "eventId": "hook-903311f1d2d0282029ec64429e3d7b7b",
+      "findingId": "mimosa-c9d366cc73137ef928375fe8",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/lib/client.js",
+        "ruleId": "security",
+        "codeEvidenceHash": "2d82ea88e6576cd26908e7a4509184cc51e2e5daf08e30e0c70f2b57506569fd",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 62171,
+      "endLine": 62171,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "2d82ea88e6576cd26908e7a4509184cc51e2e5daf08e30e0c70f2b57506569fd"
+      },
+      "sequence": 9
+    },
+    {
+      "eventId": "hook-1ad27fc718f47133a218e0f43245d282",
+      "findingId": "mimosa-f981b1e65e1e4d8b2f2b9c6a",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/lib/workflow.js",
+        "ruleId": "security",
+        "codeEvidenceHash": "9b30c2290e4e1c85183fb5b0973eddbfdf4b586e634cd9d6ef687963fd3c197c",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 1574,
+      "endLine": 1574,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "9b30c2290e4e1c85183fb5b0973eddbfdf4b586e634cd9d6ef687963fd3c197c"
+      },
+      "sequence": 10
+    },
+    {
+      "eventId": "hook-b16506211aa94cd70d95d705cb3e19bc",
+      "findingId": "mimosa-7af8ad2bc4550aa2355f1f54",
+      "type": "finding_observed",
+      "at": "2026-09-18T14:44:07.412Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/lib/workflow.js",
+        "ruleId": "security",
+        "codeEvidenceHash": "47c9fb425a4d9bd2fcce7642eac795929706acaf30ad53222d82b07c1658f3d8",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 1583,
+      "endLine": 1583,
+      "reasonCode": "observe",
+      "reportedToAgent": false,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "47c9fb425a4d9bd2fcce7642eac795929706acaf30ad53222d82b07c1658f3d8"
+      },
+      "sequence": 11
+    }
+  ],
+  "observedFindingIds": [
+    "mimosa-10ed9cef2365cc92494a24c7",
+    "mimosa-13e901049b364b534d799dbf",
+    "mimosa-e1f5a781eaacea582632d672",
+    "mimosa-0fb0ee9fbffd99e3abc02491",
+    "mimosa-26acc5e0b3566f937f994e02",
+    "mimosa-25ea3d3fd0159e647820f7bb",
+    "mimosa-b4219075cbd9c4c4f5f7ed07",
+    "mimosa-c9d366cc73137ef928375fe8",
+    "mimosa-77cdf45f35895bb35c3e51c0",
+    "mimosa-73354f4480ffe9a68e159765",
+    "mimosa-f981b1e65e1e4d8b2f2b9c6a",
+    "mimosa-7af8ad2bc4550aa2355f1f54",
+    "mimosa-e471676d6a0251635c188d0b",
+    "mimosa-6938d13ea8cb38420de7b451"
+  ],
+  "verifiedFiles": [
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-auth.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-client.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-awf-bridge.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-client.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-bridge.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-contract.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-workflow-controller.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/client/desktop-workflow-api.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/client/WorkflowSettingsPanel.tsx",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/src/desktop-awf-auth.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop/tests/awf-auth.spec.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-workflow-contract.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/desktop-workflow-controller.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/client/WorkflowSettingsPanel.tsx",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/client/desktop-workflow-api.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/lib/client.js",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+      "direct": "complete",
+      "projectContext": "partial"
+    },
+    {
+      "file": "dsh-plugin-desktop-beta/lib/types/desktop-awf-bridge.d.ts",
+      "direct": "complete",
+      "projectContext": "partial"
+    }
+  ],
+  "recordedAt": "2026-09-18T14:44:07.674Z"
+}

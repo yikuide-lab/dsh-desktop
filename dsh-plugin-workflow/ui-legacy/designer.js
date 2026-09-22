@@ -713,7 +713,7 @@ function exportYAML() {
     return step;
   });
 
-  const yaml = `apiVersion: wfwise.io/v1
+  const yaml = `apiVersion: workflow-wise/v1
 kind: Workflow
 metadata:
   name: my-workflow

@@ -12,7 +12,12 @@ describe('desktop workflow api mapping', () => {
     const view = mapEngineWorkflow({
       apiVersion: 'workflow-wise/v1',
       kind: 'Workflow',
-      metadata: { name: 'demo', title: 'Demo', description: 'd' },
+      metadata: {
+        uid: '11111111-1111-4111-8111-111111111111',
+        name: 'demo',
+        title: 'Demo',
+        description: 'd',
+      },
       spec: {
         steps: [
           { id: 'a', type: 'script', run: 'echo a' },
@@ -21,9 +26,11 @@ describe('desktop workflow api mapping', () => {
       },
     })
     expect(view.name).toBe('demo')
+    expect(view.uid).toBe('11111111-1111-4111-8111-111111111111')
     expect(view.steps).toHaveLength(2)
     const yaml = workflowViewToYaml(view)
     expect(yaml).toContain('apiVersion: workflow-wise/v1')
+    expect(yaml).toContain('uid: 11111111-1111-4111-8111-111111111111')
     expect(yaml).toContain('name: demo')
   })
 

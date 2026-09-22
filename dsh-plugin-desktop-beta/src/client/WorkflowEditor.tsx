@@ -22,12 +22,16 @@ interface WorkflowEditorProps {
 function applyViewToForm(
   view: Workflow,
   setters: {
+    setUid: (v: string) => void
     setName: (v: string) => void
     setTitle: (v: string) => void
     setDescription: (v: string) => void
     setSteps: (v: WorkflowStep[]) => void
   },
+  /** When set, force this uid (editor identity) over any YAML-edited value. */
+  lockedUid?: string,
 ): void {
+  setters.setUid(lockedUid || view.uid || '')
   setters.setName(view.name)
   setters.setTitle(view.title)
   setters.setDescription(view.description || '')
@@ -43,6 +47,7 @@ export function WorkflowEditor({
   onCancel,
   t,
 }: WorkflowEditorProps) {
+  const [uid, setUid] = useState(workflow?.uid || '')
   const [name, setName] = useState(workflow?.name || '')
   const [title, setTitle] = useState(workflow?.title || '')
   const [description, setDescription] = useState(workflow?.description || '')
@@ -57,18 +62,23 @@ export function WorkflowEditor({
   const [baselineYaml, setBaselineYaml] = useState('')
   const requestLeave = useWorkflowRequestLeave()
   const baselineReady = useRef(false)
+  /** Stable identity for the open document; never rewritten from YAML edits. */
+  const lockedUidRef = useRef(workflow?.uid || '')
 
   useEffect(() => {
-    const setters = { setName, setTitle, setDescription, setSteps }
+    const setters = { setUid, setName, setTitle, setDescription, setSteps }
     if (initialYaml) {
       setYamlContent(initialYaml)
       try {
-        applyViewToForm(parseWorkflowYaml(initialYaml), setters)
+        const parsed = parseWorkflowYaml(initialYaml)
+        lockedUidRef.current = parsed.uid || ''
+        applyViewToForm(parsed, setters, lockedUidRef.current)
         setYamlMode(!preferVisual)
         setBaselineYaml(initialYaml)
         baselineReady.current = true
         setError(null)
       } catch (err) {
+        lockedUidRef.current = ''
         setYamlMode(true)
         setBaselineYaml(initialYaml)
         baselineReady.current = true
@@ -77,7 +87,8 @@ export function WorkflowEditor({
       return
     }
     if (workflow) {
-      applyViewToForm(workflow, setters)
+      lockedUidRef.current = workflow.uid || ''
+      applyViewToForm(workflow, setters, lockedUidRef.current)
       const yaml = workflowViewToYaml(workflow)
       setYamlContent(yaml)
       setBaselineYaml(yaml)
@@ -85,6 +96,8 @@ export function WorkflowEditor({
       setYamlMode(false)
       return
     }
+    lockedUidRef.current = ''
+    setUid('')
     setName('')
     setTitle('')
     setDescription('')
@@ -95,22 +108,39 @@ export function WorkflowEditor({
     setYamlMode(false)
   }, [workflow, initialYaml, preferVisual, t])
 
-  const currentView = (): Workflow => ({
-    name,
-    title,
-    description,
-    steps,
-  })
+  const currentView = (): Workflow => {
+    const view: Workflow = {
+      name,
+      title,
+      description,
+      steps,
+    }
+    if (uid) view.uid = uid
+    return view
+  }
+
+  /** Re-inject locked uid so YAML edits cannot fork the document identity. */
+  const withLockedUid = (yaml: string): string => {
+    const locked = lockedUidRef.current
+    if (!locked) return yaml
+    try {
+      const view = parseWorkflowYaml(yaml)
+      if (view.uid === locked) return yaml
+      return workflowViewToYaml({ ...view, uid: locked })
+    } catch {
+      return yaml
+    }
+  }
 
   const draftYaml = (): string => (
-    yamlMode ? yamlContent : workflowViewToYaml(currentView())
+    yamlMode ? withLockedUid(yamlContent) : workflowViewToYaml(currentView())
   )
 
   const isDirty = useCallback((): boolean => {
     if (!baselineReady.current) return false
     if (aiPreviewActive) return true
     return draftYaml() !== baselineYaml
-  }, [aiPreviewActive, baselineYaml, description, name, steps, title, yamlContent, yamlMode])
+  }, [aiPreviewActive, baselineYaml, description, name, steps, title, uid, yamlContent, yamlMode])
 
   const syncYamlFromVisual = (): string => {
     const yaml = workflowViewToYaml(currentView())
@@ -131,7 +161,12 @@ export function WorkflowEditor({
 
   const syncVisualFromYaml = (yaml: string): boolean => {
     try {
-      applyViewToForm(parseWorkflowYaml(yaml), { setName, setTitle, setDescription, setSteps })
+      const locked = lockedUidRef.current
+      applyViewToForm(
+        parseWorkflowYaml(yaml),
+        { setUid, setName, setTitle, setDescription, setSteps },
+        locked || undefined,
+      )
       setError(null)
       return true
     } catch (err) {
@@ -142,7 +177,9 @@ export function WorkflowEditor({
 
   const switchToVisual = (): void => {
     if (!yamlMode) return
-    if (!syncVisualFromYaml(yamlContent)) {
+    const yaml = withLockedUid(yamlContent)
+    setYamlContent(yaml)
+    if (!syncVisualFromYaml(yaml)) {
       setYamlMode(true)
       return
     }
@@ -160,7 +197,8 @@ export function WorkflowEditor({
   const handleValidate = async () => {
     setError(null)
     try {
-      const yaml = yamlMode ? yamlContent : await syncYamlFromVisualCanonical()
+      const yaml = yamlMode ? withLockedUid(yamlContent) : await syncYamlFromVisualCanonical()
+      if (yamlMode) setYamlContent(yaml)
       const result = await api.validateWorkflow(yaml)
       const errors = result.errors.filter(e => e.severity === 'error').map(e => `${e.path}: ${e.message}`)
       const warnings = result.errors.filter(e => e.severity === 'warning').map(e => `${e.path}: ${e.message}`)
@@ -180,10 +218,14 @@ export function WorkflowEditor({
     setSaving(true)
     setError(null)
     try {
-      if (yamlMode && !syncVisualFromYaml(yamlContent)) {
-        return false
+      if (yamlMode) {
+        const yaml = withLockedUid(yamlContent)
+        setYamlContent(yaml)
+        if (!syncVisualFromYaml(yaml)) {
+          return false
+        }
       }
-      const yaml = yamlMode ? yamlContent : await syncYamlFromVisualCanonical()
+      const yaml = yamlMode ? withLockedUid(yamlContent) : await syncYamlFromVisualCanonical()
       const result = await api.saveWorkflow(yaml)
       if (!result.validation.ok) {
         setValidationResult({
@@ -192,8 +234,17 @@ export function WorkflowEditor({
         })
         return false
       }
-      setBaselineYaml(yaml)
-      setYamlContent(yaml)
+      const savedUid = result.workflow.uid || lockedUidRef.current
+      if (savedUid) {
+        lockedUidRef.current = savedUid
+        setUid(savedUid)
+      }
+      const nextYaml = workflowViewToYaml({
+        ...result.workflow,
+        ...(savedUid ? { uid: savedUid } : {}),
+      })
+      setBaselineYaml(nextYaml)
+      setYamlContent(nextYaml)
       onSave()
       return true
     } catch (err) {
@@ -216,8 +267,9 @@ export function WorkflowEditor({
   useWorkflowLeaveGuard(true, isDirty, persistDraft)
 
   const applyAiDesign = (yaml: string): void => {
-    setYamlContent(yaml)
-    if (syncVisualFromYaml(yaml)) {
+    const next = withLockedUid(yaml)
+    setYamlContent(next)
+    if (syncVisualFromYaml(next)) {
       setYamlMode(false)
       setValidationResult(null)
       setError(null)
@@ -227,7 +279,7 @@ export function WorkflowEditor({
   }
 
   const getCurrentYamlForAi = async (): Promise<string> => {
-    if (yamlMode) return yamlContent
+    if (yamlMode) return withLockedUid(yamlContent)
     return syncYamlFromVisualCanonical()
   }
 
@@ -242,7 +294,7 @@ export function WorkflowEditor({
     setAwfSyncing(true)
     setAwfNote(null)
     try {
-      const yaml = yamlMode ? yamlContent : await syncYamlFromVisualCanonical()
+      const yaml = yamlMode ? withLockedUid(yamlContent) : await syncYamlFromVisualCanonical()
       const receipt = await api.syncWorkflowToAwf(name.trim(), 'private', yaml)
       if (receipt.ok) {
         setAwfNote(`${t('awfSyncOk')} #${receipt.workflow?.id ?? ''}`)
@@ -349,6 +401,13 @@ export function WorkflowEditor({
       ) : (
         <div className="workflow-visual-editor">
           <div className="workflow-form workflow-form-meta">
+            {uid ? (
+              <div className="workflow-form-group">
+                <label>{t('uid')}</label>
+                <input type="text" value={uid} readOnly title={t('uidHint')} />
+                <p className="workflow-form-hint">{t('uidHint')}</p>
+              </div>
+            ) : null}
             <div className="workflow-form-group">
               <label>{t('name')}</label>
               <input

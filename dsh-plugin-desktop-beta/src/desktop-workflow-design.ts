@@ -68,6 +68,7 @@ Hard requirements:
 - apiVersion: workflow-wise/v1
 - kind: Workflow
 - metadata.name: lowercase [a-z0-9-]+, length <= 63
+- metadata.uid: stable UUID document id. When present on the current draft, KEEP it unchanged. Never invent or replace uid. New workflows may omit uid (Host allocates on save).
 - metadata.title and metadata.description are encouraged
 - spec.steps: non-empty array
 - Each step needs id ([a-z0-9-]+) and type in: script, task, llm, approval, sub_workflow
@@ -79,7 +80,7 @@ Hard requirements:
 - sub_workflow steps need ref (name of another saved workflow)
 - Use deps: [step-id, ...] for ordering; no cycles
 - Prefer small, practical graphs (3–8 steps) unless the user asks otherwise
-- When modifying an existing workflow, keep metadata.name unless the user asks to rename
+- When modifying an existing workflow, keep metadata.uid and metadata.name unless the user asks to rename (name only; never change uid)
 - You may include optional ui: { x, y } on steps for canvas layout
 
 Model routing vs prompt (critical):

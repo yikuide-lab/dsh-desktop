@@ -1,0 +1,96 @@
+{
+  "schemaVersion": "mimosa-finding-ledger-batch/v1",
+  "batchId": "pretooluse-fd22c6978a4fe223ccd3874678afcbf0",
+  "runId": null,
+  "runStatus": "completed",
+  "coverage": {
+    "status": "complete",
+    "reasons": []
+  },
+  "source": {
+    "component": "zcode-hook",
+    "operationId": "PreToolUse"
+  },
+  "revision": null,
+  "diffHash": null,
+  "rulesVersion": null,
+  "sessionHash": "b2dcdad0da8177211f5e47706695f0dffb589b83b16018ff365f350b27e7c00a",
+  "reportRef": null,
+  "events": [
+    {
+      "eventId": "hook-4ed1961833ce010bf954f4139e4a338a",
+      "findingId": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 69,
+      "endLine": 69,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804"
+      },
+      "sequence": 0
+    },
+    {
+      "eventId": "hook-c3c244811507cb81868da74d093b5d65",
+      "findingId": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 140,
+      "endLine": 140,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca"
+      },
+      "sequence": 1
+    },
+    {
+      "eventId": "hook-3eeffd149e6231d3b287bf7ee207c7b2",
+      "findingId": "mimosa-780b1f9c6becc03afc90e942",
+      "type": "finding_blocked",
+      "at": "2026-09-18T14:22:24.306Z",
+      "identity": {
+        "projectRelativeFile": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ruleId": "security",
+        "codeEvidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "confidence": "stable"
+      },
+      "scope": "direct",
+      "line": 141,
+      "endLine": 141,
+      "reasonCode": "deny",
+      "reportedToAgent": true,
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "evidenceHash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c"
+      },
+      "sequence": 2
+    }
+  ],
+  "observedFindingIds": [],
+  "verifiedFiles": [],
+  "recordedAt": "2026-09-18T14:22:24.614Z"
+}

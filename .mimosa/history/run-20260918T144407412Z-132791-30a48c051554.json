@@ -1,0 +1,49 @@
+{
+  "schemaVersion": "mimosa-finding-history/v1",
+  "runId": "20260918T144407412Z-132791-30a48c051554",
+  "runStatus": "inconclusive",
+  "errors": [
+    "bash-discovery:deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts: bash_discovery_incomplete: project enumeration exceeded 5000 reviewable files",
+    "candidate-select:dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts: candidate_limit_exceeded: 19 changed reviewable file(s) were not scanned because the limit is 20",
+    "baseline:deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts: baseline_partial: baseline exceeded 5000 candidate files"
+  ],
+  "target": ".",
+  "revision": "fb3ab6b9a2905d3c4bf7cf26ea8c949eb24e2717",
+  "diffHash": "9f077d4134435870203bf678e3c3a5c28f9f87cd8cf7d8b1ded2661ae5b8a594",
+  "rulesVersion": "unavailable",
+  "recordedAt": "2026-09-18T14:44:07.412Z",
+  "timing": {
+    "startedAt": "2026-09-18T14:44:05.529Z",
+    "completedAt": "2026-09-18T14:44:07.412Z",
+    "durationMs": 1883
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "modelCalls": 0,
+    "measurement": "known-zero"
+  },
+  "findings": {
+    "total": 9,
+    "bySeverity": {
+      "high": 9
+    },
+    "byStatus": {
+      "static_verified": 3,
+      "blocked": 3,
+      "candidate": 3
+    }
+  },
+  "coverage": {
+    "status": "partial",
+    "reasonCounts": {
+      "bash_discovery_incomplete": 1,
+      "candidate_limit_exceeded": 1,
+      "baseline_partial": 1,
+      "project_check_failed": 3
+    }
+  },
+  "evidenceBoundary": "static_only",
+  "immutableReport": ".mimosa/reports/task-review-sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f-20260918T144407412Z-132791-30a48c051554.json"
+}

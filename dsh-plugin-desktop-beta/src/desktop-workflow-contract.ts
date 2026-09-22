@@ -61,6 +61,8 @@ export type DesktopWorkflowOp =
   | 'awfSetTelemetrySettings'
   | 'awfGetExecutorStatus'
   | 'awfSetExecutorSettings'
+  | 'awfGetTunnelStatus'
+  | 'awfSetTunnelSettings'
   | 'awfAuthStatus'
   | 'awfAuthMethods'
   | 'awfAuthRegister'
@@ -120,6 +122,8 @@ export interface DesktopWorkflowRequest {
   readonly awfTelemetrySettings?: { telemetryEnabled?: boolean }
   /** awfSetExecutorSettings: opt-in desktop executor loop (default off). */
   readonly awfExecutorSettings?: { executorEnabled?: boolean }
+  /** awfSetTunnelSettings: opt-in reverse tunnel (default off). */
+  readonly awfTunnelSettings?: { tunnelEnabled?: boolean; localPort?: number }
   /** awfAuth* 账号凭据；密码只在请求体内存在，绝不落盘。 */
   readonly awfAuthCredentials?: {
     email?: string

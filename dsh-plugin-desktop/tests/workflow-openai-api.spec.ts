@@ -58,14 +58,14 @@ function mockPlugin(overrides: Partial<WorkflowPlugin> = {}): WorkflowPlugin {
 }
 
 describe('workflow openai protocol', () => {
-  it('extracts last user message and builds run params', () => {
+  it('joins system + user messages into the workflow PROMPT', () => {
     expect(flattenMessageContent([{ type: 'text', text: 'part' }])).toBe('part')
     expect(extractUserPrompt([
       { role: 'system', content: 'sys' },
       { role: 'user', content: 'first' },
       { role: 'assistant', content: 'mid' },
       { role: 'user', content: '  last prompt  ' },
-    ])).toBe('last prompt')
+    ])).toBe('sys\n\nfirst\n\nlast prompt')
     expect(buildRunParamsFromPrompt('q', 'ws-1')).toMatchObject({
       PROMPT: 'q',
       PROBLEM: 'q',

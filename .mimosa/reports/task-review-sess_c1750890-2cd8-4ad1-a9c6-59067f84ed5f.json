@@ -1,0 +1,1809 @@
+{
+  "schema_version": "mimosa-task-review/v2",
+  "run_id": "20260918T144407412Z-132791-30a48c051554",
+  "run_status": "inconclusive",
+  "errors": [
+    {
+      "stage": "bash-discovery",
+      "target": "deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts",
+      "reason": "bash_discovery_incomplete: project enumeration exceeded 5000 reviewable files"
+    },
+    {
+      "stage": "candidate-select",
+      "target": "dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts",
+      "reason": "candidate_limit_exceeded: 19 changed reviewable file(s) were not scanned because the limit is 20"
+    },
+    {
+      "stage": "baseline",
+      "target": "deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+      "reason": "baseline_partial: baseline exceeded 5000 candidate files"
+    }
+  ],
+  "coverage": {
+    "schema_version": "mimosa-hook-coverage/v1",
+    "status": "partial",
+    "scope": "hook_observed_diff",
+    "baseline": {
+      "complete": false,
+      "captured_files": 5004,
+      "candidate_limit": 5000,
+      "truncated": true,
+      "enumeration_error_count": 0,
+      "snapshot_error_count": 3,
+      "compensated_target_count": 39
+    },
+    "change_tracking": {
+      "touched_observed": 12,
+      "touched_retained": 12,
+      "truncated": false,
+      "bash_mutation": true,
+      "bash_discovered": 39,
+      "bash_discovery_limit": 80,
+      "bash_discovery_truncated": false
+    },
+    "candidates": {
+      "eligible_files": 39,
+      "selected_files": 20,
+      "limit": 20,
+      "truncated": true
+    },
+    "scanning": {
+      "required_files": 20,
+      "scanned_files": 20,
+      "skipped_files": 0,
+      "failed_files": 0,
+      "project_checks_required": 0,
+      "project_checks_completed": 0
+    },
+    "notification": {
+      "eligible_findings": 6,
+      "detailed_findings": 3,
+      "detail_limit": 3,
+      "truncated": true
+    },
+    "reason_counts": {
+      "bash_discovery_incomplete": 1,
+      "candidate_limit_exceeded": 1,
+      "baseline_partial": 1,
+      "project_check_failed": 3
+    },
+    "reasons": [
+      {
+        "code": "bash_discovery_incomplete",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts",
+        "detail": "project enumeration exceeded 5000 reviewable files",
+        "affects_completion": true
+      },
+      {
+        "code": "candidate_limit_exceeded",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts",
+        "detail": "19 changed reviewable file(s) were not scanned because the limit is 20",
+        "affects_completion": true
+      },
+      {
+        "code": "baseline_partial",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+        "detail": "baseline exceeded 5000 candidate files",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "bash-discovery",
+        "target": "deepseek-harness/packages/client/hmr/tests/node-half.client.spec.ts",
+        "detail": "bash_discovery_incomplete: project enumeration exceeded 5000 reviewable files",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "candidate-select",
+        "target": "dsh-plugin-desktop-beta/lib/types/desktop-awf-client.d.ts",
+        "detail": "candidate_limit_exceeded: 19 changed reviewable file(s) were not scanned because the limit is 20",
+        "affects_completion": true
+      },
+      {
+        "code": "project_check_failed",
+        "stage": "baseline",
+        "target": "deepseek-harness/packages/client/file-upload/tests/file-upload-http.host.spec.ts",
+        "detail": "baseline_partial: baseline exceeded 5000 candidate files",
+        "affects_completion": true
+      }
+    ],
+    "reasons_truncated": false
+  },
+  "generated_at": "2026-09-18T14:44:07.412Z",
+  "session_id": "sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f",
+  "target": ".",
+  "revision": "fb3ab6b9a2905d3c4bf7cf26ea8c949eb24e2717",
+  "rules_version": "unavailable",
+  "diff_hash": "9f077d4134435870203bf678e3c3a5c28f9f87cd8cf7d8b1ded2661ae5b8a594",
+  "diff": {
+    "algorithm": "sha256",
+    "changed_file_count": 20,
+    "changed_files": [
+      {
+        "file": "dsh-plugin-desktop-beta/lib/client.js",
+        "ranges": [
+          {
+            "start": 5511,
+            "end": 5511
+          },
+          {
+            "start": 8193,
+            "end": 8193
+          },
+          {
+            "start": 11229,
+            "end": 11229
+          },
+          {
+            "start": 13138,
+            "end": 13138
+          },
+          {
+            "start": 13156,
+            "end": 13156
+          },
+          {
+            "start": 24171,
+            "end": 24171
+          },
+          {
+            "start": 24622,
+            "end": 24622
+          },
+          {
+            "start": 24822,
+            "end": 24822
+          },
+          {
+            "start": 24840,
+            "end": 24840
+          },
+          {
+            "start": 32867,
+            "end": 32867
+          },
+          {
+            "start": 35707,
+            "end": 35708
+          },
+          {
+            "start": 35711,
+            "end": 35713
+          },
+          {
+            "start": 35715,
+            "end": 35718
+          },
+          {
+            "start": 35722,
+            "end": 35722
+          },
+          {
+            "start": 37536,
+            "end": 37536
+          },
+          {
+            "start": 37581,
+            "end": 37581
+          },
+          {
+            "start": 37592,
+            "end": 37592
+          },
+          {
+            "start": 37662,
+            "end": 37662
+          },
+          {
+            "start": 37664,
+            "end": 37665
+          },
+          {
+            "start": 37700,
+            "end": 37700
+          },
+          {
+            "start": 37875,
+            "end": 37894
+          },
+          {
+            "start": 37922,
+            "end": 37933
+          },
+          {
+            "start": 38129,
+            "end": 38160
+          },
+          {
+            "start": 38359,
+            "end": 38414
+          },
+          {
+            "start": 38488,
+            "end": 38501
+          },
+          {
+            "start": 38587,
+            "end": 38592
+          },
+          {
+            "start": 38595,
+            "end": 38595
+          },
+          {
+            "start": 38602,
+            "end": 38602
+          },
+          {
+            "start": 38607,
+            "end": 38612
+          },
+          {
+            "start": 38628,
+            "end": 38631
+          },
+          {
+            "start": 38636,
+            "end": 38637
+          },
+          {
+            "start": 38639,
+            "end": 38639
+          },
+          {
+            "start": 38643,
+            "end": 38643
+          },
+          {
+            "start": 38652,
+            "end": 38657
+          },
+          {
+            "start": 38665,
+            "end": 38666
+          },
+          {
+            "start": 38669,
+            "end": 38670
+          },
+          {
+            "start": 38689,
+            "end": 38692
+          },
+          {
+            "start": 38695,
+            "end": 38696
+          },
+          {
+            "start": 44447,
+            "end": 44447
+          },
+          {
+            "start": 44482,
+            "end": 44482
+          },
+          {
+            "start": 55412,
+            "end": 55413
+          },
+          {
+            "start": 55422,
+            "end": 55424
+          },
+          {
+            "start": 55439,
+            "end": 55439
+          },
+          {
+            "start": 55452,
+            "end": 55452
+          },
+          {
+            "start": 55482,
+            "end": 55482
+          },
+          {
+            "start": 55492,
+            "end": 55492
+          },
+          {
+            "start": 55501,
+            "end": 55501
+          },
+          {
+            "start": 55513,
+            "end": 55513
+          },
+          {
+            "start": 55553,
+            "end": 55553
+          },
+          {
+            "start": 55568,
+            "end": 55568
+          },
+          {
+            "start": 55580,
+            "end": 55580
+          },
+          {
+            "start": 55599,
+            "end": 55599
+          },
+          {
+            "start": 55608,
+            "end": 55608
+          },
+          {
+            "start": 55618,
+            "end": 55618
+          },
+          {
+            "start": 55637,
+            "end": 55637
+          },
+          {
+            "start": 55650,
+            "end": 55650
+          },
+          {
+            "start": 55665,
+            "end": 55665
+          },
+          {
+            "start": 55674,
+            "end": 55674
+          },
+          {
+            "start": 55683,
+            "end": 55683
+          },
+          {
+            "start": 55700,
+            "end": 55700
+          },
+          {
+            "start": 55709,
+            "end": 55709
+          },
+          {
+            "start": 55723,
+            "end": 55723
+          },
+          {
+            "start": 55756,
+            "end": 55756
+          },
+          {
+            "start": 56014,
+            "end": 56029
+          },
+          {
+            "start": 56035,
+            "end": 56038
+          },
+          {
+            "start": 56043,
+            "end": 56043
+          },
+          {
+            "start": 56045,
+            "end": 56062
+          },
+          {
+            "start": 56065,
+            "end": 56065
+          },
+          {
+            "start": 56070,
+            "end": 56077
+          },
+          {
+            "start": 56134,
+            "end": 56140
+          },
+          {
+            "start": 56142,
+            "end": 56151
+          },
+          {
+            "start": 56222,
+            "end": 56222
+          },
+          {
+            "start": 56227,
+            "end": 56228
+          },
+          {
+            "start": 56230,
+            "end": 56231
+          },
+          {
+            "start": 56233,
+            "end": 56233
+          },
+          {
+            "start": 56236,
+            "end": 56236
+          },
+          {
+            "start": 56413,
+            "end": 56416
+          },
+          {
+            "start": 56423,
+            "end": 56424
+          },
+          {
+            "start": 56457,
+            "end": 56457
+          },
+          {
+            "start": 56465,
+            "end": 56493
+          },
+          {
+            "start": 56621,
+            "end": 56624
+          },
+          {
+            "start": 56657,
+            "end": 56666
+          },
+          {
+            "start": 56668,
+            "end": 56679
+          },
+          {
+            "start": 56681,
+            "end": 56683
+          },
+          {
+            "start": 56685,
+            "end": 56700
+          },
+          {
+            "start": 56703,
+            "end": 56831
+          },
+          {
+            "start": 57434,
+            "end": 57435
+          },
+          {
+            "start": 57442,
+            "end": 57442
+          },
+          {
+            "start": 57457,
+            "end": 57458
+          },
+          {
+            "start": 57461,
+            "end": 57461
+          },
+          {
+            "start": 57470,
+            "end": 57472
+          },
+          {
+            "start": 57478,
+            "end": 57478
+          },
+          {
+            "start": 57487,
+            "end": 57488
+          },
+          {
+            "start": 57496,
+            "end": 57497
+          },
+          {
+            "start": 57512,
+            "end": 57537
+          },
+          {
+            "start": 57549,
+            "end": 57549
+          },
+          {
+            "start": 57570,
+            "end": 57570
+          },
+          {
+            "start": 57572,
+            "end": 57572
+          },
+          {
+            "start": 57577,
+            "end": 57577
+          },
+          {
+            "start": 57587,
+            "end": 57589
+          },
+          {
+            "start": 57605,
+            "end": 57606
+          },
+          {
+            "start": 57625,
+            "end": 57630
+          },
+          {
+            "start": 57639,
+            "end": 57649
+          },
+          {
+            "start": 57667,
+            "end": 57669
+          },
+          {
+            "start": 57676,
+            "end": 57676
+          },
+          {
+            "start": 57689,
+            "end": 57689
+          },
+          {
+            "start": 57805,
+            "end": 57820
+          },
+          {
+            "start": 58098,
+            "end": 58107
+          },
+          {
+            "start": 58295,
+            "end": 58315
+          },
+          {
+            "start": 58328,
+            "end": 58342
+          },
+          {
+            "start": 58392,
+            "end": 58392
+          },
+          {
+            "start": 58394,
+            "end": 58398
+          },
+          {
+            "start": 58407,
+            "end": 58434
+          },
+          {
+            "start": 58516,
+            "end": 58517
+          },
+          {
+            "start": 58532,
+            "end": 58539
+          },
+          {
+            "start": 58566,
+            "end": 58567
+          },
+          {
+            "start": 58577,
+            "end": 58608
+          },
+          {
+            "start": 58754,
+            "end": 58835
+          },
+          {
+            "start": 59133,
+            "end": 59216
+          },
+          {
+            "start": 59228,
+            "end": 59404
+          },
+          {
+            "start": 60627,
+            "end": 60633
+          },
+          {
+            "start": 60713,
+            "end": 60713
+          },
+          {
+            "start": 61402,
+            "end": 61403
+          },
+          {
+            "start": 61466,
+            "end": 61466
+          },
+          {
+            "start": 61470,
+            "end": 61471
+          },
+          {
+            "start": 61526,
+            "end": 61526
+          },
+          {
+            "start": 61528,
+            "end": 61530
+          },
+          {
+            "start": 61532,
+            "end": 61537
+          },
+          {
+            "start": 61742,
+            "end": 61766
+          },
+          {
+            "start": 61768,
+            "end": 61779
+          },
+          {
+            "start": 61808,
+            "end": 61809
+          },
+          {
+            "start": 61872,
+            "end": 61872
+          },
+          {
+            "start": 61876,
+            "end": 61877
+          },
+          {
+            "start": 61932,
+            "end": 61932
+          },
+          {
+            "start": 61934,
+            "end": 61936
+          },
+          {
+            "start": 61938,
+            "end": 61943
+          },
+          {
+            "start": 62148,
+            "end": 62172
+          },
+          {
+            "start": 62174,
+            "end": 62185
+          },
+          {
+            "start": 62689,
+            "end": 62708
+          },
+          {
+            "start": 62711,
+            "end": 62713
+          },
+          {
+            "start": 62717,
+            "end": 62721
+          },
+          {
+            "start": 62724,
+            "end": 62724
+          },
+          {
+            "start": 62730,
+            "end": 62738
+          },
+          {
+            "start": 62745,
+            "end": 62752
+          },
+          {
+            "start": 62757,
+            "end": 62757
+          },
+          {
+            "start": 62759,
+            "end": 62760
+          },
+          {
+            "start": 62764,
+            "end": 62766
+          },
+          {
+            "start": 62772,
+            "end": 62775
+          },
+          {
+            "start": 62779,
+            "end": 62780
+          },
+          {
+            "start": 62783,
+            "end": 62786
+          },
+          {
+            "start": 62791,
+            "end": 62793
+          },
+          {
+            "start": 62798,
+            "end": 62798
+          },
+          {
+            "start": 62800,
+            "end": 62801
+          },
+          {
+            "start": 62803,
+            "end": 62889
+          },
+          {
+            "start": 62978,
+            "end": 62991
+          },
+          {
+            "start": 63106,
+            "end": 63106
+          },
+          {
+            "start": 63113,
+            "end": 63130
+          },
+          {
+            "start": 63960,
+            "end": 63962
+          },
+          {
+            "start": 64408,
+            "end": 64474
+          }
+        ],
+        "before_hash": "2ea72fc79e91c64180ff1680421387b22292d94781c341d9809d917d0dfefdfc",
+        "after_hash": "ebe55ca9301bc5491b7c5c0c25eb559f1b5408165638d7c06427478b0b640dd8"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/lib/types/desktop-awf-bridge.d.ts",
+        "ranges": [
+          {
+            "start": 10,
+            "end": 10
+          },
+          {
+            "start": 73,
+            "end": 94
+          }
+        ],
+        "before_hash": "db90490b6aed0411bb5b9efe376cd59dbf40a426cd13fa8068f64cb4d8642769",
+        "after_hash": "9c17a560d7e6fce271ae5e0d9eebfad196dea1b46e4350f8102c56ca3b536377"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 2
+          },
+          {
+            "start": 142,
+            "end": 142
+          },
+          {
+            "start": 154,
+            "end": 154
+          },
+          {
+            "start": 468,
+            "end": 492
+          },
+          {
+            "start": 590,
+            "end": 596
+          },
+          {
+            "start": 627,
+            "end": 669
+          },
+          {
+            "start": 726,
+            "end": 728
+          },
+          {
+            "start": 753,
+            "end": 755
+          },
+          {
+            "start": 848,
+            "end": 851
+          },
+          {
+            "start": 937,
+            "end": 937
+          },
+          {
+            "start": 940,
+            "end": 945
+          },
+          {
+            "start": 947,
+            "end": 947
+          },
+          {
+            "start": 1244,
+            "end": 1307
+          },
+          {
+            "start": 1439,
+            "end": 1439
+          },
+          {
+            "start": 1443,
+            "end": 1450
+          },
+          {
+            "start": 1457,
+            "end": 1457
+          },
+          {
+            "start": 1461,
+            "end": 1461
+          },
+          {
+            "start": 1463,
+            "end": 1470
+          },
+          {
+            "start": 1482,
+            "end": 1489
+          },
+          {
+            "start": 1493,
+            "end": 1493
+          },
+          {
+            "start": 1504,
+            "end": 1511
+          },
+          {
+            "start": 1516,
+            "end": 1521
+          },
+          {
+            "start": 1524,
+            "end": 1531
+          },
+          {
+            "start": 1536,
+            "end": 1545
+          },
+          {
+            "start": 1556,
+            "end": 1559
+          },
+          {
+            "start": 1562,
+            "end": 1565
+          },
+          {
+            "start": 1571,
+            "end": 1571
+          },
+          {
+            "start": 1573,
+            "end": 1577
+          },
+          {
+            "start": 1581,
+            "end": 1583
+          },
+          {
+            "start": 1589,
+            "end": 1590
+          },
+          {
+            "start": 1598,
+            "end": 1602
+          },
+          {
+            "start": 1605,
+            "end": 1617
+          },
+          {
+            "start": 1762,
+            "end": 1767
+          },
+          {
+            "start": 1880,
+            "end": 1887
+          },
+          {
+            "start": 1892,
+            "end": 1895
+          },
+          {
+            "start": 1905,
+            "end": 1908
+          },
+          {
+            "start": 2001,
+            "end": 2218
+          },
+          {
+            "start": 2220,
+            "end": 2226
+          },
+          {
+            "start": 2235,
+            "end": 2241
+          },
+          {
+            "start": 2245,
+            "end": 2253
+          },
+          {
+            "start": 2257,
+            "end": 2334
+          },
+          {
+            "start": 2620,
+            "end": 2620
+          }
+        ],
+        "before_hash": "118ca3e2ebcad1fb78934ff6ab128ef1e8c5041a9833af1a2b35d4b8c9a21b0c",
+        "after_hash": "fed44133504bd07837085c8b03e302840e6b13c71f393abc041dc46f1d7da8e7"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/client/desktop-workflow-api.ts",
+        "ranges": [
+          {
+            "start": 259,
+            "end": 275
+          },
+          {
+            "start": 422,
+            "end": 428
+          },
+          {
+            "start": 930,
+            "end": 942
+          },
+          {
+            "start": 1315,
+            "end": 1370
+          }
+        ],
+        "before_hash": "3a4488a7921fc94822cf92e8ffe64849a142b0a1bade7c34d743cdc754d19a43",
+        "after_hash": "d54dd5d26a82aa6d2ff8eac65b079d1c7e4e75e62d450aa5ca52b6e961a0cbbf"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+        "ranges": [
+          {
+            "start": 359,
+            "end": 383
+          },
+          {
+            "start": 768,
+            "end": 792
+          }
+        ],
+        "before_hash": "d0b06f4cd227b4f0f04f09fd148d110cb85ed508597075fe73d23a01259baf98",
+        "after_hash": "2e755568e88c518a6c5220720b329dfd3faeb61d7217fe8d4c2fc5a68f10408b"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/client/WorkflowSettingsPanel.tsx",
+        "ranges": [
+          {
+            "start": 11,
+            "end": 12
+          },
+          {
+            "start": 90,
+            "end": 97
+          },
+          {
+            "start": 125,
+            "end": 126
+          },
+          {
+            "start": 324,
+            "end": 410
+          },
+          {
+            "start": 728,
+            "end": 866
+          }
+        ],
+        "before_hash": "7624c76cf2f2b1136ac3466ee792443aa465e0e2c4818b440eb9d7b4ae70f4fc",
+        "after_hash": "25a0616c0e5d27fdfa2d50241b2e4bf7b61db687ec8af65b7d9543c92017e66c"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/desktop-awf-auth.ts",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 319
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "fbf3de0ff990ea6f4c86f6be4b80ff8a6b6b543c23e232f4e79130e76bae11b5"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/desktop-awf-bridge.ts",
+        "ranges": [
+          {
+            "start": 18,
+            "end": 30
+          },
+          {
+            "start": 84,
+            "end": 91
+          },
+          {
+            "start": 104,
+            "end": 108
+          },
+          {
+            "start": 119,
+            "end": 126
+          },
+          {
+            "start": 131,
+            "end": 140
+          },
+          {
+            "start": 145,
+            "end": 209
+          }
+        ],
+        "before_hash": "c9b942a44a2d53a3e242811c54513671064393a63993075ca5e00ddf1c6a10c6",
+        "after_hash": "7e46e9d2b7a64a509fc011d94ddb1ec73e9f0bc0ad7183f5f1d69654b9d5348c"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/desktop-awf-client.ts",
+        "ranges": [
+          {
+            "start": 100,
+            "end": 108
+          },
+          {
+            "start": 114,
+            "end": 128
+          },
+          {
+            "start": 133,
+            "end": 136
+          },
+          {
+            "start": 143,
+            "end": 149
+          }
+        ],
+        "before_hash": "355f20806eff6d05dbdd77357c0813ef32d75bfcfb6015e9946d970cb1f66761",
+        "after_hash": "d151d5ef3c5dbfaa330a5fba12bf5f1afe2c31fcf48a04be541f0b2627b1bab9"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/desktop-workflow-contract.ts",
+        "ranges": [
+          {
+            "start": 64,
+            "end": 70
+          },
+          {
+            "start": 123,
+            "end": 130
+          }
+        ],
+        "before_hash": "60792509435f5beab55909d6b13eb31778b4a30afc17a3d563dc9c96744dfcee",
+        "after_hash": "0ef60d58914cafba84fbd434e138183363e20fb7dbbe59031f331da7d292e102"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/src/desktop-workflow-controller.ts",
+        "ranges": [
+          {
+            "start": 339,
+            "end": 378
+          }
+        ],
+        "before_hash": "2d09c5f2466284f7947a3fa054f87f3e8c705570da26d35a2099af4ff3416201",
+        "after_hash": "cd5f2370aade54d210024df07a97e7a6c022c1f35f325cae0e6a04b2f7928219"
+      },
+      {
+        "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 246
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "cdc25a9a9cb3af7ea33337cb9b3ef84cc2c0ae50c330799ea026e5f4f68d36f6"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/client/desktop-workflow-api.ts",
+        "ranges": [
+          {
+            "start": 259,
+            "end": 275
+          },
+          {
+            "start": 422,
+            "end": 428
+          },
+          {
+            "start": 930,
+            "end": 942
+          },
+          {
+            "start": 1315,
+            "end": 1370
+          }
+        ],
+        "before_hash": "3a4488a7921fc94822cf92e8ffe64849a142b0a1bade7c34d743cdc754d19a43",
+        "after_hash": "d54dd5d26a82aa6d2ff8eac65b079d1c7e4e75e62d450aa5ca52b6e961a0cbbf"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/client/WorkflowSettingsPanel.tsx",
+        "ranges": [
+          {
+            "start": 11,
+            "end": 12
+          },
+          {
+            "start": 90,
+            "end": 97
+          },
+          {
+            "start": 125,
+            "end": 126
+          },
+          {
+            "start": 324,
+            "end": 410
+          },
+          {
+            "start": 728,
+            "end": 866
+          }
+        ],
+        "before_hash": "7624c76cf2f2b1136ac3466ee792443aa465e0e2c4818b440eb9d7b4ae70f4fc",
+        "after_hash": "25a0616c0e5d27fdfa2d50241b2e4bf7b61db687ec8af65b7d9543c92017e66c"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/desktop-awf-auth.ts",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 319
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "fbf3de0ff990ea6f4c86f6be4b80ff8a6b6b543c23e232f4e79130e76bae11b5"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/desktop-awf-bridge.ts",
+        "ranges": [
+          {
+            "start": 18,
+            "end": 30
+          },
+          {
+            "start": 84,
+            "end": 91
+          },
+          {
+            "start": 104,
+            "end": 108
+          },
+          {
+            "start": 119,
+            "end": 126
+          },
+          {
+            "start": 131,
+            "end": 140
+          },
+          {
+            "start": 145,
+            "end": 209
+          }
+        ],
+        "before_hash": "c9b942a44a2d53a3e242811c54513671064393a63993075ca5e00ddf1c6a10c6",
+        "after_hash": "7e46e9d2b7a64a509fc011d94ddb1ec73e9f0bc0ad7183f5f1d69654b9d5348c"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/desktop-awf-client.ts",
+        "ranges": [
+          {
+            "start": 100,
+            "end": 108
+          },
+          {
+            "start": 114,
+            "end": 128
+          },
+          {
+            "start": 133,
+            "end": 136
+          },
+          {
+            "start": 143,
+            "end": 149
+          }
+        ],
+        "before_hash": "355f20806eff6d05dbdd77357c0813ef32d75bfcfb6015e9946d970cb1f66761",
+        "after_hash": "d151d5ef3c5dbfaa330a5fba12bf5f1afe2c31fcf48a04be541f0b2627b1bab9"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/desktop-workflow-contract.ts",
+        "ranges": [
+          {
+            "start": 64,
+            "end": 70
+          },
+          {
+            "start": 123,
+            "end": 130
+          }
+        ],
+        "before_hash": "60792509435f5beab55909d6b13eb31778b4a30afc17a3d563dc9c96744dfcee",
+        "after_hash": "0ef60d58914cafba84fbd434e138183363e20fb7dbbe59031f331da7d292e102"
+      },
+      {
+        "file": "dsh-plugin-desktop/src/desktop-workflow-controller.ts",
+        "ranges": [
+          {
+            "start": 339,
+            "end": 378
+          }
+        ],
+        "before_hash": "2d09c5f2466284f7947a3fa054f87f3e8c705570da26d35a2099af4ff3416201",
+        "after_hash": "cd5f2370aade54d210024df07a97e7a6c022c1f35f325cae0e6a04b2f7928219"
+      },
+      {
+        "file": "dsh-plugin-desktop/tests/awf-auth.spec.ts",
+        "ranges": [
+          {
+            "start": 1,
+            "end": 246
+          }
+        ],
+        "before_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "after_hash": "cdc25a9a9cb3af7ea33337cb9b3ef84cc2c0ae50c330799ea026e5f4f68d36f6"
+      }
+    ]
+  },
+  "timing": {
+    "started_at": "2026-09-18T14:44:05.529Z",
+    "completed_at": "2026-09-18T14:44:07.412Z",
+    "duration_ms": 1883,
+    "measurement": "hook_wall_clock"
+  },
+  "tokens": {
+    "input": 0,
+    "output": 0,
+    "total": 0,
+    "model_calls": 0,
+    "measurement": "known-zero"
+  },
+  "telemetry": {
+    "schemaVersion": "mimosa-gate-telemetry/v1",
+    "profile": "gate",
+    "operation": "Stop",
+    "outcome": "partial/INCONCLUSIVE",
+    "latencyMs": 1883,
+    "peakMemoryBytes": 324694016,
+    "memoryMeasurement": "max-observed-process-rss",
+    "scannedFiles": 20,
+    "cache": {
+      "hits": 0,
+      "misses": 0,
+      "measurement": "not-applicable"
+    },
+    "denyCount": 0,
+    "tokens": {
+      "input": 0,
+      "output": 0,
+      "total": 0,
+      "modelCalls": 0,
+      "measurement": "known-zero"
+    }
+  },
+  "finding_count": 6,
+  "rewake_finding_count": 3,
+  "evidence_boundary": {
+    "scan": "candidate",
+    "static_fix_verification": "observed_static_only",
+    "runtime_verification": "not_performed"
+  },
+  "finding_events": [
+    {
+      "finding_id": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 69,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "deny",
+      "at": "2026-09-18T14:22:24.306Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 140,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "deny",
+      "at": "2026-09-18T14:22:24.306Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-780b1f9c6becc03afc90e942",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 141,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "deny",
+      "at": "2026-09-18T14:22:24.306Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 69,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "fixed_candidate",
+      "decision": "repair_observed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "candidate_before_evidence_hash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "post_change_evidence_hash_at_previous_location": "48834f307ec8e16152b8d247db6dc582d98cccfe5c0297d0b6525a3e5a785048",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-a2ae6a47f0bf7b4985846f2e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 69,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "static_verified",
+      "decision": "static_rescan_passed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "candidate_before_evidence_hash": "bdeb4e8c3116d57b73d3aa4c670a473b23eef85d4a707757b103981235027804",
+        "post_change_evidence_hash_at_previous_location": "48834f307ec8e16152b8d247db6dc582d98cccfe5c0297d0b6525a3e5a785048",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 140,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "fixed_candidate",
+      "decision": "repair_observed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "candidate_before_evidence_hash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "post_change_evidence_hash_at_previous_location": "818eacdf8187a4233b15a1b44371a780600685a864972442ce58fb783e85afa4",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-1a9cd1cbf391018dc5eed73e",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 140,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "static_verified",
+      "decision": "static_rescan_passed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "candidate_before_evidence_hash": "385cf0f5b9d8d70d0cd4a16c17d75390c1604d72117116f6cc28069cb14671ca",
+        "post_change_evidence_hash_at_previous_location": "818eacdf8187a4233b15a1b44371a780600685a864972442ce58fb783e85afa4",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-780b1f9c6becc03afc90e942",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 141,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "fixed_candidate",
+      "decision": "repair_observed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "source",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "candidate_before_evidence_hash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "post_change_evidence_hash_at_previous_location": "43f2c7cce02e029dc2a5adba348c05678e4ecf292bcd1841f05293b9eb0345ec",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-780b1f9c6becc03afc90e942",
+      "file": "dsh-plugin-desktop-beta/tests/awf-auth.spec.ts",
+      "line": 141,
+      "rule_id": "security",
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "static_verified",
+      "decision": "static_rescan_passed",
+      "at": "2026-09-18T14:23:21.994Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "observed",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "candidate_before_evidence_hash": "89e1819fffc429305c11626801000dabbced9c683ea96f95a77bb4dcf01f028c",
+        "post_change_evidence_hash_at_previous_location": "43f2c7cce02e029dc2a5adba348c05678e4ecf292bcd1841f05293b9eb0345ec",
+        "runtime_oracle": false,
+        "verification": {
+          "method": "mimosa-posttool-static-rescan",
+          "finding_absent": true,
+          "runtime_oracle": false
+        }
+      }
+    },
+    {
+      "finding_id": "mimosa-e1f5a781eaacea582632d672",
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "line": 776,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "stop_rewake",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "87ac685d1896ef0a722da060e83d8d8d1c54a2267e7bb1babdac9c72a54f8d34",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-0fb0ee9fbffd99e3abc02491",
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "line": 791,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "stop_rewake",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "9c91ee84eae2e3dddaa0303901b203a7296dcacab6b28d4dd8ebbcc1f7fe987f",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-b4219075cbd9c4c4f5f7ed07",
+      "file": "dsh-plugin-desktop-beta/lib/client.js",
+      "line": 62156,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "blocked",
+      "decision": "stop_rewake",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "3af3ece4c8acc258d3a0e2c541248aa3441f6412ad453c68fe56940ce2547c54",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-c9d366cc73137ef928375fe8",
+      "file": "dsh-plugin-desktop-beta/lib/client.js",
+      "line": 62171,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "status": "candidate",
+      "decision": "observe",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "2d82ea88e6576cd26908e7a4509184cc51e2e5daf08e30e0c70f2b57506569fd",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-f981b1e65e1e4d8b2f2b9c6a",
+      "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+      "line": 1574,
+      "severity": "high",
+      "category": "XSS 跨站脚本",
+      "status": "candidate",
+      "decision": "observe",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "9b30c2290e4e1c85183fb5b0973eddbfdf4b586e634cd9d6ef687963fd3c197c",
+        "runtime_oracle": false
+      }
+    },
+    {
+      "finding_id": "mimosa-7af8ad2bc4550aa2355f1f54",
+      "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+      "line": 1583,
+      "severity": "high",
+      "category": "XSS 跨站脚本",
+      "status": "candidate",
+      "decision": "observe",
+      "at": "2026-09-18T14:44:07.412Z",
+      "evidence": {
+        "kind": "static_scan",
+        "boundary": "candidate",
+        "producer": "deterministic",
+        "source": "semgrep",
+        "evidence_hash": "47c9fb425a4d9bd2fcce7642eac795929706acaf30ad53222d82b07c1658f3d8",
+        "runtime_oracle": false
+      }
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "mimosa-e1f5a781eaacea582632d672",
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "line": 776,
+      "end_line": 776,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "blocked",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+          "line": 776,
+          "evidence_hash": "87ac685d1896ef0a722da060e83d8d8d1c54a2267e7bb1babdac9c72a54f8d34",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": true
+    },
+    {
+      "finding_id": "mimosa-0fb0ee9fbffd99e3abc02491",
+      "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+      "line": 791,
+      "end_line": 791,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "blocked",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/src/client/locales-workflow.ts",
+          "line": 791,
+          "evidence_hash": "9c91ee84eae2e3dddaa0303901b203a7296dcacab6b28d4dd8ebbcc1f7fe987f",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": true
+    },
+    {
+      "finding_id": "mimosa-b4219075cbd9c4c4f5f7ed07",
+      "file": "dsh-plugin-desktop-beta/lib/client.js",
+      "line": 62156,
+      "end_line": 62156,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "blocked",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/lib/client.js",
+          "line": 62156,
+          "evidence_hash": "3af3ece4c8acc258d3a0e2c541248aa3441f6412ad453c68fe56940ce2547c54",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": true
+    },
+    {
+      "finding_id": "mimosa-c9d366cc73137ef928375fe8",
+      "file": "dsh-plugin-desktop-beta/lib/client.js",
+      "line": 62171,
+      "end_line": 62171,
+      "severity": "high",
+      "category": "硬编码凭据",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "candidate",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/lib/client.js",
+          "line": 62171,
+          "evidence_hash": "2d82ea88e6576cd26908e7a4509184cc51e2e5daf08e30e0c70f2b57506569fd",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": false
+    },
+    {
+      "finding_id": "mimosa-f981b1e65e1e4d8b2f2b9c6a",
+      "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+      "line": 1574,
+      "end_line": 1574,
+      "severity": "high",
+      "category": "XSS 跨站脚本",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "candidate",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+          "line": 1574,
+          "evidence_hash": "9b30c2290e4e1c85183fb5b0973eddbfdf4b586e634cd9d6ef687963fd3c197c",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": false
+    },
+    {
+      "finding_id": "mimosa-7af8ad2bc4550aa2355f1f54",
+      "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+      "line": 1583,
+      "end_line": 1583,
+      "severity": "high",
+      "category": "XSS 跨站脚本",
+      "kind": "semgrep",
+      "advisory": false,
+      "status": "candidate",
+      "evidence_boundary": "candidate",
+      "evidence": [
+        {
+          "kind": "static_scan",
+          "boundary": "candidate",
+          "producer": "deterministic",
+          "source": "semgrep",
+          "file": "dsh-plugin-desktop-beta/lib/workflow.js",
+          "line": 1583,
+          "evidence_hash": "47c9fb425a4d9bd2fcce7642eac795929706acaf30ad53222d82b07c1658f3d8",
+          "runtime_oracle": false
+        }
+      ],
+      "already_reported_to_agent": false,
+      "selected_for_rewake": false
+    }
+  ],
+  "artifacts": {
+    "immutable_report": ".mimosa/reports/task-review-sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f-20260918T144407412Z-132791-30a48c051554.json",
+    "latest_report": ".mimosa/reports/task-review-sess_c1750890-2cd8-4ad1-a9c6-59067f84ed5f.json",
+    "history_summary": ".mimosa/history/run-20260918T144407412Z-132791-30a48c051554.json"
+  }
+}
