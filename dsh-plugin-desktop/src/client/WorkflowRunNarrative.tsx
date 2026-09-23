@@ -67,13 +67,21 @@ export function WorkflowRunNarrative({
   // run graph pinned above it) out of view.
   const lastSelectedStep = useRef<string | null>(null)
   useEffect(() => {
-    if (!selectedStepId || selectedStepId === lastSelectedStep.current) return
+    if (!selectedStepId) {
+      // Clearing the guard lets a second click on the same node re-reveal it.
+      lastSelectedStep.current = null
+      return
+    }
+    if (selectedStepId === lastSelectedStep.current) return
     lastSelectedStep.current = selectedStepId
     const index = lastEntryIndexForStep(entries, selectedStepId)
     const el = listRef.current
     if (index < 0 || !el) return
     const node = el.querySelector<HTMLElement>(`[data-entry-index="${index}"]`)
     if (!node) return
+    // Stop tail-following first: a new transcript event arriving mid-scroll
+    // would otherwise jump the list back to the bottom.
+    setFollowTail(false)
     const containerRect = el.getBoundingClientRect()
     const targetRect = node.getBoundingClientRect()
     el.scrollTop = scrollTopToReveal({

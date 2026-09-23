@@ -15,6 +15,7 @@ import type {
   WorkflowTranscriptEventView,
 } from '../src/client/desktop-workflow-api.ts'
 import { zh } from '../src/client/locales-workflow.ts'
+import { WORKFLOW_STYLES } from '../src/client/styles-workflow.ts'
 
 const t = (key: string): string => (zh as Record<string, string>)[key] ?? key
 
@@ -293,7 +294,6 @@ describe('scrollTopToReveal', () => {
       scrollHeight: 1000,
     })).toBe(100)
   })
-
   it('honours the slack band at the edges', () => {
     expect(scrollTopToReveal({
       targetTopInView: -4,
@@ -347,5 +347,43 @@ describe('scrollTopToReveal', () => {
       currentScrollTop: 0,
       scrollHeight: 1000,
     })).toBe(800)
+  })
+})
+
+/**
+ * The reveal can only work against a list that actually overflows. Regression
+ * guard: the narrative used to size the graph row from its own content, so the
+ * list never scrolled (scrollHeight === clientHeight) and only the outer run
+ * pane scrolled — which dragged the graph out of view.
+ */
+describe('narrative list is a real scroll container', () => {
+  const rule = (selector: string): string => {
+    // Anchor on a line start so a trailing selector in a list (e.g. the
+    // `.workflow-run-graph-body[data-resizing] .workflow-run-narrative-wrap`
+    // override) is not mistaken for the base rule.
+    const at = WORKFLOW_STYLES.indexOf(`\n${selector} {`)
+    expect(at, `missing CSS rule ${selector}`).toBeGreaterThanOrEqual(0)
+    return WORKFLOW_STYLES.slice(at, WORKFLOW_STYLES.indexOf('}', at))
+  }
+
+  it('pins the graph body to a definite height instead of growing with content', () => {
+    const css = rule('.workflow-run-graph-body')
+    expect(css).toMatch(/[^-]height:\s*clamp\(/)
+  })
+
+  it('lets entries keep their natural height so the list overflows', () => {
+    expect(rule('.workflow-narrative-entry')).toContain('flex: 0 0 auto')
+  })
+
+  it('gives the list a shrinkable box that scrolls on its own', () => {
+    const css = rule('.workflow-run-narrative-list')
+    expect(css).toContain('overflow: auto')
+    expect(css).toContain('min-height: 0')
+  })
+
+  it('clips the narrative wrap so it cannot stretch the graph row', () => {
+    const css = rule('.workflow-run-narrative-wrap')
+    expect(css).toContain('overflow: hidden')
+    expect(css).toContain('min-height: 0')
   })
 })

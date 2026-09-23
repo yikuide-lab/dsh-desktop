@@ -1,6 +1,6 @@
 import { XYFLOW_STYLES } from './xyflow-styles.js'
 
-const WORKFLOW_STYLES = `
+export const WORKFLOW_STYLES = `
 /* Floating workflow surface (Cordis-style; escapes sidebar overflow clip).
    Geometry mirrors MarketLauncher so the footer entry stays visible when the
    sidebar is wide (slot wrappers use display:contents; a row foot clips a
@@ -2205,14 +2205,18 @@ const WORKFLOW_STYLES = `
   display: flex;
   gap: 0;
   align-items: stretch;
-  min-height: clamp(320px, 46vh, 620px);
+  /* Definite height (not just min-height): otherwise the row's cross size is
+     driven by the narrative's content, the list never overflows, and there is
+     no inner scrollbar for the node-click reveal to work against. */
+  height: clamp(340px, 46vh, 620px);
+  min-height: 320px;
 }
 
 .workflow-run-graph-stage {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  height: clamp(340px, 46vh, 620px);
+  height: auto;
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;
   overflow: hidden;
@@ -2280,7 +2284,9 @@ const WORKFLOW_STYLES = `
 .workflow-run-narrative-wrap {
   flex: 0 0 auto;
   min-width: 0;
+  min-height: 0;
   display: flex;
+  overflow: hidden;
 }
 
 .workflow-run-narrative {
@@ -2334,6 +2340,9 @@ const WORKFLOW_STYLES = `
   text-align: left;
   color: inherit;
   width: 100%;
+  /* Never compress in the column flex list — entries must overflow so the list
+     becomes a real scroll container (flex items shrink to fit by default). */
+  flex: 0 0 auto;
   animation: dsw-narrative-enter 0.25s ease-out;
 }
 
