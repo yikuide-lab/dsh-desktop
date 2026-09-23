@@ -46,6 +46,8 @@ interface WorkflowAiDesignPanelProps {
   applyInvalidConfirmLabel?: string
   /** Pre-fills the prompt (e.g. a generated diagnosis prompt). */
   initialPrompt?: string
+  /** Kick off generation as soon as the panel opens (one-shot per open). */
+  autoGenerate?: boolean
   t: (key: WorkflowLocaleKey) => string
   /** Controlled open state (toolbar toggle lives in the editor). */
   open: boolean
@@ -84,6 +86,7 @@ export function WorkflowAiDesignPanel({
   applyLabel,
   applyInvalidConfirmLabel,
   initialPrompt,
+  autoGenerate = false,
   t,
   open,
   onOpenChange,
@@ -212,6 +215,21 @@ export function WorkflowAiDesignPanel({
     setValidation(null)
     setError(null)
   }
+
+  // One-shot auto generation: "AI diagnose" should diagnose on open rather than
+  // leaving the user staring at an empty result area behind a manual button.
+  const generateRef = useRef(handleGenerate)
+  generateRef.current = handleGenerate
+  const autoGenerateRef = useRef(false)
+  useEffect(() => {
+    if (!open) {
+      autoGenerateRef.current = false
+      return
+    }
+    if (!autoGenerate || autoGenerateRef.current) return
+    autoGenerateRef.current = true
+    void generateRef.current()
+  }, [open, autoGenerate])
 
   const handleUndo = () => {
     if (!canDesignUndo(history)) return

@@ -15,6 +15,7 @@ import {
   withWorkflowIdentity,
 } from '../src/client/workflow-run-diagnostic.ts'
 import { zh, type WorkflowLocaleKey } from '../src/client/locales-workflow.ts'
+import { WORKFLOW_STYLES } from '../src/client/styles-workflow.ts'
 
 const t = (key: WorkflowLocaleKey): string => zh[key]
 
@@ -248,7 +249,6 @@ describe('withWorkflowIdentity', () => {
     expect(out).not.toContain('wrong-name')
     expect(out).toContain('  title: T')
   })
-
   it('drops a stale uid and rewrites it', () => {
     const withUid = generated.replace('  name:', '  uid: stale\n  name:')
     const out = withWorkflowIdentity(withUid, { uid: 'uid-123', name: 'review-flow' })
@@ -268,5 +268,29 @@ describe('withWorkflowIdentity', () => {
     expect(out.startsWith('metadata:')).toBe(true)
     expect(out).toContain('  uid: uid-1')
     expect(out).toContain('  name: n')
+  })
+})
+
+/**
+ * Regression guard: the AI result workspace uses flex-basis:0 fill children,
+ * which collapse to 0px inside the auto-height scrolling diagnose card — that
+ * hid both the generated YAML and the Apply button sitting in its footer.
+ */
+describe('AI diagnose dialog keeps the generated result visible', () => {
+  const rule = (selector: string): string => {
+    const at = WORKFLOW_STYLES.indexOf(`\n${selector} {`)
+    expect(at, `missing CSS rule ${selector}`).toBeGreaterThanOrEqual(0)
+    return WORKFLOW_STYLES.slice(at, WORKFLOW_STYLES.indexOf('}', at))
+  }
+
+  it('floors the result workspace so flex-basis:0 cannot collapse it', () => {
+    const css = rule('.workflow-diagnose-card .workflow-ai-design-workspace')
+    expect(css).toContain('min-height:')
+    expect(css).not.toContain('min-height: 0')
+  })
+
+  it('floors the preview body that hosts WorkflowPreview fillHeight', () => {
+    const css = rule('.workflow-diagnose-card .workflow-ai-design-workspace-body')
+    expect(css).toMatch(/min-height:\s*\d+px/)
   })
 })

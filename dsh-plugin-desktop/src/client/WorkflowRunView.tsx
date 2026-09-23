@@ -702,19 +702,22 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
               applyLabel={t('aiDiagnoseApply')}
               applyInvalidConfirmLabel={t('aiDiagnoseApplyInvalidConfirm')}
               initialPrompt={diagnosisPrompt}
+              autoGenerate
               t={t}
               open
               onOpenChange={(next) => { if (!next) setAiOpen(false) }}
             />
             <div className="workflow-unsaved-dialog-actions">
-              <button
-                type="button"
-                className="workflow-btn primary"
-                disabled={applying || stagedYaml === null}
-                onClick={() => { if (stagedYaml) void handleApplyDiagnosis(stagedYaml) }}
-              >
-                {t('aiDiagnoseApply')}
-              </button>
+              {stagedYaml !== null && (
+                <button
+                  type="button"
+                  className="workflow-btn primary"
+                  disabled={applying}
+                  onClick={() => void handleApplyDiagnosis(stagedYaml)}
+                >
+                  {t('aiDiagnoseApply')}
+                </button>
+              )}
               <button
                 type="button"
                 className="workflow-btn"

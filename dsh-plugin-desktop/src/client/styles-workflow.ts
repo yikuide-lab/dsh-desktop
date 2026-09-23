@@ -2572,7 +2572,19 @@ export const WORKFLOW_STYLES = `
 
 .workflow-diagnose-card .workflow-ai-design.has-preview {
   flex: 1 1 auto;
-  max-height: 55vh;
+}
+
+/* The AI result workspace uses flex-basis:0 for its fill children, which
+   collapses to 0px inside this auto-height scrolling card. Floor it so the
+   generated YAML (and its Apply button) stay visible. */
+.workflow-diagnose-card .workflow-ai-design-workspace {
+  flex: 1 1 auto;
+  min-height: 340px;
+  max-height: 62vh;
+}
+
+.workflow-diagnose-card .workflow-ai-design-workspace-body {
+  min-height: 240px;
 }
 
 .workflow-diagnose-context {
