@@ -2165,6 +2165,11 @@ const WORKFLOW_STYLES = `
   flex-direction: column;
   gap: 8px;
   min-height: 320px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg-primary, #fff);
+  box-shadow: 0 8px 14px -10px rgba(15, 23, 42, 0.35);
 }
 
 .workflow-run-graph-toolbar {

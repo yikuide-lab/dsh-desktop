@@ -7,6 +7,7 @@ import {
   lastEntryIndexForStep,
   narrativeKind,
   narrativeTone,
+  scrollTopToReveal,
   STEP_TYPE_COLORS,
 } from '../src/client/workflow-run-narrative.ts'
 import type {
@@ -279,5 +280,72 @@ describe('STEP_TYPE_COLORS', () => {
   it('covers every local step type', () => {
     expect(Object.keys(STEP_TYPE_COLORS).sort())
       .toEqual(['approval', 'llm', 'script', 'sub_workflow', 'task'])
+  })
+})
+
+describe('scrollTopToReveal', () => {
+  it('leaves an already-visible target alone', () => {
+    expect(scrollTopToReveal({
+      targetTopInView: 40,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 100,
+      scrollHeight: 1000,
+    })).toBe(100)
+  })
+
+  it('honours the slack band at the edges', () => {
+    expect(scrollTopToReveal({
+      targetTopInView: -4,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 50,
+      scrollHeight: 1000,
+    })).toBe(50)
+    expect(scrollTopToReveal({
+      targetTopInView: -20,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 50,
+      scrollHeight: 1000,
+      slack: 24,
+    })).toBe(50)
+  })
+
+  it('scrolls down to center a target below the viewport', () => {
+    expect(scrollTopToReveal({
+      targetTopInView: 500,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 0,
+      scrollHeight: 1000,
+    })).toBe(415)
+  })
+
+  it('scrolls up to center a target above the viewport', () => {
+    expect(scrollTopToReveal({
+      targetTopInView: -300,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 400,
+      scrollHeight: 1000,
+    })).toBe(15)
+  })
+
+  it('clamps to the scrollable range', () => {
+    expect(scrollTopToReveal({
+      targetTopInView: -500,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 30,
+      scrollHeight: 1000,
+    })).toBe(0)
+    expect(scrollTopToReveal({
+      targetTopInView: 950,
+      targetHeight: 30,
+      viewportHeight: 200,
+      currentScrollTop: 0,
+      scrollHeight: 1000,
+    })).toBe(800)
   })
 })

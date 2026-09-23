@@ -4,6 +4,7 @@ import type { WorkflowTranscriptEventView } from './desktop-workflow-api.js'
 import {
   buildNarrative,
   lastEntryIndexForStep,
+  scrollTopToReveal,
   STEP_TYPE_COLORS,
   type NarrativeEntry,
 } from './workflow-run-narrative.js'
@@ -60,7 +61,10 @@ export function WorkflowRunNarrative({
     el.scrollTop = el.scrollHeight
   }, [entries.length, followTail])
 
-  // Node-click linkage: scroll the latest entry for the selected step into view.
+  // Node-click linkage: reveal the latest entry for the selected step.
+  // The scroll is scoped to this list's scrollTop on purpose — `scrollIntoView`
+  // walks every scrollable ancestor and drags `.workflow-run-detail` (and the
+  // run graph pinned above it) out of view.
   const lastSelectedStep = useRef<string | null>(null)
   useEffect(() => {
     if (!selectedStepId || selectedStepId === lastSelectedStep.current) return
@@ -69,7 +73,16 @@ export function WorkflowRunNarrative({
     const el = listRef.current
     if (index < 0 || !el) return
     const node = el.querySelector<HTMLElement>(`[data-entry-index="${index}"]`)
-    node?.scrollIntoView({ block: 'nearest' })
+    if (!node) return
+    const containerRect = el.getBoundingClientRect()
+    const targetRect = node.getBoundingClientRect()
+    el.scrollTop = scrollTopToReveal({
+      targetTopInView: targetRect.top - containerRect.top,
+      targetHeight: targetRect.height,
+      viewportHeight: el.clientHeight,
+      currentScrollTop: el.scrollTop,
+      scrollHeight: el.scrollHeight,
+    })
   }, [selectedStepId, entries])
 
   // Toggling a raw payload should not flip the follow-tail flag.

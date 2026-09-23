@@ -388,3 +388,36 @@ export function lastEntryIndexForStep(
   }
   return -1
 }
+
+export interface ScrollRevealInput {
+  /** Target top edge relative to the scrollport's top edge (may be negative). */
+  targetTopInView: number
+  targetHeight: number
+  viewportHeight: number
+  currentScrollTop: number
+  scrollHeight: number
+  /** Still counts as visible within this many px. Default 8. */
+  slack?: number
+}
+
+/**
+ * scrollTop that reveals one entry inside a single scrollport: unchanged when
+ * the entry is already visible, otherwise centered and clamped to the
+ * scrollable range. Callers must assign the result to the innermost list's
+ * `scrollTop` — `element.scrollIntoView` walks every scrollable ancestor and
+ * would drag `.workflow-run-detail` (and the run graph above it) out of view.
+ */
+export function scrollTopToReveal(input: ScrollRevealInput): number {
+  const slack = input.slack ?? 8
+  const max = Math.max(0, input.scrollHeight - input.viewportHeight)
+  const clamp = (value: number): number => Math.min(max, Math.max(0, Math.round(value)))
+  const bottomInView = input.targetTopInView + input.targetHeight
+  const visible =
+    input.targetTopInView >= -slack && bottomInView <= input.viewportHeight + slack
+  if (visible) return clamp(input.currentScrollTop)
+  const centered =
+    input.currentScrollTop +
+    input.targetTopInView -
+    (input.viewportHeight - input.targetHeight) / 2
+  return clamp(centered)
+}
