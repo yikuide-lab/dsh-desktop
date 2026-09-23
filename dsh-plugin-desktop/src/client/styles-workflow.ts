@@ -401,6 +401,96 @@ export const WORKFLOW_STYLES = `
   overflow-y: auto;
 }
 
+/* AWF side rail: collapsible + resizable, sits beside the tab content so the
+   platform connection stays visible instead of hiding under the settings tab. */
+.workflow-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.workflow-body .workflow-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.workflow-awf-rail {
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-secondary, #f8fafc);
+  overflow: hidden;
+}
+
+.workflow-awf-rail.is-collapsed {
+  align-items: center;
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.workflow-awf-rail-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-elevated, #fff);
+}
+
+.workflow-awf-rail.is-collapsed .workflow-awf-rail-head {
+  border-bottom: none;
+  background: transparent;
+  flex: none;
+}
+
+.workflow-awf-rail-toggle {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1f2937);
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+}
+
+.workflow-awf-rail-toggle:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.workflow-awf-rail-stub {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.workflow-awf-rail-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 10px;
+}
+
+.workflow-awf-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 /* Buttons */
 .workflow-btn {
   padding: 8px 16px;

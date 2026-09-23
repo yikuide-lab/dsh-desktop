@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PropsLocale, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkflowViewStore, Workflow } from './workflow-store.js'
 import type { DesktopWorkflowApi } from './desktop-workflow-api.js'
@@ -7,8 +7,19 @@ import { WorkflowEditor } from './WorkflowEditor.js'
 import { WorkflowRunView } from './WorkflowRunView.js'
 import { WorkflowTemplateManager } from './WorkflowTemplateManager.js'
 import { WorkflowSettingsPanel } from './WorkflowSettingsPanel.js'
+import { WorkflowAwfPanel } from './WorkflowAwfPanel.js'
 import { WorkflowTriggers } from './WorkflowTriggers.js'
 import { WorkflowStats } from './WorkflowStats.js'
+import { RunResizeHandle } from './RunResizeHandle.js'
+import {
+  AWF_RAIL_COLLAPSED_WIDTH,
+  AWF_RAIL_DEFAULT_WIDTH,
+  AWF_RAIL_MAX_WIDTH,
+  AWF_RAIL_MIN_WIDTH,
+  AWF_RAIL_OPEN_STORAGE_KEY,
+  AWF_RAIL_WIDTH_STORAGE_KEY,
+  clampAwfRailWidth,
+} from './workflow-awf-layout.js'
 
 export type WorkflowPanelProps = PropsStore<WorkflowViewStore>
   & PropsLocale<'dsh-plugin-desktop/workflow'>
@@ -38,6 +49,74 @@ export function WorkflowPanel({
   const [editingWorkflow, setEditingWorkflow] = useState<Workflow | null>(null)
   const [initialYaml, setInitialYaml] = useState<string | null>(null)
   const [preferVisual, setPreferVisual] = useState(false)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const [awfOpen, setAwfOpen] = useState(true)
+  const [awfRailWidth, setAwfRailWidth] = useState<number>(AWF_RAIL_DEFAULT_WIDTH)
+  const awfRailWidthRef = useRef<number>(AWF_RAIL_DEFAULT_WIDTH)
+  const awfResizeStart = useRef<number>(AWF_RAIL_DEFAULT_WIDTH)
+  const [awfResizing, setAwfResizing] = useState(false)
+
+  const setAwfRailWidthPersist = (width: number) => {
+    awfRailWidthRef.current = width
+    setAwfRailWidth(width)
+  }
+
+  useEffect(() => {
+    try {
+      const rawWidth = window.localStorage.getItem(AWF_RAIL_WIDTH_STORAGE_KEY)
+      if (rawWidth) {
+        const parsed = Number(rawWidth)
+        if (!Number.isNaN(parsed)) {
+          const clamped = Math.min(AWF_RAIL_MAX_WIDTH, Math.max(AWF_RAIL_MIN_WIDTH, Math.round(parsed)))
+          awfRailWidthRef.current = clamped
+          setAwfRailWidth(clamped)
+        }
+      }
+      const rawOpen = window.localStorage.getItem(AWF_RAIL_OPEN_STORAGE_KEY)
+      if (rawOpen === '0') setAwfOpen(false)
+      else if (rawOpen === '1') setAwfOpen(true)
+    } catch {
+      // storage unavailable — keep the defaults
+    }
+  }, [])
+
+  const persistAwfOpen = (open: boolean) => {
+    setAwfOpen(open)
+    try {
+      window.localStorage.setItem(AWF_RAIL_OPEN_STORAGE_KEY, open ? '1' : '0')
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  const persistAwfRailWidth = () => {
+    try {
+      window.localStorage.setItem(AWF_RAIL_WIDTH_STORAGE_KEY, String(awfRailWidthRef.current))
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  const handleAwfResizeStart = () => {
+    awfResizeStart.current = awfRailWidthRef.current
+    setAwfResizing(true)
+  }
+
+  const handleAwfResize = (delta: number) => {
+    const container = bodyRef.current?.clientWidth ?? 0
+    setAwfRailWidthPersist(clampAwfRailWidth(awfResizeStart.current + delta, container || window.innerWidth))
+  }
+
+  const handleAwfResizeEnd = () => {
+    setAwfResizing(false)
+    persistAwfRailWidth()
+  }
+
+  const handleAwfNudge = (deltaPx: number) => {
+    const container = bodyRef.current?.clientWidth ?? 0
+    setAwfRailWidthPersist(clampAwfRailWidth(awfRailWidthRef.current + deltaPx, container || window.innerWidth))
+    persistAwfRailWidth()
+  }
 
   useEffect(() => {
     if (pendingTemplateYaml) {
@@ -153,6 +232,11 @@ export function WorkflowPanel({
         </button>
       </div>
 
+      <div
+        className="workflow-body"
+        ref={bodyRef}
+        data-resizing={awfResizing ? 'awf-rail' : undefined}
+      >
       <div className="workflow-content">
         {activeTab === 'workflows' && (
           <WorkflowList
@@ -205,6 +289,43 @@ export function WorkflowPanel({
         {activeTab === 'settings' && (
           <WorkflowSettingsPanel api={api} t={t} />
         )}
+      </div>
+
+      {awfOpen && (
+        <RunResizeHandle
+          label={t('resizeAwfRail')}
+          value={awfRailWidth}
+          onStart={handleAwfResizeStart}
+          onDrag={handleAwfResize}
+          onEnd={handleAwfResizeEnd}
+          onNudge={handleAwfNudge}
+        />
+      )}
+
+      <aside
+        className={`workflow-awf-rail${awfOpen ? '' : ' is-collapsed'}`}
+        aria-label={t('awfTitle')}
+        style={awfOpen ? { width: awfRailWidth } : { width: AWF_RAIL_COLLAPSED_WIDTH }}
+      >
+        <div className="workflow-awf-rail-head">
+          <button
+            type="button"
+            className="workflow-awf-rail-toggle"
+            aria-expanded={awfOpen}
+            aria-label={t('awfRailToggle')}
+            title={t('awfRailToggle')}
+            onClick={() => persistAwfOpen(!awfOpen)}
+          >
+            {awfOpen ? '»' : '«'}
+          </button>
+          {!awfOpen && <span className="workflow-awf-rail-stub">{t('awfTitle')}</span>}
+        </div>
+        {awfOpen && (
+          <div className="workflow-awf-rail-body">
+            <WorkflowAwfPanel api={api} t={t} />
+          </div>
+        )}
+      </aside>
       </div>
     </div>
   )
