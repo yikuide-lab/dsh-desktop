@@ -21,6 +21,14 @@ import type {
 } from './desktop-workflow-api.js'
 import { WorkflowCanvasNode, type WorkflowFlowNode } from './WorkflowNode.js'
 import { WorkflowRunNarrative } from './WorkflowRunNarrative.js'
+import { RunResizeHandle } from './RunResizeHandle.js'
+import {
+  clampNarrativeWidth,
+  RUN_NARRATIVE_DEFAULT_WIDTH,
+  RUN_NARRATIVE_MAX_WIDTH,
+  RUN_NARRATIVE_MIN_WIDTH,
+  RUN_NARRATIVE_WIDTH_STORAGE_KEY,
+} from './workflow-run-layout.js'
 import type { CanvasGraphEdge, CanvasGraphNode, RunNodeStatus } from './workflow-canvas-layout.js'
 import {
   activeEdgeIds,
@@ -82,6 +90,61 @@ function WorkflowRunGraphInner({
   const [workflowSteps, setWorkflowSteps] = useState<readonly WorkflowStepView[] | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const flowRef = useRef<ReactFlowInstance | null>(null)
+  const bodyRef = useRef<HTMLDivElement | null>(null)
+  const [narrativeWidth, setNarrativeWidth] = useState<number>(RUN_NARRATIVE_DEFAULT_WIDTH)
+  const narrativeWidthRef = useRef<number>(RUN_NARRATIVE_DEFAULT_WIDTH)
+  const narrativeResizeStart = useRef<number>(RUN_NARRATIVE_DEFAULT_WIDTH)
+  const [narrativeResizing, setNarrativeResizing] = useState(false)
+
+  const setNarrativeWidthPersist = (width: number) => {
+    narrativeWidthRef.current = width
+    setNarrativeWidth(width)
+  }
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RUN_NARRATIVE_WIDTH_STORAGE_KEY)
+      if (!raw) return
+      const parsed = Number(raw)
+      if (!Number.isFinite(parsed)) return
+      const clamped = Math.min(
+        RUN_NARRATIVE_MAX_WIDTH,
+        Math.max(RUN_NARRATIVE_MIN_WIDTH, Math.round(parsed)),
+      )
+      setNarrativeWidthPersist(clamped)
+    } catch {
+      // storage unavailable — keep the default
+    }
+  }, [])
+
+  const persistNarrativeWidth = () => {
+    try {
+      window.localStorage.setItem(RUN_NARRATIVE_WIDTH_STORAGE_KEY, String(narrativeWidthRef.current))
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  const handleNarrativeResizeStart = () => {
+    narrativeResizeStart.current = narrativeWidthRef.current
+    setNarrativeResizing(true)
+  }
+
+  const handleNarrativeResize = (delta: number) => {
+    const detail = bodyRef.current?.clientWidth ?? 0
+    setNarrativeWidthPersist(clampNarrativeWidth(narrativeResizeStart.current + delta, detail || window.innerWidth))
+  }
+
+  const handleNarrativeResizeEnd = () => {
+    setNarrativeResizing(false)
+    persistNarrativeWidth()
+  }
+
+  const handleNarrativeNudge = (deltaPx: number) => {
+    const detail = bodyRef.current?.clientWidth ?? 0
+    setNarrativeWidthPersist(clampNarrativeWidth(narrativeWidthRef.current + deltaPx, detail || window.innerWidth))
+    persistNarrativeWidth()
+  }
 
   // Load the workflow definition once per workflow name (positions + deps).
   useEffect(() => {
@@ -281,7 +344,11 @@ function WorkflowRunGraphInner({
         </div>
       </div>
 
-      <div className="workflow-run-graph-body">
+      <div
+        className="workflow-run-graph-body"
+        ref={bodyRef}
+        data-resizing={narrativeResizing ? 'narrative' : undefined}
+      >
         <div className="workflow-canvas-stage workflow-run-graph-stage">
           <ReactFlow
             nodes={flowNodes}
@@ -306,15 +373,26 @@ function WorkflowRunGraphInner({
           </ReactFlow>
         </div>
 
-        <WorkflowRunNarrative
-          t={t}
-          steps={run.steps ?? []}
-          transcript={transcript}
-          stepTypeById={stepTypeById}
-          selectedStepId={selectedStepId}
-          onSelectStep={handleSelectFromNarrative}
-          summary={narrativeSummary}
+        <RunResizeHandle
+          label={t('resizeRunNarrative')}
+          value={narrativeWidth}
+          onStart={handleNarrativeResizeStart}
+          onDrag={handleNarrativeResize}
+          onEnd={handleNarrativeResizeEnd}
+          onNudge={handleNarrativeNudge}
         />
+
+        <div className="workflow-run-narrative-wrap" style={{ width: narrativeWidth }}>
+          <WorkflowRunNarrative
+            t={t}
+            steps={run.steps ?? []}
+            transcript={transcript}
+            stepTypeById={stepTypeById}
+            selectedStepId={selectedStepId}
+            onSelectStep={handleSelectFromNarrative}
+            summary={narrativeSummary}
+          />
+        </div>
       </div>
     </div>
   )

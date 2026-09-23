@@ -35,6 +35,17 @@ interface WorkflowAiDesignPanelProps {
   getCurrentYaml: () => Promise<string>
   /** Restore a YAML snapshot into the editor (does not save). */
   onApply: (yaml: string) => void
+  /**
+   * Undo/redo target. Defaults to `onApply`. Split this out when `onApply`
+   * commits (e.g. saves a workflow) so history navigation stays non-destructive.
+   */
+  onRestore?: (yaml: string) => void
+  /** Overrides the apply button label (e.g. "Apply to workflow"). */
+  applyLabel?: string
+  /** Overrides the confirm text shown when applying an invalid design. */
+  applyInvalidConfirmLabel?: string
+  /** Pre-fills the prompt (e.g. a generated diagnosis prompt). */
+  initialPrompt?: string
   t: (key: WorkflowLocaleKey) => string
   /** Controlled open state (toolbar toggle lives in the editor). */
   open: boolean
@@ -69,12 +80,16 @@ export function WorkflowAiDesignPanel({
   api,
   getCurrentYaml,
   onApply,
+  onRestore,
+  applyLabel,
+  applyInvalidConfirmLabel,
+  initialPrompt,
   t,
   open,
   onOpenChange,
   onPreviewActiveChange,
 }: WorkflowAiDesignPanelProps) {
-  const [prompt, setPrompt] = useState('')
+  const [prompt, setPrompt] = useState(initialPrompt ?? '')
   const [useCurrent, setUseCurrent] = useState(true)
   const [includeModelCatalog, setIncludeModelCatalog] = useState(true)
   const [designModel, setDesignModel] = useState('')
@@ -130,7 +145,7 @@ export function WorkflowAiDesignPanel({
   }, [open, busy, pendingYaml])
 
   const restoreYaml = (yaml: string): void => {
-    onApply(yaml)
+    (onRestore ?? onApply)(yaml)
     setError(null)
   }
 
@@ -171,7 +186,7 @@ export function WorkflowAiDesignPanel({
   const handleApply = async () => {
     if (!pendingYaml) return
     if (validation && !validation.ok) {
-      if (!window.confirm(t('aiDesignApplyInvalidConfirm'))) return
+      if (!window.confirm(applyInvalidConfirmLabel ?? t('aiDesignApplyInvalidConfirm'))) return
     }
     try {
       const baselineYaml = await getCurrentYaml()
@@ -183,7 +198,7 @@ export function WorkflowAiDesignPanel({
         ...(trimmedPrompt ? { prompt: trimmedPrompt } : {}),
       })
       setHistory(next)
-      restoreYaml(pendingYaml)
+      onApply(pendingYaml)
       setPendingYaml(null)
       setValidation(null)
       setError(null)
@@ -409,7 +424,7 @@ export function WorkflowAiDesignPanel({
               className="workflow-btn primary"
               onClick={() => void handleApply()}
             >
-              {t('aiDesignApply')}
+              {applyLabel ?? t('aiDesignApply')}
             </button>
             <button type="button" className="workflow-btn" onClick={handleDiscard}>
               {t('aiDesignDiscard')}

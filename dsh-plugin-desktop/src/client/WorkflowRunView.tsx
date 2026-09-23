@@ -4,6 +4,20 @@ import type { WorkflowLocaleKey } from './locales-workflow.js'
 import type { WorkflowRun, PendingGateView, WorkflowViewStore } from './workflow-store.js'
 import type { DesktopWorkflowApi, WorkflowTranscriptEventView } from './desktop-workflow-api.js'
 import { WorkflowRunGraph } from './WorkflowRunGraph.js'
+import { WorkflowAiDesignPanel } from './WorkflowAiDesignPanel.js'
+import { RunResizeHandle } from './RunResizeHandle.js'
+import {
+  buildDiagnosisPrompt,
+  buildRunDiagnosticMarkdown,
+  withWorkflowIdentity,
+} from './workflow-run-diagnostic.js'
+import {
+  clampListWidth,
+  RUN_LIST_DEFAULT_WIDTH,
+  RUN_LIST_MAX_WIDTH,
+  RUN_LIST_MIN_WIDTH,
+  RUN_LIST_WIDTH_STORAGE_KEY,
+} from './workflow-run-layout.js'
 
 interface WorkflowRunViewProps {
   api: DesktopWorkflowApi
@@ -29,6 +43,18 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
   const [exportPreview, setExportPreview] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState(false)
   const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph')
+  const runsRootRef = useRef<HTMLDivElement | null>(null)
+  const [listWidth, setListWidth] = useState<number>(RUN_LIST_DEFAULT_WIDTH)
+  const listWidthRef = useRef<number>(RUN_LIST_DEFAULT_WIDTH)
+  const listResizeStart = useRef<number>(RUN_LIST_DEFAULT_WIDTH)
+  const [listResizing, setListResizing] = useState(false)
+  const [aiOpen, setAiOpen] = useState(false)
+  const [diagnosticMd, setDiagnosticMd] = useState('')
+  const [diagnosisPrompt, setDiagnosisPrompt] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [stagedYaml, setStagedYaml] = useState<string | null>(null)
+  const [applying, setApplying] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
 
   const selectedRunIdRef = useRef<string | null>(null)
   const selectedStatusRef = useRef<string | null>(null)
@@ -146,6 +172,139 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
     }
   }
 
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(RUN_LIST_WIDTH_STORAGE_KEY)
+      if (!raw) return
+      const parsed = Number(raw)
+      if (!Number.isFinite(parsed)) return
+      const clamped = Math.min(RUN_LIST_MAX_WIDTH, Math.max(RUN_LIST_MIN_WIDTH, Math.round(parsed)))
+      listWidthRef.current = clamped
+      setListWidth(clamped)
+    } catch {
+      // storage unavailable — keep the default
+    }
+  }, [])
+
+  const setListWidthPersist = (width: number) => {
+    listWidthRef.current = width
+    setListWidth(width)
+  }
+
+  const persistListWidth = () => {
+    try {
+      window.localStorage.setItem(RUN_LIST_WIDTH_STORAGE_KEY, String(listWidthRef.current))
+    } catch {
+      // storage unavailable
+    }
+  }
+
+  const handleListResizeStart = () => {
+    listResizeStart.current = listWidthRef.current
+    setListResizing(true)
+  }
+
+  const handleListResize = (delta: number) => {
+    const container = runsRootRef.current?.clientWidth ?? 0
+    setListWidthPersist(clampListWidth(listResizeStart.current + delta, container || window.innerWidth))
+  }
+
+  const handleListResizeEnd = () => {
+    setListResizing(false)
+    persistListWidth()
+  }
+
+  const handleListNudge = (deltaPx: number) => {
+    const container = runsRootRef.current?.clientWidth ?? 0
+    setListWidthPersist(clampListWidth(listWidthRef.current + deltaPx, container || window.innerWidth))
+    persistListWidth()
+  }
+
+  const buildDiagnostic = async (run: WorkflowRun) => {
+    const exported = await api.exportRun(run.id)
+    const workflow = await api.getWorkflow(run.workflowName).catch(() => null)
+    return buildRunDiagnosticMarkdown({
+      run: exported.run,
+      transcript: exported.transcript,
+      workflow,
+      t,
+    })
+  }
+
+  const handleExportDiagnostic = async (run: WorkflowRun) => {
+    setBusyAction(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const md = await buildDiagnostic(run)
+      const blob = new Blob([md], { type: 'text/markdown' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${run.workflowName}-${run.id}-diagnostic.md`
+      a.click()
+      URL.revokeObjectURL(url)
+      setNotice(t('runDiagnosed'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setBusyAction(false)
+    }
+  }
+
+  const handleOpenAiDiagnose = async (run: WorkflowRun) => {
+    setBusyAction(true)
+    setError(null)
+    setNotice(null)
+    try {
+      const md = await buildDiagnostic(run)
+      setDiagnosticMd(md)
+      setDiagnosisPrompt(buildDiagnosisPrompt({
+        markdown: md,
+        workflowName: run.workflowName,
+        runId: run.id,
+        t,
+      }))
+      setStagedYaml(null)
+      setCopied(false)
+      setAiOpen(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setBusyAction(false)
+    }
+  }
+
+  const handleCopyDiagnostic = async () => {
+    try {
+      await navigator.clipboard.writeText(diagnosticMd)
+      setCopied(true)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  const handleApplyDiagnosis = async (yaml: string) => {
+    if (!selectedRun) return
+    setApplying(true)
+    setError(null)
+    try {
+      const workflow = await api.getWorkflow(selectedRun.workflowName).catch(() => null)
+      const pinned = withWorkflowIdentity(yaml, {
+        ...(workflow?.uid ? { uid: workflow.uid } : {}),
+        name: selectedRun.workflowName,
+      })
+      await api.saveWorkflow(pinned)
+      setStagedYaml(null)
+      setNotice(t('aiDiagnoseApplied'))
+      setAiOpen(false)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setApplying(false)
+    }
+  }
+
   const handleDeleteRun = async (runId: string) => {
     if (!confirm(t('confirmDeleteRun'))) return
     setBusyAction(true)
@@ -227,9 +386,14 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
   }
 
   return (
-    <div className="workflow-runs">
+    <div
+      className="workflow-runs"
+      ref={runsRootRef}
+      data-resizing={listResizing ? 'list' : undefined}
+    >
       {error && <div className="workflow-error" role="alert">{error}</div>}
-      <div className="workflow-runs-list">
+      {notice && <div className="workflow-notice" role="status">{notice}</div>}
+      <div className="workflow-runs-list" style={{ width: listWidth }}>
         <div className="workflow-list-header">
           <h3>{t('runs')}</h3>
           <button type="button" className="workflow-btn small" onClick={() => void loadRuns()}>{t('refresh')}</button>
@@ -293,11 +457,36 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
         )}
       </div>
 
+      <RunResizeHandle
+        label={t('resizeRunList')}
+        value={listWidth}
+        onStart={handleListResizeStart}
+        onDrag={handleListResize}
+        onEnd={handleListResizeEnd}
+        onNudge={handleListNudge}
+      />
+
       {selectedRun && (
         <div className="workflow-run-detail">
           <div className="workflow-list-header">
             <h3>{t('view')}: {selectedRun.workflowName}</h3>
             <div className="workflow-settings-provider-actions">
+              <button
+                type="button"
+                className="workflow-btn small"
+                disabled={busyAction}
+                onClick={() => void handleExportDiagnostic(selectedRun)}
+              >
+                {t('runDiagnostic')}
+              </button>
+              <button
+                type="button"
+                className="workflow-btn small primary"
+                disabled={busyAction}
+                onClick={() => void handleOpenAiDiagnose(selectedRun)}
+              >
+                {t('runAiDiagnose')}
+              </button>
               <button
                 type="button"
                 className="workflow-btn small"
@@ -479,6 +668,63 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
               <pre className="workflow-run-step-output">{exportPreview}</pre>
             </>
           )}
+        </div>
+      )}
+
+      {aiOpen && selectedRun && (
+        <div
+          className="workflow-unsaved-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-label={t('aiDiagnoseTitle')}
+        >
+          <div className="workflow-unsaved-dialog-card workflow-diagnose-card">
+            <h3>{t('aiDiagnoseTitle')}</h3>
+            <p>{t('aiDiagnoseHint')}</p>
+            <details className="workflow-diagnose-context" open>
+              <summary>{t('aiDiagnosePreview')}</summary>
+              <div className="workflow-diagnose-context-toolbar">
+                <button
+                  type="button"
+                  className="workflow-btn small"
+                  onClick={() => void handleCopyDiagnostic()}
+                >
+                  {copied ? t('aiDiagnoseCopied') : t('aiDiagnoseCopy')}
+                </button>
+              </div>
+              <pre className="workflow-diagnose-context-pre">{diagnosticMd}</pre>
+            </details>
+            <WorkflowAiDesignPanel
+              api={api}
+              getCurrentYaml={async () => api.exportWorkflowYaml(selectedRun.workflowName)}
+              onApply={(yaml) => void handleApplyDiagnosis(yaml)}
+              onRestore={(yaml) => setStagedYaml(yaml)}
+              applyLabel={t('aiDiagnoseApply')}
+              applyInvalidConfirmLabel={t('aiDiagnoseApplyInvalidConfirm')}
+              initialPrompt={diagnosisPrompt}
+              t={t}
+              open
+              onOpenChange={(next) => { if (!next) setAiOpen(false) }}
+            />
+            <div className="workflow-unsaved-dialog-actions">
+              <button
+                type="button"
+                className="workflow-btn primary"
+                disabled={applying || stagedYaml === null}
+                onClick={() => { if (stagedYaml) void handleApplyDiagnosis(stagedYaml) }}
+              >
+                {t('aiDiagnoseApply')}
+              </button>
+              <button
+                type="button"
+                className="workflow-btn"
+                disabled={applying}
+                onClick={() => setAiOpen(false)}
+              >
+                {t('close')}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
