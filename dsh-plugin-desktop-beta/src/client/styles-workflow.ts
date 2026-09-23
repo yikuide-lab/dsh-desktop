@@ -2587,6 +2587,21 @@ export const WORKFLOW_STYLES = `
   min-height: 240px;
 }
 
+/* Pin the action bar to the bottom of the dialog viewport: the card scrolls
+   (markdown context + prompt + result are tall) and the confirm/save button
+   used to fall outside the visible area on shorter screens. */
+.workflow-diagnose-card .workflow-unsaved-dialog-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  flex: none;
+  margin-top: 4px;
+  padding: 10px 0 2px;
+  background: var(--dsw-alias-bg-layer-2, #fff);
+  border-top: 1px solid var(--dsw-alias-border-l1, rgba(0, 0, 0, 0.08));
+  box-shadow: 0 -8px 14px -10px rgba(15, 23, 42, 0.3);
+}
+
 .workflow-diagnose-context {
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;

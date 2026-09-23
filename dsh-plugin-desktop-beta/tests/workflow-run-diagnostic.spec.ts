@@ -293,4 +293,11 @@ describe('AI diagnose dialog keeps the generated result visible', () => {
     const css = rule('.workflow-diagnose-card .workflow-ai-design-workspace-body')
     expect(css).toMatch(/min-height:\s*\d+px/)
   })
+
+  it('pins the action bar to the dialog bottom so save is always reachable', () => {
+    const css = rule('.workflow-diagnose-card .workflow-unsaved-dialog-actions')
+    expect(css).toContain('position: sticky')
+    expect(css).toContain('bottom: 0')
+    expect(css).toContain('flex: none')
+  })
 })

@@ -53,6 +53,7 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
   const [diagnosisPrompt, setDiagnosisPrompt] = useState('')
   const [copied, setCopied] = useState(false)
   const [stagedYaml, setStagedYaml] = useState<string | null>(null)
+  const [draftYaml, setDraftYaml] = useState<string | null>(null)
   const [applying, setApplying] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -266,6 +267,7 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
         t,
       }))
       setStagedYaml(null)
+      setDraftYaml(null)
       setCopied(false)
       setAiOpen(true)
     } catch (err) {
@@ -369,6 +371,10 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
       default: return status
     }
   }
+
+  // What the pinned action bar offers to save: the generated draft, or a
+  // history revision the user stepped back to via undo/redo.
+  const candidateYaml = draftYaml ?? stagedYaml
 
   const selectedGates = selectedRun
     ? gates.filter(g => g.runId === selectedRun.id)
@@ -699,6 +705,7 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
               getCurrentYaml={async () => api.exportWorkflowYaml(selectedRun.workflowName)}
               onApply={(yaml) => void handleApplyDiagnosis(yaml)}
               onRestore={(yaml) => setStagedYaml(yaml)}
+              onDraftChange={setDraftYaml}
               applyLabel={t('aiDiagnoseApply')}
               applyInvalidConfirmLabel={t('aiDiagnoseApplyInvalidConfirm')}
               initialPrompt={diagnosisPrompt}
@@ -708,16 +715,14 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
               onOpenChange={(next) => { if (!next) setAiOpen(false) }}
             />
             <div className="workflow-unsaved-dialog-actions">
-              {stagedYaml !== null && (
-                <button
-                  type="button"
-                  className="workflow-btn primary"
-                  disabled={applying}
-                  onClick={() => void handleApplyDiagnosis(stagedYaml)}
-                >
-                  {t('aiDiagnoseApply')}
-                </button>
-              )}
+              <button
+                type="button"
+                className="workflow-btn primary"
+                disabled={applying || candidateYaml === null}
+                onClick={() => { if (candidateYaml) void handleApplyDiagnosis(candidateYaml) }}
+              >
+                {t('aiDiagnoseApply')}
+              </button>
               <button
                 type="button"
                 className="workflow-btn"

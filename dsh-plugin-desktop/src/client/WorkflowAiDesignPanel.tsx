@@ -48,6 +48,12 @@ interface WorkflowAiDesignPanelProps {
   initialPrompt?: string
   /** Kick off generation as soon as the panel opens (one-shot per open). */
   autoGenerate?: boolean
+  /**
+   * Reports the current generated draft (null when there is none) so a host
+   * dialog can drive its own pinned action bar without scrolling to reach the
+   * workspace footer.
+   */
+  onDraftChange?: (yaml: string | null) => void
   t: (key: WorkflowLocaleKey) => string
   /** Controlled open state (toolbar toggle lives in the editor). */
   open: boolean
@@ -87,6 +93,7 @@ export function WorkflowAiDesignPanel({
   applyInvalidConfirmLabel,
   initialPrompt,
   autoGenerate = false,
+  onDraftChange,
   t,
   open,
   onOpenChange,
@@ -230,6 +237,12 @@ export function WorkflowAiDesignPanel({
     autoGenerateRef.current = true
     void generateRef.current()
   }, [open, autoGenerate])
+
+  const draftChangeRef = useRef(onDraftChange)
+  draftChangeRef.current = onDraftChange
+  useEffect(() => {
+    draftChangeRef.current?.(pendingYaml)
+  }, [pendingYaml])
 
   const handleUndo = () => {
     if (!canDesignUndo(history)) return
