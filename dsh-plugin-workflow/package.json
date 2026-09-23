@@ -2,6 +2,7 @@
   "name": "dsh-plugin-workflow",
   "version": "0.2.0",
   "description": "Workflow plugin for DSH Desktop - visual workflow designer and execution engine",
+  "license": "MIT",
   "type": "module",
   "main": "lib/plugin.js",
   "types": "lib/plugin.d.ts",
