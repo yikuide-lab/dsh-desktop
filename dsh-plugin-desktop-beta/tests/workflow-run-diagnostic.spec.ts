@@ -294,10 +294,21 @@ describe('AI diagnose dialog keeps the generated result visible', () => {
     expect(css).toMatch(/min-height:\s*\d+px/)
   })
 
-  it('pins the action bar to the dialog bottom so save is always reachable', () => {
+  it('gives the dialog one scrolling middle region and a fixed footer', () => {
+    const card = rule('.workflow-diagnose-card')
+    expect(card).toContain('overflow: hidden')
+    expect(card).toMatch(/height:\s*min\(/)
+
+    const scroll = rule('.workflow-diagnose-scroll')
+    expect(scroll).toContain('overflow: auto')
+    expect(scroll).toContain('min-height: 0')
+    expect(scroll).toContain('flex: 1 1 auto')
+  })
+
+  it('keeps the action bar out of the scrolling region so save is always reachable', () => {
     const css = rule('.workflow-diagnose-card .workflow-unsaved-dialog-actions')
+    expect(css).toContain('flex: none')
     expect(css).toContain('position: sticky')
     expect(css).toContain('bottom: 0')
-    expect(css).toContain('flex: none')
   })
 })

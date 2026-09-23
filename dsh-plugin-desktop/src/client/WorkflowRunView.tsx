@@ -687,33 +687,35 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
           <div className="workflow-unsaved-dialog-card workflow-diagnose-card">
             <h3>{t('aiDiagnoseTitle')}</h3>
             <p>{t('aiDiagnoseHint')}</p>
-            <details className="workflow-diagnose-context" open>
-              <summary>{t('aiDiagnosePreview')}</summary>
-              <div className="workflow-diagnose-context-toolbar">
-                <button
-                  type="button"
-                  className="workflow-btn small"
-                  onClick={() => void handleCopyDiagnostic()}
-                >
-                  {copied ? t('aiDiagnoseCopied') : t('aiDiagnoseCopy')}
-                </button>
-              </div>
-              <pre className="workflow-diagnose-context-pre">{diagnosticMd}</pre>
-            </details>
-            <WorkflowAiDesignPanel
-              api={api}
-              getCurrentYaml={async () => api.exportWorkflowYaml(selectedRun.workflowName)}
-              onApply={(yaml) => void handleApplyDiagnosis(yaml)}
-              onRestore={(yaml) => setStagedYaml(yaml)}
-              onDraftChange={setDraftYaml}
-              applyLabel={t('aiDiagnoseApply')}
-              applyInvalidConfirmLabel={t('aiDiagnoseApplyInvalidConfirm')}
-              initialPrompt={diagnosisPrompt}
-              autoGenerate
-              t={t}
-              open
-              onOpenChange={(next) => { if (!next) setAiOpen(false) }}
-            />
+            <div className="workflow-diagnose-scroll">
+              <details className="workflow-diagnose-context" open>
+                <summary>{t('aiDiagnosePreview')}</summary>
+                <div className="workflow-diagnose-context-toolbar">
+                  <button
+                    type="button"
+                    className="workflow-btn small"
+                    onClick={() => void handleCopyDiagnostic()}
+                  >
+                    {copied ? t('aiDiagnoseCopied') : t('aiDiagnoseCopy')}
+                  </button>
+                </div>
+                <pre className="workflow-diagnose-context-pre">{diagnosticMd}</pre>
+              </details>
+              <WorkflowAiDesignPanel
+                api={api}
+                getCurrentYaml={async () => api.exportWorkflowYaml(selectedRun.workflowName)}
+                onApply={(yaml) => void handleApplyDiagnosis(yaml)}
+                onRestore={(yaml) => setStagedYaml(yaml)}
+                onDraftChange={setDraftYaml}
+                applyLabel={t('aiDiagnoseApply')}
+                applyInvalidConfirmLabel={t('aiDiagnoseApplyInvalidConfirm')}
+                initialPrompt={diagnosisPrompt}
+                autoGenerate
+                t={t}
+                open
+                onOpenChange={(next) => { if (!next) setAiOpen(false) }}
+              />
+            </div>
             <div className="workflow-unsaved-dialog-actions">
               <button
                 type="button"

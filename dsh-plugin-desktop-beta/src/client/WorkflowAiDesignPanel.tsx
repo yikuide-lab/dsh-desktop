@@ -361,11 +361,20 @@ export function WorkflowAiDesignPanel({
         <div className="workflow-ai-design-actions">
           <button
             type="button"
-            className="workflow-btn primary"
+            className={`workflow-btn${pendingYaml ? '' : ' primary'}`}
             disabled={busy}
             onClick={() => void handleGenerate()}
           >
             {busy ? t('aiDesignGenerating') : t('aiDesignGenerate')}
+          </button>
+          <button
+            type="button"
+            className={`workflow-btn${pendingYaml ? ' primary' : ''}`}
+            disabled={busy || !pendingYaml}
+            onClick={() => void handleApply()}
+            title={applyLabel ?? t('aiDesignApply')}
+          >
+            {applyLabel ?? t('aiDesignApply')}
           </button>
           <button
             type="button"

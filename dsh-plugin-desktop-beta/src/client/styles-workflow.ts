@@ -2566,8 +2566,22 @@ export const WORKFLOW_STYLES = `
 
 .workflow-diagnose-card {
   width: min(960px, 100%);
+  /* Definite height + a single scrolling middle region so the action bar below
+     is a plain flex:none footer — it cannot scroll out of reach, whatever the
+     resolution or how tall the generated result is. */
+  height: min(calc(100vh - 48px), 980px);
   max-height: calc(100vh - 48px);
+  overflow: hidden;
+}
+
+.workflow-diagnose-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
   overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 4px;
 }
 
 .workflow-diagnose-card .workflow-ai-design.has-preview {
@@ -2587,9 +2601,9 @@ export const WORKFLOW_STYLES = `
   min-height: 240px;
 }
 
-/* Pin the action bar to the bottom of the dialog viewport: the card scrolls
-   (markdown context + prompt + result are tall) and the confirm/save button
-   used to fall outside the visible area on shorter screens. */
+/* The action bar is a plain footer inside a non-scrolling card (the middle
+   .workflow-diagnose-scroll region owns scrolling). It stays on screen at every
+   resolution — the confirm/save button used to fall outside the visible area. */
 .workflow-diagnose-card .workflow-unsaved-dialog-actions {
   position: sticky;
   bottom: 0;
