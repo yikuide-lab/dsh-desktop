@@ -491,6 +491,170 @@ export const WORKFLOW_STYLES = `
   gap: 10px;
 }
 
+/* Composer model seat (tabbed 常规模型 / 工作流). */
+.workflow-seat {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.workflow-seat-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  padding: 4px 8px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1f2937);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.workflow-seat-trigger:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.workflow-seat-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.workflow-seat-caption {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-seat-chevron {
+  flex: none;
+  color: var(--text-secondary, #6b7280);
+  font-size: 10px;
+}
+
+.workflow-seat-menu {
+  position: fixed;
+  z-index: 40;
+  min-width: 260px;
+  max-width: 340px;
+  padding: 6px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-primary, #fff);
+  box-shadow: var(--dsw-shadow-lv3, 0 18px 48px rgba(0, 0, 0, 0.22));
+}
+
+.workflow-seat-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.workflow-seat-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.workflow-seat-tab:hover {
+  color: var(--text-primary, #1f2937);
+}
+
+.workflow-seat-tab.active {
+  color: var(--text-primary, #1f2937);
+  border-bottom-color: var(--accent-color, #2563eb);
+}
+
+.workflow-seat-list {
+  max-height: 320px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.workflow-seat-group-name {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.workflow-seat-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary, #1f2937);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-seat-item:hover {
+  background: var(--bg-hover, #f3f4f6);
+}
+
+.workflow-seat-item.active {
+  background: var(--bg-active, #e5e7eb);
+}
+
+.workflow-seat-item:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.workflow-seat-item-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-seat-badge {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-color, #2563eb);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.workflow-seat-check {
+  flex: none;
+  color: var(--accent-color, #2563eb);
+  font-weight: 700;
+}
+
+.workflow-seat-empty {
+  margin: 0;
+  padding: 10px 8px;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+}
+
+.workflow-seat-error {
+  color: #c0392b;
+}
+
 /* Buttons */
 .workflow-btn {
   padding: 8px 16px;

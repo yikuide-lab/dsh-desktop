@@ -4,10 +4,15 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
+import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
+// Type-only: pulls upstream's ctx.modelDirectories Context merge (the shared
+// per-session model directory both selection entries read). No runtime edge.
+import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import { WorkflowPanel } from './WorkflowPanel.js'
 import { WorkflowIcon, WorkflowLauncher } from './WorkflowLauncher.js'
 import { WorkflowOverlay } from './WorkflowOverlay.js'
 import { WorkflowRecommend } from './WorkflowRecommend.js'
+import { WorkflowModelSelect } from './WorkflowModelSelect.js'
 import { createWorkflowStore } from './workflow-store.js'
 import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
 import { en, zh } from './locales-workflow.js'
@@ -130,4 +135,34 @@ export function applyWorkflowClient(ctx: ClientContext): void {
     // (main / footer / overlay). Session+root reuse throws "one handle, one scope".
     inject: () => ({ api, openRunsPanel, openWorkflowPanel, openSettingsPanel }),
   }, WorkflowRecommend))
+
+  // The composer's model seat, tabbed 常规模型 / 工作流. Priority -1 shadows
+  // upstream's stock ModelSelect: the slot spec renders the LOWEST priority and
+  // rejects a second same-priority registration, so this is the supported
+  // "replace a documented slot" path. Upstream stays loaded for its /model popup
+  // and the shared ctx.modelDirectories, which the models tab reads unchanged.
+  ctx.inject(['sessions', 'modelDirectories'], (scope) => {
+    const models = scope.modelDirectories
+    const sessions = scope.sessions
+    ctx.slots.inject('conversation.input.model', () => ctx.slots.register({
+      name: 'conversation.input.model',
+      locale: NS,
+      priority: -1,
+      inject: (sessionId) => {
+        const directory = models.directoryFor(sessionId)
+        const available = sessions.subagentAddress(sessionId) === undefined
+        return {
+          available,
+          directory: directory.store,
+          load: () => {
+            if (available) directory.load().catch(() => { /* surfaced on the store */ })
+          },
+          select: (selection: ModelSelection) => available
+            ? directory.select(selection).then(() => true, () => false)
+            : Promise.resolve(false),
+          listWorkflows: () => api.listWorkflows(),
+        }
+      },
+    }, WorkflowModelSelect))
+  })
 }
