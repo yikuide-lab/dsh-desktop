@@ -2200,14 +2200,14 @@ const WORKFLOW_STYLES = `
   display: flex;
   gap: 0;
   align-items: stretch;
-  min-height: 320px;
+  min-height: clamp(320px, 46vh, 620px);
 }
 
 .workflow-run-graph-stage {
   position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  height: 340px;
+  height: clamp(340px, 46vh, 620px);
   border: 1px solid var(--border-color, #e5e7eb);
   border-radius: 8px;
   overflow: hidden;
@@ -2222,7 +2222,7 @@ const WORKFLOW_STYLES = `
   padding: 10px 12px;
   background: var(--bg-primary, #fff);
   overflow: auto;
-  max-height: 340px;
+  max-height: clamp(340px, 46vh, 620px);
   font-size: 12px;
 }
 
