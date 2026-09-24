@@ -208,6 +208,17 @@ export function WorkflowIconCode({ size }: IconProps = {}) {
   )
 }
 
+/** Self-iterating improvement (rotate). */
+export function WorkflowIconRefresh({ size }: IconProps = {}) {
+  return icon(
+    <>
+      <polyline points="23 4 23 10 17 10" />
+      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+    </>,
+    size,
+  )
+}
+
 /** Visual / layout view. */
 export function WorkflowIconEye({ size }: IconProps = {}) {
   return icon(

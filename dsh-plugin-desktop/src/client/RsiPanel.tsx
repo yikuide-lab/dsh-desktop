@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { DesktopWorkflowApi } from './desktop-workflow-api.js'
+import type { WorkflowLocaleKey } from './locales-workflow.js'
 
 type Props = {
   api: DesktopWorkflowApi
-  t: (key: string) => string
+  t: (key: WorkflowLocaleKey) => string
 }
 
 type RsiProblem = {

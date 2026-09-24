@@ -15,6 +15,16 @@ export type {
   WorkspaceBindingView,
 } from './desktop-workflow-api.js'
 
+/** Tab identity of the workflow workbench (one surface per concern). */
+export type WorkflowTab =
+  | 'workflows'
+  | 'runs'
+  | 'templates'
+  | 'settings'
+  | 'triggers'
+  | 'stats'
+  | 'rsi'
+
 export interface WorkflowViewState {
   workflows: WorkflowView[]
   runs: WorkflowRunView[]
@@ -22,7 +32,7 @@ export interface WorkflowViewState {
   selectedWorkflow: WorkflowView | null
   selectedRun: WorkflowRunView | null
   pendingTemplateYaml: string | null
-  activeTab: 'workflows' | 'runs' | 'templates' | 'settings' | 'triggers' | 'stats'
+  activeTab: WorkflowTab
   /** Prefill stats detail when opening the stats tab from a list card. */
   statsFocusName: string | null
   /** Prefill run selection when jumping from stats recent runs. */
@@ -41,7 +51,7 @@ export type WorkflowViewActions = {
   selectWorkflow: (draft: WorkflowViewState, workflow: WorkflowView | null) => void
   selectRun: (draft: WorkflowViewState, run: WorkflowRunView | null) => void
   setPendingTemplateYaml: (draft: WorkflowViewState, yaml: string | null) => void
-  setActiveTab: (draft: WorkflowViewState, tab: 'workflows' | 'runs' | 'templates' | 'settings' | 'triggers' | 'stats') => void
+  setActiveTab: (draft: WorkflowViewState, tab: WorkflowTab) => void
   setStatsFocusName: (draft: WorkflowViewState, name: string | null) => void
   setFocusRunId: (draft: WorkflowViewState, runId: string | null) => void
   setPanelOpen: (draft: WorkflowViewState, open: boolean) => void

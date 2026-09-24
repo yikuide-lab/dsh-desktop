@@ -16,8 +16,10 @@ import {
   WorkflowIconLayers,
   WorkflowIconList,
   WorkflowIconNodes,
+  WorkflowIconRefresh,
   WorkflowIconZap,
 } from './WorkflowIcons.js'
+import { RsiPanel } from './RsiPanel.js'
 import { RunResizeHandle } from './RunResizeHandle.js'
 import {
   AWF_RAIL_COLLAPSED_WIDTH,
@@ -39,7 +41,7 @@ export type WorkflowPanelProps = PropsStore<WorkflowViewStore>
     sessionCwd?: string | undefined
   }
 
-type Tab = 'workflows' | 'runs' | 'templates' | 'settings' | 'triggers' | 'stats'
+type Tab = 'workflows' | 'runs' | 'templates' | 'settings' | 'triggers' | 'stats' | 'rsi'
 
 /** Workflow manager body shared by the overlay workbench and optional main panel. */
 export function WorkflowPanel({
@@ -244,6 +246,14 @@ export function WorkflowPanel({
           <span className="workflow-btn-icon"><WorkflowIconGear /></span>
           {t('settingsTab')}
         </button>
+        <button
+          type="button"
+          className={`workflow-tab ${activeTab === 'rsi' ? 'active' : ''}`}
+          onClick={() => actions.setActiveTab('rsi')}
+        >
+          <span className="workflow-btn-icon"><WorkflowIconRefresh /></span>
+          {t('rsiTab')}
+        </button>
       </div>
 
       <div
@@ -302,6 +312,9 @@ export function WorkflowPanel({
         )}
         {activeTab === 'settings' && (
           <WorkflowSettingsPanel api={api} t={t} />
+        )}
+        {activeTab === 'rsi' && (
+          <RsiPanel api={api} t={t} />
         )}
       </div>
 

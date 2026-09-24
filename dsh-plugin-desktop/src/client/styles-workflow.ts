@@ -565,6 +565,209 @@ export const WORKFLOW_STYLES = `
   font: inherit;
 }
 
+/* RSI self-iterating improvement panel. */
+.rsi-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.rsi-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rsi-subtitle {
+  margin: 0;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+}
+
+.rsi-create {
+  padding: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.rsi-create h4 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+
+.rsi-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rsi-input,
+.rsi-select,
+.rsi-textarea {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #1f2937);
+  font: inherit;
+  font-size: 12px;
+}
+
+.rsi-input-sm {
+  max-width: 96px;
+}
+
+.rsi-textarea {
+  min-height: 84px;
+  resize: vertical;
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.rsi-btn {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border: 1px solid var(--accent-color, #2563eb);
+  border-radius: 6px;
+  background: var(--accent-color, #2563eb);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.rsi-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.rsi-btn-sm {
+  padding: 3px 10px;
+  border: 1px solid var(--border-color, #d1d5db);
+  border-radius: 6px;
+  background: var(--bg-secondary, #fff);
+  color: var(--text-primary, #1f2937);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.rsi-btn-danger {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.rsi-btn-danger:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+.rsi-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.rsi-problems,
+.rsi-iterations {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rsi-problems h4,
+.rsi-iterations h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.rsi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-primary, #fff);
+  cursor: pointer;
+}
+
+.rsi-card.selected {
+  border-color: var(--accent-color, #2563eb);
+}
+
+.rsi-card:hover {
+  border-color: var(--accent-color, #2563eb);
+}
+
+.rsi-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rsi-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.rsi-card-meta {
+  color: var(--text-secondary, #6b7280);
+  font-size: 11px;
+  word-break: break-word;
+}
+
+.rsi-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.rsi-badge {
+  flex: none;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #fff;
+  background: #94a3b8;
+}
+
+.rsi-badge-draft {
+  background: #94a3b8;
+}
+
+.rsi-badge-running {
+  background: #f59e0b;
+}
+
+.rsi-badge-completed {
+  background: #22c55e;
+}
+
+.rsi-score {
+  flex: none;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent-color, #2563eb);
+  font-variant-numeric: tabular-nums;
+}
+
+.rsi-empty {
+  margin: 0;
+  color: var(--text-secondary, #94a3b8);
+  font-size: 12px;
+}
+
+@media (max-width: 900px) {
+  .rsi-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Inline button/tab glyph. */
 .workflow-btn-icon {
   display: inline-flex;
