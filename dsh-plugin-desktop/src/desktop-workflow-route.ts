@@ -14,7 +14,8 @@ import { formatWorkflowError } from './desktop-workflow-errors.ts'
 
 const MAX_BODY_BYTES = 512 * 1024
 
-const OPS = new Set<DesktopWorkflowOp>([
+/** Exported for tests: every op name the route accepts. */
+export const DESKTOP_WORKFLOW_OPS = new Set<DesktopWorkflowOp>([
   'listWorkflows',
   'getWorkflow',
   'saveWorkflow',
@@ -61,6 +62,23 @@ const OPS = new Set<DesktopWorkflowOp>([
   'rotateOpenAiApiKey',
   'listOpenAiApiCalls',
   'clearOpenAiApiCalls',
+  'awfGetSettings',
+  'awfSetSettings',
+  'awfCheckConnection',
+  'awfSync',
+  'awfRemoteRun',
+  'awfSetTelemetrySettings',
+  'awfGetExecutorStatus',
+  'awfSetExecutorSettings',
+  'awfGetTunnelStatus',
+  'awfSetTunnelSettings',
+  'awfAuthStatus',
+  'awfAuthMethods',
+  'awfAuthRegister',
+  'awfAuthLogin',
+  'awfAuthSendPhoneCode',
+  'awfAuthPhoneLogin',
+  'awfAuthLogout',
 ])
 
 class BodyTooLargeError extends Error {}
@@ -150,10 +168,11 @@ async function readJson(req: IncomingMessage): Promise<unknown> {
   return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown
 }
 
-function parseRequest(value: unknown): DesktopWorkflowRequest | undefined {
+/** Exported for tests: the request allowlist + field whitelist gate. */
+export function parseRequest(value: unknown): DesktopWorkflowRequest | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined
   const record = value as Record<string, unknown>
-  if (typeof record.op !== 'string' || !OPS.has(record.op as DesktopWorkflowOp)) return undefined
+  if (typeof record.op !== 'string' || !DESKTOP_WORKFLOW_OPS.has(record.op as DesktopWorkflowOp)) return undefined
 
   const request: DesktopWorkflowRequest = { op: record.op as DesktopWorkflowOp }
   const withFields: Record<string, unknown> = { ...request }
@@ -220,6 +239,43 @@ function parseRequest(value: unknown): DesktopWorkflowRequest | undefined {
       ...(typeof raw.apiTokenEnv === 'string' ? { apiTokenEnv: raw.apiTokenEnv } : {}),
       ...(typeof raw.apiToken === 'string' ? { apiToken: raw.apiToken } : {}),
     }
+  }
+  if (record.awfTelemetrySettings && typeof record.awfTelemetrySettings === 'object' && !Array.isArray(record.awfTelemetrySettings)) {
+    const raw = record.awfTelemetrySettings as Record<string, unknown>
+    withFields.awfTelemetrySettings = {
+      ...(typeof raw.telemetryEnabled === 'boolean' ? { telemetryEnabled: raw.telemetryEnabled } : {}),
+    }
+  }
+  if (record.awfExecutorSettings && typeof record.awfExecutorSettings === 'object' && !Array.isArray(record.awfExecutorSettings)) {
+    const raw = record.awfExecutorSettings as Record<string, unknown>
+    withFields.awfExecutorSettings = {
+      ...(typeof raw.executorEnabled === 'boolean' ? { executorEnabled: raw.executorEnabled } : {}),
+    }
+  }
+  if (record.awfTunnelSettings && typeof record.awfTunnelSettings === 'object' && !Array.isArray(record.awfTunnelSettings)) {
+    const raw = record.awfTunnelSettings as Record<string, unknown>
+    withFields.awfTunnelSettings = {
+      ...(typeof raw.tunnelEnabled === 'boolean' ? { tunnelEnabled: raw.tunnelEnabled } : {}),
+      ...(typeof raw.localPort === 'number' && Number.isFinite(raw.localPort) ? { localPort: raw.localPort } : {}),
+    }
+  }
+  // awfAuth* credentials: whitelisted keys only — the password exists in this
+  // request body alone and must never be persisted or echoed back.
+  if (record.awfAuthCredentials && typeof record.awfAuthCredentials === 'object' && !Array.isArray(record.awfAuthCredentials)) {
+    const raw = record.awfAuthCredentials as Record<string, unknown>
+    withFields.awfAuthCredentials = {
+      ...(typeof raw.email === 'string' ? { email: raw.email } : {}),
+      ...(typeof raw.password === 'string' ? { password: raw.password } : {}),
+      ...(typeof raw.displayName === 'string' ? { displayName: raw.displayName } : {}),
+      ...(typeof raw.phone === 'string' ? { phone: raw.phone } : {}),
+      ...(typeof raw.code === 'string' ? { code: raw.code } : {}),
+    }
+  }
+  if (typeof record.awfPublish === 'boolean') {
+    withFields.awfPublish = record.awfPublish
+  }
+  if (typeof record.awfWorkflowId === 'number' && Number.isFinite(record.awfWorkflowId)) {
+    withFields.awfWorkflowId = record.awfWorkflowId
   }
   return withFields as unknown as DesktopWorkflowRequest
 }
