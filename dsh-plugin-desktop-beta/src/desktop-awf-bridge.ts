@@ -276,9 +276,17 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         }
         yaml = exported
       }
+      // The platform creates the workflow from this item and its summary
+      // requires a title; shipping name + yaml alone makes the create fail with
+      // a bare "创建失败: <name>". Carry the local metadata through, falling
+      // back to the workflow name the way template promotion does.
+      const local = await plugin.getWorkflow(name).catch(() => null)
       const item: AwfSyncItem = {
         name,
         yaml_text: yaml,
+        title: local?.metadata.title?.trim() || name,
+        ...(local?.metadata.description?.trim() ? { description: local.metadata.description.trim() } : {}),
+        ...(local?.metadata.version?.trim() ? { version: local.metadata.version.trim() } : {}),
         ...(input.visibility === 'private' || input.visibility === 'unlisted' || input.visibility === 'public'
           ? { visibility: input.visibility }
           : {}),

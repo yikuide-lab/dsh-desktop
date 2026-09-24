@@ -19,6 +19,8 @@ const WF_YAML = `apiVersion: workflow-wise/v1
 kind: Workflow
 metadata:
   name: bridge-demo
+  title: Bridge Demo
+  description: Demo bridge workflow
 spec:
   steps:
     - id: say
@@ -97,7 +99,19 @@ describe('awf bridge + controller wiring', () => {
     expect(calls[0]?.url).toContain('/api/sync/validate')
     expect(calls[1]?.url).toContain('/api/sync/workflows')
     expect(calls[1]?.auth).toBe(`Bearer ${TOKEN}`)
-    expect(calls[0]?.body).toMatchObject({ workflows: [{ name: 'bridge-demo', visibility: 'unlisted' }] })
+    // The platform creates the workflow from this item and its summary requires
+    // a title — shipping name + yaml alone is what made creates fail.
+    expect(calls[0]?.body).toMatchObject({
+      workflows: [{
+        name: 'bridge-demo',
+        title: 'Bridge Demo',
+        description: 'Demo bridge workflow',
+        visibility: 'unlisted',
+      }],
+    })
+    expect(calls[1]?.body).toMatchObject({
+      workflows: [{ name: 'bridge-demo', title: 'Bridge Demo', description: 'Demo bridge workflow' }],
+    })
   })
 
   it('awfSync 预检冲突 → stage=preflight 且不推送', async () => {
