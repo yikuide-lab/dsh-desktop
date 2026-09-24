@@ -565,6 +565,19 @@ export const WORKFLOW_STYLES = `
   font: inherit;
 }
 
+/* RSI baseline source picker (workflow / template / manual) above the YAML box. */
+.rsi-baseline {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+}
+
+.rsi-baseline:only-child {
+  grid-template-columns: 150px;
+}
+
 /* RSI self-iterating improvement panel. */
 .rsi-panel {
   display: flex;

@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useState } from 'react'
-import type { DesktopWorkflowApi } from './desktop-workflow-api.js'
+import type {
+  DesktopWorkflowApi,
+  WorkflowTemplateView,
+  WorkflowView,
+} from './desktop-workflow-api.js'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 
 type Props = {
   api: DesktopWorkflowApi
   t: (key: WorkflowLocaleKey) => string
 }
+
+/** Where the baseline YAML comes from before it lands in the editable box. */
+type BaselineSource = 'manual' | 'workflow' | 'template'
 
 type RsiProblem = {
   id: number
@@ -34,6 +41,12 @@ export function RsiPanel({ api, t }: Props) {
   const [fMaxIter, setFMaxIter] = useState(5)
   const [fCriteria, setFCriteria] = useState('')
   const [fBaseYaml, setFBaseYaml] = useState('')
+  const [fSource, setFSource] = useState<BaselineSource>('manual')
+  const [fWorkflowName, setFWorkflowName] = useState('')
+  const [fTemplateId, setFTemplateId] = useState('')
+  const [workflows, setWorkflows] = useState<WorkflowView[]>([])
+  const [templates, setTemplates] = useState<WorkflowTemplateView[]>([])
+  const [baselineBusy, setBaselineBusy] = useState(false)
   const [running, setRunning] = useState(false)
 
   const load = useCallback(async () => {
@@ -45,7 +58,34 @@ export function RsiPanel({ api, t }: Props) {
   }, [api])
 
   useEffect(() => { void load().catch(() => {}) }, [load])
+  useEffect(() => {
+    void (async () => {
+      try {
+        const [wf, tpl] = await Promise.all([api.listWorkflows(), api.listTemplates()])
+        setWorkflows(wf)
+        setTemplates(tpl)
+      } catch {
+        // Baseline pickers stay empty; manual entry still works.
+      }
+    })()
+  }, [api])
   useEffect(() => { if (selectedId) void loadIterations(selectedId).catch(() => {}) }, [selectedId, loadIterations])
+
+  /** Fill the editable baseline box from a saved workflow or a template. */
+  const pickBaseline = async (source: BaselineSource, key: string) => {
+    if (source === 'manual' || !key) return
+    setBaselineBusy(true)
+    try {
+      const yaml = source === 'workflow'
+        ? await api.exportWorkflowYaml(key)
+        : templates.find((tpl) => tpl.id === key)?.yaml ?? ''
+      if (yaml) setFBaseYaml(yaml)
+    } catch {
+      // Leave the box as-is; the operator can paste manually.
+    } finally {
+      setBaselineBusy(false)
+    }
+  }
 
   const createProblem = async () => {
     if (!fTitle.trim()) return
@@ -121,6 +161,55 @@ export function RsiPanel({ api, t }: Props) {
             value={fBaseYaml}
             onChange={(e) => setFBaseYaml(e.target.value)}
           />
+          <div className="rsi-baseline">
+            <select
+              className="rsi-select"
+              aria-label={t('rsiBaseline')}
+              value={fSource}
+              onChange={(e) => {
+                const next = e.target.value as BaselineSource
+                setFSource(next)
+                setFWorkflowName('')
+                setFTemplateId('')
+              }}
+            >
+              <option value="manual">{t('rsiBaselineManual')}</option>
+              <option value="workflow">{t('rsiBaselineWorkflow')}</option>
+              <option value="template">{t('rsiBaselineTemplate')}</option>
+            </select>
+            {fSource === 'workflow' && (
+              <select
+                className="rsi-select"
+                value={fWorkflowName}
+                disabled={baselineBusy}
+                onChange={(e) => {
+                  setFWorkflowName(e.target.value)
+                  void pickBaseline('workflow', e.target.value)
+                }}
+              >
+                <option value="">{baselineBusy ? t('loading') : t('rsiBaselinePick')}</option>
+                {workflows.map((wf) => (
+                  <option key={wf.name} value={wf.name}>{wf.title || wf.name}</option>
+                ))}
+              </select>
+            )}
+            {fSource === 'template' && (
+              <select
+                className="rsi-select"
+                value={fTemplateId}
+                disabled={baselineBusy}
+                onChange={(e) => {
+                  setFTemplateId(e.target.value)
+                  void pickBaseline('template', e.target.value)
+                }}
+              >
+                <option value="">{baselineBusy ? t('loading') : t('rsiBaselinePick')}</option>
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>{tpl.name}</option>
+                ))}
+              </select>
+            )}
+          </div>
           <button type="button" className="rsi-btn" onClick={() => void createProblem()} disabled={!fTitle.trim()}>
             {t('rsiCreateProblem')}
           </button>
