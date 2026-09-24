@@ -37,14 +37,23 @@ describe('desktop client environment', () => {
     const inject = vi.fn()
     const ctx = {
       effect,
+      inject: vi.fn(),
       slots: { inject },
       locale: { bind: () => (key: string) => key },
       settingsScope: { bind: () => ({}) },
     } as unknown as ClientContext
     try {
       apply(ctx)
-      expect(inject.mock.calls.map(([name]) => name)).toEqual(['settings.section', 'settings.action'])
-      expect(effect.mock.calls.map(([, label]) => label)).not.toContain('desktop: independent compatibility frame styles')
+      expect(inject.mock.calls.map(([name]) => name)).toEqual([
+        'settings.section',
+        'settings.action',
+        'main',
+        'sidebar.panellist',
+        'sidebar.footer.action',
+        'shell.overlay',
+        'conversation.input.right',
+      ])
+      expect(effect.mock.calls.map(([, label]) => label)).toContain('desktop: independent compatibility frame styles')
     } finally {
       vi.unstubAllGlobals()
     }

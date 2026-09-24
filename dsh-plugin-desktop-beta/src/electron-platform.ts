@@ -82,7 +82,9 @@ class LinuxPlatformStrategy implements ElectronPlatformStrategy {
   readonly platform = 'linux'
   readonly updateDownloadPlatform = undefined
   readonly canPickDirectory = true
-  readonly canToggleShellMode = true
+  // Extended/advanced shell chrome is macOS/Windows-only (window-options);
+  // Linux stays on compatibility mode, so the mode selector stays disabled.
+  readonly canToggleShellMode = false
 
   configureApplication(
     _icon: NativeImage,

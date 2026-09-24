@@ -475,8 +475,8 @@ describe('desktop terminal environment', () => {
     const root = temporaryDirectory()
     const harness = spawnHarness()
     const unsupported = macOptions(join(root, 'unsupported'), harness.spawn)
-    unsupported.platform = 'linux'
-    expect(() => openDesktopTerminal(unsupported)).toThrow('terminal is unsupported on linux')
+    unsupported.platform = 'aix' as never
+    expect(() => openDesktopTerminal(unsupported)).toThrow('terminal is unsupported on aix')
     expect(() => lstatSync(unsupported.stateDir)).toThrow()
 
     const unsafe = macOptions(join(root, 'unsafe'), harness.spawn)

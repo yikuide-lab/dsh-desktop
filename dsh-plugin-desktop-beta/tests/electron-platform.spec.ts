@@ -79,13 +79,13 @@ describe('electronPlatformStrategy', () => {
     expect(window.setBackgroundMaterial).not.toHaveBeenCalled()
   })
 
-  it('selects the Linux adapter without desktop chrome tweaks', () => {
+  it('selects the Linux adapter with native picking and no shell mode', () => {
     const strategy = electronPlatformStrategy('linux')
     const window = createWindow()
 
     expect(strategy.platform).toBe('linux')
     expect(strategy.updateDownloadPlatform).toBeUndefined()
-    expect(strategy.canPickDirectory).toBe(false)
+    expect(strategy.canPickDirectory).toBe(true)
     expect(strategy.canToggleShellMode).toBe(false)
 
     strategy.configureApplication({} as never, 'DSH Desktop')
@@ -94,7 +94,7 @@ describe('electronPlatformStrategy', () => {
 
     expect(electron.app.dock.setIcon).not.toHaveBeenCalled()
     expect(electron.Menu.setApplicationMenu).not.toHaveBeenCalled()
-    expect(window.removeMenu).not.toHaveBeenCalled()
+    expect(window.removeMenu).toHaveBeenCalledTimes(1)
     expect(window.setBackgroundMaterial).not.toHaveBeenCalled()
   })
 

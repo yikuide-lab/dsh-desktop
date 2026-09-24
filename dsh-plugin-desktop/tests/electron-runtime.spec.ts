@@ -786,9 +786,10 @@ describe('Electron desktop runtime', () => {
     expect(electron.trays[0]?.off).toHaveBeenCalledWith('click', expect.any(Function))
   })
 
-  it('selects the restricted Linux platform adapter once for native capabilities', async () => {
+  it('selects the Linux platform adapter once for native capabilities', async () => {
     vi.spyOn(process, 'platform', 'get').mockReturnValue('linux')
     electron.app.isPackaged = true
+    electron.dialog.showOpenDialog.mockResolvedValue({ canceled: false, filePaths: ['/home/me/work'] })
     const { ElectronDesktopRuntime } = await import('../src/electron-runtime.ts')
     const runtime = new ElectronDesktopRuntime(async () => {})
     const release = runtime.schedule(spec)
@@ -798,10 +799,10 @@ describe('Electron desktop runtime', () => {
     expect(runtime.platform).toBe('linux')
     expect(electron.contentViews).toHaveLength(0)
     expect(runtime.updates.canDownload).toBe(false)
-    await expect(runtime.pickDirectory()).rejects.toThrow('native workspace picker is unavailable on linux')
+    await expect(runtime.pickDirectory()).resolves.toBe('/home/me/work')
     expect(electron.app.dock.setIcon).not.toHaveBeenCalled()
     expect(electron.Menu.setApplicationMenu).not.toHaveBeenCalled()
-    expect(electron.browserWindows[0]?.removeMenu).not.toHaveBeenCalled()
+    expect(electron.browserWindows[0]?.removeMenu).toHaveBeenCalled()
     expect(electron.menuTemplates[0]).toEqual(expect.arrayContaining([
       expect.objectContaining({ label: 'Mode: Compatibility Mode', enabled: false }),
     ]))
