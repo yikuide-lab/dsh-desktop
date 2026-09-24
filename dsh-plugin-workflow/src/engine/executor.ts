@@ -6,6 +6,7 @@ import { spawn } from 'node:child_process'
 import type { Dispatch, ExecutionContext, Executor, Step } from './models.js'
 import { DispatchStatus, StepType } from './models.js'
 import { resolveScriptCwd, type ScriptPolicy } from './script-policy.js'
+import type { RsiReviewer } from './rsi-review.js'
 
 export interface StepOutcome {
   ok: boolean
@@ -13,7 +14,7 @@ export interface StepOutcome {
   error?: string
 }
 
-/** Optional Host-bound runners for LLM, task, and nested workflow steps. */
+/** Optional Host-bound runners for LLM, task, nested workflow steps, and RSI review. */
 export interface DesktopExecutorHooks {
   runLlm?: (
     step: Step,
@@ -32,6 +33,8 @@ export interface DesktopExecutorHooks {
     context: ExecutionContext,
     signal: AbortSignal,
   ) => Promise<StepOutcome>
+  /** RSI review pass over a workflow YAML (absent → engine's deterministic stub). */
+  runRsiReview?: RsiReviewer
 }
 
 interface PendingJob {

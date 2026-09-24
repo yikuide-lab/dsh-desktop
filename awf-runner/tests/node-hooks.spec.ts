@@ -4,8 +4,8 @@
  */
 
 import { describe, expect, it } from 'vitest'
-import type { ExecutionContext, Step } from 'dsh-plugin-workflow/engine'
-import { StepType } from 'dsh-plugin-workflow/engine'
+import type { ExecutionContext, RsiReviewRequest, Step } from 'dsh-plugin-workflow/engine'
+import { RSI_REVIEW_MAX_TOKENS, StepType } from 'dsh-plugin-workflow/engine'
 import type { AwfFetch } from '../src/awf/client.js'
 import {
   createNodeExecutorHooks,
@@ -143,5 +143,43 @@ describe('createNodeExecutorHooks', () => {
     const empty = await hooks2.runLlm!(llmStep, context(), '/tmp', new AbortController().signal)
     expect(empty.ok).toBe(false)
     expect(empty.error).toContain('empty LLM response')
+  })
+})
+
+describe('createNodeExecutorHooks RSI review', () => {
+  const REQUEST: RsiReviewRequest = {
+    problemId: 2,
+    title: 'Fix ordering',
+    domain: 'routing',
+    improvementCriteria: 'fewer steps',
+    iterationNumber: 1,
+    yaml: 'a: 1',
+    priorFeedback: 'merge the lint steps',
+  }
+
+  it('runRsiReview posts one completion and parses the JSON verdict', async () => {
+    const verdict = JSON.stringify({ score: 77, feedback: 'merged', improvedYaml: 'a: 2' })
+    const { fetchImpl, calls } = completionFetch({ choices: [{ message: { content: verdict } }] })
+    const hooks = createNodeExecutorHooks(CONFIG, { fetchImpl })
+    const result = await hooks.runRsiReview!(REQUEST)
+    expect(result).toEqual({ score: 77, feedback: 'merged', improvedYaml: 'a: 2' })
+
+    const call = calls[0]!
+    expect(call.url).toBe('http://llm.test/v1/chat/completions')
+    const messages = call.body.messages as Array<{ role: string; content: string }>
+    expect(messages[0]!.role).toBe('system')
+    expect(messages[0]!.content).toContain('JSON')
+    expect(messages[1]!.role).toBe('user')
+    expect(messages[1]!.content).toContain('Fix ordering')
+    expect(messages[1]!.content).toContain('fewer steps')
+    expect(messages[1]!.content).toContain('merge the lint steps')
+    expect(messages[1]!.content).toContain('a: 1')
+    expect(call.body.max_tokens).toBe(RSI_REVIEW_MAX_TOKENS)
+  })
+
+  it('rejects non-JSON verdicts honestly', async () => {
+    const { fetchImpl } = completionFetch({ choices: [{ message: { content: 'nope' } }] })
+    const hooks = createNodeExecutorHooks(CONFIG, { fetchImpl })
+    await expect(hooks.runRsiReview!(REQUEST)).rejects.toThrow(/JSON/)
   })
 })

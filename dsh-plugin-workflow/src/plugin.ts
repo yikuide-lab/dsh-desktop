@@ -32,6 +32,7 @@ import {
 import { isGatePass, markAborted, isRunComplete, resolveGate } from './engine/engine.js'
 import { truncateTranscriptText, type TranscriptEvent } from './engine/transcript.js'
 import type { ScriptPolicy } from './engine/script-policy.js'
+import type { RsiReviewRequest, RsiReviewResult } from './engine/rsi-review.js'
 import {
   buildWorkflowStatsDetail,
   buildWorkflowStatsSummaries,
@@ -1263,17 +1264,51 @@ export class WorkflowPlugin {
     const iterations = this.rsiIterationsMap.get(problemId) || []
     const iterNum = iterations.length
     const start = Date.now()
-    const score = Math.min(100, 50 + iterNum * 10)
-    const feedback = `迭代 ${iterNum}: ${iterNum === 0 ? '初始基线评估' : '基于前次反馈改进'}`
-    const improvedYaml = problem.baseYaml
+    const previous = iterations[iterations.length - 1]
+    const yaml = previous?.improvedYaml || problem.baseYaml
+    const request: RsiReviewRequest = {
+      problemId,
+      title: problem.title,
+      domain: problem.domain,
+      improvementCriteria: problem.improvementCriteria,
+      iterationNumber: iterNum,
+      yaml,
+      ...(previous?.reviewFeedback ? { priorFeedback: previous.reviewFeedback } : {}),
+    }
+    // Host reviewer when wired (Desktop / awf-node); otherwise the deterministic
+    // stub keeps the loop runnable on a pure-Node engine.
+    let status = 'completed'
+    let result: RsiReviewResult
+    const reviewer = this.hostHooks.runRsiReview
+    if (reviewer) {
+      try {
+        result = await reviewer(request)
+      } catch (error) {
+        status = 'failed'
+        result = {
+          score: 0,
+          feedback: `评审失败: ${error instanceof Error ? error.message : String(error)}`,
+          improvedYaml: yaml,
+        }
+      }
+    } else {
+      result = {
+        score: Math.min(100, 50 + iterNum * 10),
+        feedback: `迭代 ${iterNum}: ${iterNum === 0 ? '初始基线评估' : '基于前次反馈改进'}`,
+        improvedYaml: yaml,
+      }
+    }
     const iteration = {
       id: iterNum + 1, iterationNumber: iterNum,
-      reviewScore: score, reviewFeedback: feedback,
-      improvedYaml, status: 'completed', durationMs: Date.now() - start,
+      reviewScore: Math.min(100, Math.max(0, result.score)),
+      reviewFeedback: result.feedback,
+      improvedYaml: result.improvedYaml, status, durationMs: Date.now() - start,
     }
     iterations.push(iteration)
     this.rsiIterationsMap.set(problemId, iterations)
-    problem.status = iterNum + 1 >= problem.maxIterations ? 'completed' : 'running'
+    problem.status = status !== 'completed'
+      ? 'running'
+      : iterNum + 1 >= problem.maxIterations ? 'completed' : 'running'
     return {
       iterationNumber: iteration.iterationNumber,
       reviewScore: iteration.reviewScore,

@@ -16,7 +16,15 @@
  * steps fail honestly with the engine's built-in error.
  */
 
-import type { DesktopExecutorHooks, StepOutcome } from 'dsh-plugin-workflow/engine'
+import {
+  buildRsiReviewPrompt,
+  parseRsiReviewResponse,
+  RSI_REVIEW_MAX_TOKENS,
+  type DesktopExecutorHooks,
+  type RsiReviewRequest,
+  type RsiReviewResult,
+  type StepOutcome,
+} from 'dsh-plugin-workflow/engine'
 import type { AwfFetch } from '../awf/client.js'
 import {
   buildLlmPrompt,
@@ -164,6 +172,15 @@ export function createNodeExecutorHooks(
           },
         }),
       )
+    },
+    runRsiReview: (request: RsiReviewRequest, signal?: AbortSignal): Promise<RsiReviewResult> => {
+      const prompt = buildRsiReviewPrompt(request)
+      return chatCompletion(config, {
+        system: prompt.system,
+        user: prompt.user,
+        maxTokens: RSI_REVIEW_MAX_TOKENS,
+      }, signal ?? new AbortController().signal, doFetch)
+        .then(({ text }) => parseRsiReviewResponse(text, request.yaml))
     },
   }
 }

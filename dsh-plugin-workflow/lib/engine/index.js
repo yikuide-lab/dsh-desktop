@@ -6,5 +6,6 @@ export * from './transcript.js';
 export * from './path-sandbox.js';
 export * from './script-policy.js';
 export * from './workflow-stats.js';
+export * from './rsi-review.js';
 export { WorkflowStore, ensureWorkflowUid } from './store.js';
 //# sourceMappingURL=index.js.map

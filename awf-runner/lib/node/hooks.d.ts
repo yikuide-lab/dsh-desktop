@@ -15,7 +15,7 @@
  * path. Without a configured endpoint no hooks are installed and llm/task
  * steps fail honestly with the engine's built-in error.
  */
-import type { DesktopExecutorHooks } from 'dsh-plugin-workflow/engine';
+import { type DesktopExecutorHooks } from 'dsh-plugin-workflow/engine';
 import type { AwfFetch } from '../awf/client.js';
 export interface NodeLlmConfig {
     readonly baseUrl: string;

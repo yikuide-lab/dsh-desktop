@@ -9,8 +9,13 @@ import { createUserMessage, BlockAssembler } from '@deepseek-ai/dsh-llm'
 import type { FinishReason, GenerateOptions, Message, StreamChunk } from '@deepseek-ai/dsh-llm'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import {
+  buildRsiReviewPrompt,
   createDesktopExecutor,
+  parseRsiReviewResponse,
+  RSI_REVIEW_MAX_TOKENS,
   type DesktopExecutorHooks,
+  type RsiReviewRequest,
+  type RsiReviewResult,
   type StepOutcome,
 } from 'dsh-plugin-workflow/engine'
 import type { ExecutionContext, Executor, Step } from 'dsh-plugin-workflow/engine'
@@ -51,19 +56,20 @@ function parseProviderModel(value: string): ModelRoute | undefined {
   }
 }
 
-function resolveRoute(
-  step: Step,
+function resolveRouteFor(
+  model: string | undefined,
+  role: string | undefined,
   services: DesktopWorkflowHostServices,
 ): ModelRoute {
-  if (typeof step.model === 'string' && step.model.includes('/')) {
-    const parsed = parseProviderModel(step.model)
+  if (typeof model === 'string' && model.includes('/')) {
+    const parsed = parseProviderModel(model)
     if (parsed) return parsed
   }
 
   const settings = services.getWorkflowSettings?.()
   if (settings?.providers?.length) {
-    const role = typeof step.role === 'string' ? step.role.toLowerCase() : ''
-    const want = role || settings.defaultBias.toLowerCase()
+    const lowered = typeof role === 'string' ? role.toLowerCase() : ''
+    const want = lowered || settings.defaultBias.toLowerCase()
     const matched = settings.providers.find((entry) => (
       entry.bias.some((tag) => tag.toLowerCase() === want)
       || entry.bias.some((tag) => want.includes(tag.toLowerCase()))
@@ -80,13 +86,17 @@ function resolveRoute(
   if (selected?.provider && selected?.model) {
     return {
       provider: selected.provider,
-      model: typeof step.model === 'string' && step.model.length > 0 ? step.model : selected.model,
+      model: typeof model === 'string' && model.length > 0 ? model : selected.model,
     }
   }
-  if (typeof step.model === 'string' && step.model.length > 0) {
-    throw new Error(`workflow executor: model "${step.model}" needs provider/model or agentDefaultModel`)
+  if (typeof model === 'string' && model.length > 0) {
+    throw new Error(`workflow executor: model "${model}" needs provider/model or agentDefaultModel`)
   }
   throw new Error('workflow executor: no model route available')
+}
+
+function resolveRoute(step: Step, services: DesktopWorkflowHostServices): ModelRoute {
+  return resolveRouteFor(step.model, step.role, services)
 }
 
 function finishError(finish: FinishReason): Error | undefined {
@@ -214,6 +224,49 @@ async function runLlmStep(
   }
 }
 
+/** Run one RSI review/improve pass through the Host LLM service. */
+export async function runRsiReview(
+  services: DesktopWorkflowHostServices,
+  request: RsiReviewRequest,
+  signal?: AbortSignal,
+): Promise<RsiReviewResult> {
+  signal?.throwIfAborted()
+  // Review passes bias toward review-capable routes the way steps bias by role.
+  const route = resolveRouteFor(undefined, 'review', services)
+  const prompt = buildRsiReviewPrompt(request)
+  const messages: Message[] = [createUserMessage({
+    content: [{ type: 'text', text: prompt.user }],
+    source: { kind: 'plugin', plugin: 'dsh-plugin-desktop/workflow' },
+  })]
+  const options: GenerateOptions = {
+    provider: route.provider,
+    model: route.model,
+    messages,
+    system: prompt.system,
+    maxTokens: RSI_REVIEW_MAX_TOKENS,
+    sessionId: SessionId(`workflow-rsi-${randomUUID()}`),
+    ...(signal ? { signal } : {}),
+  }
+
+  const assembler = new BlockAssembler()
+  for await (const chunk of services.llm.stream(options)) {
+    signal?.throwIfAborted()
+    assembler.push(chunk)
+  }
+  signal?.throwIfAborted()
+  const terminalError = finishError(assembler.finish)
+  if (terminalError) throw terminalError
+
+  const blocks = assembler.blocks()
+  const text = blocks
+    .filter((block): block is Extract<(typeof blocks)[number], { type: 'text' }> => block.type === 'text')
+    .map(block => block.text)
+    .join('')
+    .trim()
+  if (!text) throw new Error('rsi review: empty LLM response')
+  return parseRsiReviewResponse(text, request.yaml)
+}
+
 function buildTaskPrompt(step: Step, context: ExecutionContext, cwd: string): string {
   const lines = [
     `You are executing workflow task step "${step.id}" in workspace ${cwd}.`,
@@ -325,6 +378,7 @@ export function createDesktopWorkflowHostHooks(
   return {
     runLlm: (step, context, _cwd, signal) => runLlmStep(services, step, context, signal),
     runTask: (step, context, cwd, signal) => runTaskStep(services, step, context, cwd, signal),
+    runRsiReview: (request, signal) => runRsiReview(services, request, signal),
   }
 }
 

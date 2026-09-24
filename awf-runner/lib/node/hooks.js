@@ -15,6 +15,7 @@
  * path. Without a configured endpoint no hooks are installed and llm/task
  * steps fail honestly with the engine's built-in error.
  */
+import { buildRsiReviewPrompt, parseRsiReviewResponse, RSI_REVIEW_MAX_TOKENS, } from 'dsh-plugin-workflow/engine';
 import { buildLlmPrompt, buildLlmSystemPrompt, buildTaskPrompt, resolveLlmMaxTokens, } from './prompt.js';
 export const NODE_LLM_BASE_URL_ENV = 'AWF_NODE_LLM_BASE_URL';
 export const NODE_LLM_API_KEY_ENV = 'AWF_NODE_LLM_API_KEY';
@@ -137,6 +138,15 @@ export function createNodeExecutorHooks(config, options = {}) {
                     ...(step.role ? { role: step.role } : {}),
                 },
             }));
+        },
+        runRsiReview: (request, signal) => {
+            const prompt = buildRsiReviewPrompt(request);
+            return chatCompletion(config, {
+                system: prompt.system,
+                user: prompt.user,
+                maxTokens: RSI_REVIEW_MAX_TOKENS,
+            }, signal ?? new AbortController().signal, doFetch)
+                .then(({ text }) => parseRsiReviewResponse(text, request.yaml));
         },
     };
 }
