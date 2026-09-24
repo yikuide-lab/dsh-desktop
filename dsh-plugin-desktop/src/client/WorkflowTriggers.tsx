@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
+import { requestYamlFields } from './workflow-ai-yaml.js'
 import type {
   DesktopWorkflowApi,
   WorkflowTriggerConfigView,
@@ -57,6 +58,8 @@ export function WorkflowTriggers({ api, t }: WorkflowTriggersProps) {
   const [disabledHint, setDisabledHint] = useState(false)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -77,6 +80,50 @@ export function WorkflowTriggers({ api, t }: WorkflowTriggersProps) {
   useEffect(() => {
     void load()
   }, [load])
+
+  /** Fill the trigger form from a natural-language schedule description. */
+  const handleAiFill = async (): Promise<void> => {
+    setError(null)
+    setMessage(null)
+    setAiBusy(true)
+    try {
+      const fields = await requestYamlFields(api, {
+        system: [
+          'You fill a workflow trigger form. Reply with ONLY a fenced flat YAML document:',
+          '```yaml',
+          'type: cron | event | manual',
+          'workflowName: <workflow to trigger>',
+          'schedule: <5-field cron expression; only when type is cron>',
+          'source: <event source; only when type is event>',
+          'on: <event name; only when type is event>',
+          'filter: <optional filter such as data.status=ok>',
+          '```',
+          'One scalar per key. Keys and enum values stay exactly as above.',
+        ].join('\n'),
+        prompt: aiPrompt.trim(),
+        maxTokens: 400,
+      })
+      if (fields === null) {
+        setError(t('aiGeneratedFailed'))
+        return
+      }
+      const rawType = fields.type
+      setForm((prev) => ({
+        type: rawType === 'event' || rawType === 'manual' ? rawType : 'cron',
+        workflowName: fields.workflowName ?? prev.workflowName,
+        schedule: fields.schedule ?? prev.schedule,
+        source: fields.source ?? prev.source,
+        on: fields.on ?? prev.on,
+        filter: fields.filter ?? prev.filter,
+        paramsJson: prev.paramsJson,
+      }))
+      setMessage(t('aiFillForm'))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('aiGeneratedFailed'))
+    } finally {
+      setAiBusy(false)
+    }
+  }
 
   const handleAdd = async (): Promise<void> => {
     setError(null)
@@ -292,6 +339,24 @@ export function WorkflowTriggers({ api, t }: WorkflowTriggersProps) {
 
       <div className="workflow-settings" style={{ marginTop: '1.25rem' }}>
         <h4>{t('triggerAdd')}</h4>
+        <div className="workflow-ai-inline">
+          <p className="workflow-templates-hint" style={{ margin: 0 }}>{t('aiTriggerHint')}</p>
+          <textarea
+            value={aiPrompt}
+            onChange={(event) => setAiPrompt(event.target.value)}
+            placeholder={t('aiTriggerHint')}
+          />
+          <div className="workflow-settings-provider-actions" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="workflow-btn small primary"
+              disabled={aiBusy || !aiPrompt.trim()}
+              onClick={() => { void handleAiFill() }}
+            >
+              {aiBusy ? t('aiDesignGenerating') : t('aiFillForm')}
+            </button>
+          </div>
+        </div>
         <div className="workflow-settings-grid">
           <label className="workflow-settings-field">
             <span>{t('triggerType')}</span>

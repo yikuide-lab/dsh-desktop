@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
+import { requestYamlFields } from './workflow-ai-yaml.js'
 import type {
   DesktopWorkflowApi,
   WorkflowStatsDetailView,
@@ -51,6 +52,7 @@ export function WorkflowStats({
   const [isLoading, setIsLoading] = useState(true)
   const [detailLoading, setDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [aiReview, setAiReview] = useState<Record<string, string> | 'loading' | 'error' | null>(null)
 
   const loadSummaries = useCallback(async () => {
     setIsLoading(true)
@@ -96,6 +98,42 @@ export function WorkflowStats({
       cancelled = true
     }
   }, [api, selectedName, t])
+
+  /** Read the run statistics into a short conclusion / risks / suggestion. */
+  const handleAiReview = async (): Promise<void> => {
+    if (!detail) return
+    setAiReview('loading')
+    try {
+      const fields = await requestYamlFields(api, {
+        system: [
+          'You read workflow run statistics for a human operator. Reply with ONLY a fenced flat YAML document:',
+          '```yaml',
+          'summary: <one-sentence conclusion>',
+          'risks: <one-sentence risk, or "none">',
+          'suggestion: <one-sentence improvement>',
+          '```',
+          'Write the values in the operator\'s language. Be concrete about the numbers.',
+        ].join('\n'),
+        prompt: [
+          `workflow: ${detail.workflowName}`,
+          `title: ${detail.title || '-'}`,
+          `runs: ${detail.totalRuns}`,
+          `completed: ${detail.completed}`,
+          `failed: ${detail.failed}`,
+          `aborted: ${detail.aborted}`,
+          `running: ${detail.running}`,
+          `successRate: ${detail.successRate}`,
+          `avgDurationMs: ${detail.avgDurationMs ?? '-'}`,
+          `byDay: ${detail.byDay.map((d) => `${d.date}=${d.total}(fail ${d.failed})`).join(', ') || '-'}`,
+          `recentFailures: ${detail.recentRuns.filter((r) => r.status !== 'completed').map((r) => `${r.id}:${r.status}`).join(', ') || '-'}`,
+        ].join('\n'),
+        maxTokens: 400,
+      })
+      setAiReview(fields ?? 'error')
+    } catch {
+      setAiReview('error')
+    }
+  }
 
   const maxDayTotal = detail?.byDay.reduce((max, day) => Math.max(max, day.total), 0) ?? 0
 
@@ -164,7 +202,42 @@ export function WorkflowStats({
               <div className="workflow-stats-detail-header">
                 <h3>{detail.title || detail.workflowName}</h3>
                 <span className="workflow-card-name">{detail.workflowName}</span>
+                <button
+                  type="button"
+                  className="workflow-btn small"
+                  disabled={aiReview === 'loading'}
+                  onClick={() => { void handleAiReview() }}
+                >
+                  {aiReview === 'loading' ? t('aiDesignGenerating') : t('aiStatsReview')}
+                </button>
               </div>
+              {aiReview !== null && (
+                <div className="workflow-gate-advice">
+                  {aiReview === 'loading' ? (
+                    <p className="workflow-gate-advice-note">{t('aiDesignGenerating')}</p>
+                  ) : aiReview === 'error' ? (
+                    <p className="workflow-gate-advice-note">{t('aiGeneratedFailed')}</p>
+                  ) : (
+                    <>
+                      {aiReview.summary && (
+                        <p className="workflow-gate-advice-reason">
+                          <strong>{t('aiStatsSummary')}：</strong>{aiReview.summary}
+                        </p>
+                      )}
+                      {aiReview.risks && (
+                        <p className="workflow-gate-advice-reason">
+                          <strong>{t('aiStatsRisks')}：</strong>{aiReview.risks}
+                        </p>
+                      )}
+                      {aiReview.suggestion && (
+                        <p className="workflow-gate-advice-reason">
+                          <strong>{t('aiStatsSuggestion')}：</strong>{aiReview.suggestion}
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
               <div className="workflow-stats-summary-bar">
                 <div><strong>{detail.totalRuns}</strong><span>{t('statsRuns')}</span></div>
                 <div><strong>{detail.completed}</strong><span>{t('completed')}</span></div>
