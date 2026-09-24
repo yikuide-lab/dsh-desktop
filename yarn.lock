@@ -9946,8 +9946,6 @@ __metadata:
     js-yaml: "npm:^4.1.0"
     typescript: "npm:^5.7.0"
     vitest: "npm:^3.0.0"
-  peerDependencies:
-    "@deepseek-ai/cordis": ^4.0.0
   bin:
     dsh-workflow: lib/mcp/index.js
   languageName: unknown
