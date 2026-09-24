@@ -405,6 +405,33 @@ export async function executeDesktopWorkflowOp(
         typeof localPort === 'number' ? localPort : 8787,
       )
     }
+    case 'rsiListProblems': {
+      return plugin.rsiListProblems()
+    }
+    case 'rsiCreateProblem': {
+      const cfg = request.rsiConfig
+      if (!cfg?.title) throw new Error('rsiConfig.title is required')
+      return plugin.rsiCreateProblem({
+        title: cfg.title,
+        ...(cfg.domain !== undefined ? { domain: cfg.domain } : {}),
+        ...(cfg.maxIterations !== undefined ? { maxIterations: cfg.maxIterations } : {}),
+        ...(cfg.reviewProviderId !== undefined ? { reviewProviderId: cfg.reviewProviderId } : {}),
+        ...(cfg.improvementCriteria !== undefined ? { improvementCriteria: cfg.improvementCriteria } : {}),
+        ...(cfg.baseYaml !== undefined ? { baseYaml: cfg.baseYaml } : {}),
+      })
+    }
+    case 'rsiRunIteration': {
+      if (!request.rsiProblemId) throw new Error('rsiProblemId is required')
+      return plugin.rsiRunIteration(request.rsiProblemId)
+    }
+    case 'rsiGetIterations': {
+      if (!request.rsiProblemId) throw new Error('rsiProblemId is required')
+      return plugin.rsiGetIterations(request.rsiProblemId)
+    }
+    case 'rsiDeleteProblem': {
+      if (!request.rsiProblemId) throw new Error('rsiProblemId is required')
+      return plugin.rsiDeleteProblem(request.rsiProblemId)
+    }
     default: {
       const _exhaustive: never = request.op
       throw new Error(`Unsupported op: ${String(_exhaustive)}`)

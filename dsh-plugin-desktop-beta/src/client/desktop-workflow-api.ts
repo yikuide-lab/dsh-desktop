@@ -476,6 +476,37 @@ export interface DesktopWorkflowApi {
   }>
   listOpenAiApiCalls(limit?: number): Promise<WorkflowOpenAiApiCallView[]>
   clearOpenAiApiCalls(): Promise<void>
+  rsiListProblems(): Promise<Array<{
+    id: number
+    title: string
+    domain: string
+    maxIterations: number
+    status: string
+    scenarioCount: number
+  }>>
+  rsiCreateProblem(config: {
+    title: string
+    domain?: string
+    maxIterations?: number
+    reviewProviderId?: number
+    improvementCriteria?: string
+    baseYaml?: string
+  }): Promise<{ id: number }>
+  rsiRunIteration(problemId: number): Promise<{
+    iterationNumber: number
+    reviewScore: number
+    reviewFeedback: string
+    improvedYaml: string
+  }>
+  rsiGetIterations(problemId: number): Promise<Array<{
+    id: number
+    iterationNumber: number
+    reviewScore: number
+    reviewFeedback: string
+    status: string
+    durationMs: number
+  }>>
+  rsiDeleteProblem(problemId: number): Promise<{ ok: boolean }>
 }
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
@@ -1562,6 +1593,33 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
     },
     async clearOpenAiApiCalls() {
       await callOp(fetchImpl, { op: 'clearOpenAiApiCalls' })
+    },
+    async rsiListProblems() {
+      const result = await callOp(fetchImpl, { op: 'rsiListProblems' })
+      return Array.isArray(result) ? result : []
+    },
+    async rsiCreateProblem(config: {
+      title: string
+      domain?: string | undefined
+      maxIterations?: number | undefined
+      reviewProviderId?: number | undefined
+      improvementCriteria?: string | undefined
+      baseYaml?: string | undefined
+    }) {
+      const result = await callOp(fetchImpl, { op: 'rsiCreateProblem', rsiConfig: config })
+      return isObject(result) ? result as { id: number } : { id: 0 }
+    },
+    async rsiRunIteration(problemId) {
+      const result = await callOp(fetchImpl, { op: 'rsiRunIteration', rsiProblemId: problemId })
+      return result as { iterationNumber: number; reviewScore: number; reviewFeedback: string; improvedYaml: string }
+    },
+    async rsiGetIterations(problemId) {
+      const result = await callOp(fetchImpl, { op: 'rsiGetIterations', rsiProblemId: problemId })
+      return Array.isArray(result) ? result : []
+    },
+    async rsiDeleteProblem(problemId) {
+      const result = await callOp(fetchImpl, { op: 'rsiDeleteProblem', rsiProblemId: problemId })
+      return isObject(result) ? result as { ok: boolean } : { ok: false }
     },
   }
 }

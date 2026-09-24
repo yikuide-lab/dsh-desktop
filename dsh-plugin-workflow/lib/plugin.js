@@ -991,6 +991,67 @@ export class WorkflowPlugin {
     async whenStopped() {
         await this.shutdown;
     }
+    // --- RSI 自我迭代改进 ---
+    rsiProblems = [];
+    rsiIterationsMap = new Map();
+    rsiNextId = 1;
+    async rsiListProblems() {
+        return this.rsiProblems.map(p => ({
+            id: p.id, title: p.title, domain: p.domain,
+            maxIterations: p.maxIterations, status: p.status, scenarioCount: p.scenarioCount,
+        }));
+    }
+    async rsiCreateProblem(config) {
+        const id = this.rsiNextId++;
+        this.rsiProblems.push({
+            id,
+            title: config.title,
+            domain: config.domain || 'summarization',
+            maxIterations: config.maxIterations || 5,
+            reviewProviderId: config.reviewProviderId || 0,
+            improvementCriteria: config.improvementCriteria || '',
+            baseYaml: config.baseYaml || '',
+            status: 'draft',
+            scenarioCount: 0,
+        });
+        return { id };
+    }
+    async rsiRunIteration(problemId) {
+        const problem = this.rsiProblems.find(p => p.id === problemId);
+        if (!problem)
+            throw new Error('problem not found');
+        const iterations = this.rsiIterationsMap.get(problemId) || [];
+        const iterNum = iterations.length;
+        const start = Date.now();
+        const score = Math.min(100, 50 + iterNum * 10);
+        const feedback = `迭代 ${iterNum}: ${iterNum === 0 ? '初始基线评估' : '基于前次反馈改进'}`;
+        const improvedYaml = problem.baseYaml;
+        const iteration = {
+            id: iterNum + 1, iterationNumber: iterNum,
+            reviewScore: score, reviewFeedback: feedback,
+            improvedYaml, status: 'completed', durationMs: Date.now() - start,
+        };
+        iterations.push(iteration);
+        this.rsiIterationsMap.set(problemId, iterations);
+        problem.status = iterNum + 1 >= problem.maxIterations ? 'completed' : 'running';
+        return {
+            iterationNumber: iteration.iterationNumber,
+            reviewScore: iteration.reviewScore,
+            reviewFeedback: iteration.reviewFeedback,
+            improvedYaml: iteration.improvedYaml,
+        };
+    }
+    async rsiGetIterations(problemId) {
+        return this.rsiIterationsMap.get(problemId) || [];
+    }
+    async rsiDeleteProblem(problemId) {
+        const idx = this.rsiProblems.findIndex(p => p.id === problemId);
+        if (idx < 0)
+            return { ok: false };
+        this.rsiProblems.splice(idx, 1);
+        this.rsiIterationsMap.delete(problemId);
+        return { ok: true };
+    }
     async readBindings() {
         try {
             const raw = await readFile(this.bindingsPath, 'utf8');

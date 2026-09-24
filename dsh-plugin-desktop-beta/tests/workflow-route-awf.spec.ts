@@ -31,6 +31,18 @@ const AWF_OPS = [
   'awfAuthLogout',
 ] as const
 
+/**
+ * Same gate, same failure mode as the AWF block above: an op the contract and
+ * controller support is dead on arrival if the route allowlist drops it.
+ */
+const RSI_OPS = [
+  'rsiListProblems',
+  'rsiCreateProblem',
+  'rsiRunIteration',
+  'rsiGetIterations',
+  'rsiDeleteProblem',
+] as const
+
 describe('desktop workflow route accepts the AWF connector ops', () => {
   it('puts every AWF op on the request allowlist', () => {
     for (const op of AWF_OPS) {
@@ -93,5 +105,36 @@ describe('desktop workflow route accepts the AWF connector ops', () => {
     expect(parseRequest([])).toBeUndefined()
     expect(parseRequest({})).toBeUndefined()
     expect(parseRequest({ op: 'notAnOp' })).toBeUndefined()
+  })
+
+  it('puts every RSI op on the request allowlist', () => {
+    for (const op of RSI_OPS) {
+      expect(DESKTOP_WORKFLOW_OPS.has(op), `op missing from the allowlist: ${op}`).toBe(true)
+    }
+  })
+
+  it('carries the RSI payloads the controller reads', () => {
+    expect(parseRequest({
+      op: 'rsiCreateProblem',
+      rsiConfig: {
+        title: 'improve summary',
+        domain: 'summarization',
+        maxIterations: 5,
+        reviewProviderId: 2,
+        improvementCriteria: 'shorter',
+        baseYaml: 'apiVersion: workflow-wise/v1',
+      },
+    })?.rsiConfig).toEqual({
+      title: 'improve summary',
+      domain: 'summarization',
+      maxIterations: 5,
+      reviewProviderId: 2,
+      improvementCriteria: 'shorter',
+      baseYaml: 'apiVersion: workflow-wise/v1',
+    })
+
+    expect(parseRequest({ op: 'rsiRunIteration', rsiProblemId: 3 })?.rsiProblemId).toBe(3)
+    expect(parseRequest({ op: 'rsiDeleteProblem', rsiProblemId: 0 })?.rsiProblemId).toBe(0)
+    expect(parseRequest({ op: 'rsiRunIteration', rsiProblemId: 'x' })?.rsiProblemId).toBeUndefined()
   })
 })

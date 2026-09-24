@@ -70,6 +70,11 @@ export type DesktopWorkflowOp =
   | 'awfAuthSendPhoneCode'
   | 'awfAuthPhoneLogin'
   | 'awfAuthLogout'
+  | 'rsiListProblems'
+  | 'rsiCreateProblem'
+  | 'rsiRunIteration'
+  | 'rsiGetIterations'
+  | 'rsiDeleteProblem'
 
 export interface DesktopWorkflowRequest {
   readonly op: DesktopWorkflowOp
@@ -138,6 +143,16 @@ export interface DesktopWorkflowRequest {
   readonly awfPublish?: boolean
   /** awfRemoteRun target workflow id. */
   readonly awfWorkflowId?: number
+  /** RSI 自我迭代改进配置。 */
+  readonly rsiConfig?: {
+    title?: string
+    domain?: string
+    maxIterations?: number
+    reviewProviderId?: number
+    improvementCriteria?: string
+    baseYaml?: string
+  }
+  readonly rsiProblemId?: number
 }
 
 export interface DesktopWorkflowErrorResponse {

@@ -79,6 +79,12 @@ export const DESKTOP_WORKFLOW_OPS = new Set<DesktopWorkflowOp>([
   'awfAuthSendPhoneCode',
   'awfAuthPhoneLogin',
   'awfAuthLogout',
+  // RSI: self-iterating improvement problems and their review iterations.
+  'rsiListProblems',
+  'rsiCreateProblem',
+  'rsiRunIteration',
+  'rsiGetIterations',
+  'rsiDeleteProblem',
 ])
 
 class BodyTooLargeError extends Error {}
@@ -276,6 +282,22 @@ export function parseRequest(value: unknown): DesktopWorkflowRequest | undefined
   }
   if (typeof record.awfWorkflowId === 'number' && Number.isFinite(record.awfWorkflowId)) {
     withFields.awfWorkflowId = record.awfWorkflowId
+  }
+  if (record.rsiConfig && typeof record.rsiConfig === 'object' && !Array.isArray(record.rsiConfig)) {
+    const raw = record.rsiConfig as Record<string, unknown>
+    withFields.rsiConfig = {
+      ...(typeof raw.title === 'string' ? { title: raw.title } : {}),
+      ...(typeof raw.domain === 'string' ? { domain: raw.domain } : {}),
+      ...(typeof raw.maxIterations === 'number' && Number.isFinite(raw.maxIterations)
+        ? { maxIterations: raw.maxIterations } : {}),
+      ...(typeof raw.reviewProviderId === 'number' && Number.isFinite(raw.reviewProviderId)
+        ? { reviewProviderId: raw.reviewProviderId } : {}),
+      ...(typeof raw.improvementCriteria === 'string' ? { improvementCriteria: raw.improvementCriteria } : {}),
+      ...(typeof raw.baseYaml === 'string' ? { baseYaml: raw.baseYaml } : {}),
+    }
+  }
+  if (typeof record.rsiProblemId === 'number' && Number.isFinite(record.rsiProblemId)) {
+    withFields.rsiProblemId = record.rsiProblemId
   }
   return withFields as unknown as DesktopWorkflowRequest
 }

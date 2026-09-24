@@ -188,6 +188,7 @@ async function runLlmStep(
       step.role ? `Role: ${step.role}` : '',
     ].filter(Boolean).join('\n'),
     maxTokens: resolveLlmMaxTokens(step),
+    sessionId: SessionId(`workflow-llm-${randomUUID()}`),
     signal,
   }
 

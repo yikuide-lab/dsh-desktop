@@ -235,6 +235,45 @@ export declare class WorkflowPlugin {
     stop(): void;
     /** Await in-flight shutdown from {@link stop} (tests / Host teardown). */
     whenStopped(): Promise<void>;
+    private rsiProblems;
+    private rsiIterationsMap;
+    private rsiNextId;
+    rsiListProblems(): Promise<{
+        id: number;
+        title: string;
+        domain: string;
+        maxIterations: number;
+        status: string;
+        scenarioCount: number;
+    }[]>;
+    rsiCreateProblem(config: {
+        title: string;
+        domain?: string;
+        maxIterations?: number;
+        reviewProviderId?: number;
+        improvementCriteria?: string;
+        baseYaml?: string;
+    }): Promise<{
+        id: number;
+    }>;
+    rsiRunIteration(problemId: number): Promise<{
+        iterationNumber: number;
+        reviewScore: number;
+        reviewFeedback: string;
+        improvedYaml: string;
+    }>;
+    rsiGetIterations(problemId: number): Promise<{
+        id: number;
+        iterationNumber: number;
+        reviewScore: number;
+        reviewFeedback: string;
+        improvedYaml: string;
+        status: string;
+        durationMs: number;
+    }[]>;
+    rsiDeleteProblem(problemId: number): Promise<{
+        ok: boolean;
+    }>;
     private readBindings;
     private writeBindings;
     private readSettings;
