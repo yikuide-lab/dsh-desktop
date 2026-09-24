@@ -491,6 +491,80 @@ export const WORKFLOW_STYLES = `
   gap: 10px;
 }
 
+/* AI approval advice on a gate card (human still decides). */
+.workflow-gate-advice {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px dashed var(--border-color, #d1d5db);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.workflow-gate-advice-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workflow-gate-advice-rec {
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  color: #fff;
+}
+
+.workflow-gate-advice-rec.approve {
+  background: #22c55e;
+}
+
+.workflow-gate-advice-rec.reject {
+  background: #ef4444;
+}
+
+.workflow-gate-advice-rec.uncertain {
+  background: #f59e0b;
+}
+
+.workflow-gate-advice-reason {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.workflow-gate-advice-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary, #94a3b8);
+}
+
+/* The option an advisor leans toward stays a normal button; only the tint moves. */
+.workflow-gate-actions .workflow-btn.recommended {
+  border-color: var(--accent-color, #2563eb);
+}
+
+.workflow-ai-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.workflow-ai-inline textarea {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  font: inherit;
+}
+
 /* Inline button/tab glyph. */
 .workflow-btn-icon {
   display: inline-flex;

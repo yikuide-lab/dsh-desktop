@@ -18,6 +18,11 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
   const [selectedTemplate, setSelectedTemplate] = useState<WorkflowTemplate | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [aiOpen, setAiOpen] = useState(false)
+  const [aiPrompt, setAiPrompt] = useState('')
+  const [aiName, setAiName] = useState('')
+  const [aiBusy, setAiBusy] = useState(false)
+  const [aiYaml, setAiYaml] = useState<string | null>(null)
 
   const loadTemplates = useCallback(async () => {
     setIsLoading(true)
@@ -35,6 +40,43 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
   useEffect(() => {
     void loadTemplates()
   }, [loadTemplates])
+
+  /** Draft a template YAML from a description through the design completion. */
+  const handleAiGenerate = async () => {
+    setAiBusy(true)
+    setError(null)
+    setAiYaml(null)
+    try {
+      const result = await api.designWorkflow({ prompt: aiPrompt.trim(), mode: 'create' })
+      setAiYaml(result.yaml)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  const handleAiSave = async () => {
+    if (!aiYaml) return
+    setAiBusy(true)
+    setError(null)
+    try {
+      const saved = await api.saveTemplate({
+        yaml: aiYaml,
+        name: aiName.trim() || t('aiTemplate'),
+        description: aiPrompt.trim(),
+        category: 'custom',
+      })
+      await loadTemplates()
+      setSelectedTemplate(saved)
+      setAiOpen(false)
+      setAiYaml(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('error'))
+    } finally {
+      setAiBusy(false)
+    }
+  }
 
   const handleImport = () => {
     const input = document.createElement('input')
@@ -123,9 +165,62 @@ export function WorkflowTemplateManager({ api, onUseTemplate, t }: WorkflowTempl
           <button className="workflow-btn" onClick={handleImport}>
             {t('templateImport')}
           </button>
+          <button
+            className={`workflow-btn${aiOpen ? ' primary' : ''}`}
+            onClick={() => { setAiOpen((value) => !value); setAiYaml(null) }}
+          >
+            {t('aiTemplate')}
+          </button>
         </div>
       </div>
       <p className="workflow-templates-hint">{t('templateCopyHint')}</p>
+
+      {aiOpen && (
+        <div className="workflow-ai-inline">
+          <p className="workflow-templates-hint" style={{ margin: 0 }}>{t('aiTemplateHint')}</p>
+          <textarea
+            value={aiPrompt}
+            onChange={(event) => setAiPrompt(event.target.value)}
+            placeholder={t('aiDesignPromptPlaceholder')}
+          />
+          <div className="workflow-settings-grid">
+            <label className="workflow-settings-field">
+              <span>{t('aiTemplateName')}</span>
+              <input
+                value={aiName}
+                onChange={(event) => setAiName(event.target.value)}
+                placeholder={t('aiDesignPromptPlaceholder')}
+              />
+            </label>
+          </div>
+          <div className="workflow-settings-provider-actions" style={{ gap: 8 }}>
+            <button
+              type="button"
+              className="workflow-btn small primary"
+              disabled={aiBusy || !aiPrompt.trim()}
+              onClick={() => { void handleAiGenerate() }}
+            >
+              {aiBusy ? t('aiDesignGenerating') : t('aiDesignGenerate')}
+            </button>
+            <button
+              type="button"
+              className="workflow-btn small"
+              disabled={aiBusy || aiYaml === null}
+              onClick={() => { void handleAiSave() }}
+            >
+              {t('save')}
+            </button>
+          </div>
+          {aiYaml !== null && (
+            <WorkflowPreview
+              yaml={aiYaml}
+              title={aiName || t('aiTemplate')}
+              t={t}
+              defaultMode="visual"
+            />
+          )}
+        </div>
+      )}
 
       {templates.length === 0 ? (
         <div className="workflow-empty">

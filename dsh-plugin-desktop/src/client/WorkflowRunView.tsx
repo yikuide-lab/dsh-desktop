@@ -7,6 +7,12 @@ import { WorkflowRunGraph } from './WorkflowRunGraph.js'
 import { WorkflowAiDesignPanel } from './WorkflowAiDesignPanel.js'
 import { RunResizeHandle } from './RunResizeHandle.js'
 import {
+  buildGateAdvicePrompt,
+  parseGateAdvice,
+  recommendedOption,
+  type GateAdvice,
+} from './workflow-gate-advice.js'
+import {
   buildDiagnosisPrompt,
   buildRunDiagnosticMarkdown,
   withWorkflowIdentity,
@@ -40,6 +46,8 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [resolvingGate, setResolvingGate] = useState<string | null>(null)
+  /** Per-gate AI advisory: 'loading' / 'error' while pending or failed. */
+  const [gateAdvice, setGateAdvice] = useState<Record<string, GateAdvice | 'loading' | 'error'>>({})
   const [exportPreview, setExportPreview] = useState<string | null>(null)
   const [busyAction, setBusyAction] = useState(false)
   const [viewMode, setViewMode] = useState<'graph' | 'list'>('graph')
@@ -327,6 +335,24 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
     }
   }
 
+  /** Ask the design completion for an approval advisory; the human still decides. */
+  const handleGateAdvice = async (gate: PendingGateView) => {
+    if (!selectedRun) return
+    const key = `${gate.runId}:${gate.stepId}`
+    setGateAdvice((prev) => ({ ...prev, [key]: 'loading' }))
+    try {
+      const result = await api.designWorkflow({
+        prompt: buildGateAdvicePrompt({ run: selectedRun, transcript, gate, t }),
+        mode: 'create',
+        maxTokens: 512,
+      })
+      const advice = parseGateAdvice(result.yaml)
+      setGateAdvice((prev) => ({ ...prev, [key]: advice ?? 'error' }))
+    } catch {
+      setGateAdvice((prev) => ({ ...prev, [key]: 'error' }))
+    }
+  }
+
   const handleResolveGate = async (gate: PendingGateView, decision: string) => {
     const key = `${gate.runId}:${gate.stepId}`
     if (resolvingGate) return
@@ -566,8 +592,12 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
           {selectedGates.length > 0 && (
             <div className="workflow-gates">
               <h4>{t('pendingApprovals')}</h4>
-              {selectedGates.map((gate) => (
-                <div key={`${gate.runId}-${gate.stepId}`} className="workflow-gate-card">
+              {selectedGates.map((gate) => {
+                const adviceKey = `${gate.runId}:${gate.stepId}`
+                const advice = gateAdvice[adviceKey]
+                const lean = typeof advice === 'object' ? recommendedOption(gate, advice) : null
+                return (
+                <div key={adviceKey} className="workflow-gate-card">
                   <p className="workflow-gate-question">{gate.question}</p>
                   <p className="workflow-gate-step">{gate.stepId}</p>
                   <div className="workflow-gate-actions">
@@ -576,15 +606,47 @@ export function WorkflowRunView({ api, t, useStore, actions }: WorkflowRunViewPr
                         key={option}
                         type="button"
                         disabled={resolvingGate !== null}
-                        className={`workflow-btn small ${(gate.pass?.includes(option) || (!gate.pass && (option === 'approved' || option === gate.options[0]))) ? 'primary' : ''}`}
+                        className={`workflow-btn small ${lean === option ? 'recommended' : ''} ${(gate.pass?.includes(option) || (!gate.pass && (option === 'approved' || option === gate.options[0]))) ? 'primary' : ''}`}
                         onClick={() => void handleResolveGate(gate, option)}
                       >
                         {option}
                       </button>
                     ))}
+                    <button
+                      type="button"
+                      className="workflow-btn small"
+                      disabled={advice === 'loading' || !selectedRun}
+                      onClick={() => { void handleGateAdvice(gate) }}
+                    >
+                      {advice === 'loading' ? t('aiGateAdviceLoading') : t('aiGateAdvice')}
+                    </button>
                   </div>
+                  {advice !== undefined && (
+                    <div className="workflow-gate-advice">
+                      {advice === 'loading' ? (
+                        <p className="workflow-gate-advice-note">{t('aiGateAdviceLoading')}</p>
+                      ) : advice === 'error' ? (
+                        <p className="workflow-gate-advice-note">{t('aiGateAdviceFailed')}</p>
+                      ) : (
+                        <>
+                          <div className="workflow-gate-advice-head">
+                            <span className={`workflow-gate-advice-rec ${advice.recommendation}`}>
+                              {advice.recommendation === 'approve'
+                                ? t('aiGateAdviceApprove')
+                                : advice.recommendation === 'reject'
+                                  ? t('aiGateAdviceReject')
+                                  : t('aiGateAdviceUncertain')}
+                            </span>
+                          </div>
+                          {advice.reason && <p className="workflow-gate-advice-reason">{advice.reason}</p>}
+                          <p className="workflow-gate-advice-note">{t('aiGateAdviceHint')}</p>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
 
