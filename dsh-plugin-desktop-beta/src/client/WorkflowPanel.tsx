@@ -10,6 +10,14 @@ import { WorkflowSettingsPanel } from './WorkflowSettingsPanel.js'
 import { WorkflowAwfPanel } from './WorkflowAwfPanel.js'
 import { WorkflowTriggers } from './WorkflowTriggers.js'
 import { WorkflowStats } from './WorkflowStats.js'
+import {
+  WorkflowIconChart,
+  WorkflowIconGear,
+  WorkflowIconLayers,
+  WorkflowIconList,
+  WorkflowIconNodes,
+  WorkflowIconZap,
+} from './WorkflowIcons.js'
 import { RunResizeHandle } from './RunResizeHandle.js'
 import {
   AWF_RAIL_COLLAPSED_WIDTH,
@@ -193,6 +201,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'workflows' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('workflows')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconNodes /></span>
           {t('workflowsTab')}
         </button>
         <button
@@ -200,6 +209,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'runs' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('runs')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconList /></span>
           {t('runs')}
         </button>
         <button
@@ -207,6 +217,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'templates' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('templates')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconLayers /></span>
           {t('templates')}
         </button>
         <button
@@ -214,6 +225,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'triggers' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('triggers')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconZap /></span>
           {t('triggersTab')}
         </button>
         <button
@@ -221,6 +233,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'stats' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('stats')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconChart /></span>
           {t('statsTab')}
         </button>
         <button
@@ -228,6 +241,7 @@ export function WorkflowPanel({
           className={`workflow-tab ${activeTab === 'settings' ? 'active' : ''}`}
           onClick={() => actions.setActiveTab('settings')}
         >
+          <span className="workflow-btn-icon"><WorkflowIconGear /></span>
           {t('settingsTab')}
         </button>
       </div>

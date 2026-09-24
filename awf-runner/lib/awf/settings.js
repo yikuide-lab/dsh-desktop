@@ -9,7 +9,7 @@
  */
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
-export const AWF_DEFAULT_BASE_URL = 'http://127.0.0.1:8000';
+export const AWF_DEFAULT_BASE_URL = 'https://awf.seedwill.com';
 export const AWF_DEFAULT_TOKEN_ENV = 'AWF_API_TOKEN';
 export function defaultAwfSettings() {
     return {

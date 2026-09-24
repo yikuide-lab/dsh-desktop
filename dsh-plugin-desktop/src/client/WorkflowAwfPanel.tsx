@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
+import {
+  WorkflowIconLink,
+  WorkflowIconLogin,
+  WorkflowIconLogout,
+  WorkflowIconPlay,
+  WorkflowIconSave,
+  WorkflowIconUpload,
+  WorkflowIconUserPlus,
+} from './WorkflowIcons.js'
+
+/** Mirrors awf-runner's AWF_DEFAULT_BASE_URL (host-side; kept literal for the client bundle). */
+const DEFAULT_AWF_BASE_URL = 'https://awf.seedwill.com'
 import type {
   DesktopWorkflowApi,
   AwfAuthAccountView,
-  AwfAuthMethodsView,
   AwfExecutorStatusView,
   AwfStatusView,
   AwfConnectionView,
@@ -23,7 +34,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
   const [loading, setLoading] = useState(true)
 
   const [awf, setAwf] = useState<AwfStatusView | null>(null)
-  const [awfDraftBaseUrl, setAwfDraftBaseUrl] = useState('')
+  const [awfDraftBaseUrl, setAwfDraftBaseUrl] = useState(DEFAULT_AWF_BASE_URL)
   const [awfDraftEnv, setAwfDraftEnv] = useState('AWF_API_TOKEN')
   const [awfDraftToken, setAwfDraftToken] = useState('')
   const [awfConn, setAwfConn] = useState<AwfConnectionView | null>(null)
@@ -38,13 +49,9 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
   const [awfExecutorStatus, setAwfExecutorStatus] = useState<AwfExecutorStatusView | null>(null)
   const [awfTunnelStatus, setAwfTunnelStatus] = useState<AwfTunnelStatusView | null>(null)
   const [awfAuth, setAwfAuth] = useState<AwfAuthAccountView | null>(null)
-  const [awfAuthMethodsView, setAwfAuthMethodsView] = useState<AwfAuthMethodsView | null>(null)
-  const [awfAuthMode, setAwfAuthMode] = useState<'email' | 'phone'>('email')
   const [awfAuthEmail, setAwfAuthEmail] = useState('')
   const [awfAuthPassword, setAwfAuthPassword] = useState('')
   const [awfAuthDisplayName, setAwfAuthDisplayName] = useState('')
-  const [awfAuthPhone, setAwfAuthPhone] = useState('')
-  const [awfAuthCode, setAwfAuthCode] = useState('')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -59,7 +66,6 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
       setAwfExecutorStatus(await api.getAwfExecutorStatus().catch(() => null))
       setAwfTunnelStatus(await api.getAwfTunnelStatus().catch(() => null))
       setAwfAuth(await api.getAwfAuthStatus().catch(() => null))
-      setAwfAuthMethodsView(await api.getAwfAuthMethods().catch(() => null))
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error'))
     } finally {
@@ -139,47 +145,6 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
     }
   }
 
-  const sendAwfPhoneCode = async (): Promise<void> => {
-    setError(null)
-    if (!awfAuthPhone.trim()) {
-      setError(t('awfAuthNeedPhoneCode'))
-      return
-    }
-    setBusyAwf(true)
-    try {
-      const result = await api.awfAuthSendPhoneCode(awfAuthPhone.trim())
-      if (result.ok) setMessage(t('awfAuthSent'))
-      else setError(result.errorMessage ?? t('awfAuthFailed'))
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('error'))
-    } finally {
-      setBusyAwf(false)
-    }
-  }
-
-  const submitAwfPhoneAuth = async (): Promise<void> => {
-    setError(null)
-    if (!awfAuthPhone.trim() || !awfAuthCode.trim()) {
-      setError(t('awfAuthNeedPhoneCode'))
-      return
-    }
-    setBusyAwf(true)
-    try {
-      const result = await api.awfAuthPhoneLogin({ phone: awfAuthPhone.trim(), code: awfAuthCode.trim() })
-      if (result.hasSession) {
-        setAwfAuth(result)
-        setAwfAuthCode('')
-        setMessage(t('awfAuthOk'))
-        setAwfConn(await api.checkAwfConnection().catch(() => null))
-      } else {
-        setError(result.errorMessage ?? t('awfAuthFailed'))
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('error'))
-    } finally {
-      setBusyAwf(false)
-    }
-  }
 
   const logoutAwfAuth = async (): Promise<void> => {
     setError(null)
@@ -277,138 +242,93 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
 
         <div style={{ marginBottom: '1rem' }}>
           {awfAuth?.hasSession ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              <span className="workflow-settings-lead" style={{ margin: 0 }}>
-                {t('awfAuthAccount')}: {awfAuth.email ?? ''}{awfAuth.displayName ? ` (${awfAuth.displayName})` : ''}
-              </span>
-              <button
-                type="button"
-                className="workflow-btn small"
-                disabled={busyAwf}
-                onClick={() => { void logoutAwfAuth() }}
-              >
-                {t('awfAuthLogout')}
-              </button>
+            <div className="workflow-awf-account">
+              <div className="workflow-awf-account-head">
+                <span className="workflow-awf-account-badge">
+                  <span className="workflow-btn-icon"><WorkflowIconLogin /></span>
+                  {t('awfAuthAccount')}
+                </span>
+                <button
+                  type="button"
+                  className="workflow-btn small"
+                  disabled={busyAwf}
+                  onClick={() => { void logoutAwfAuth() }}
+                >
+                  <span className="workflow-btn-icon"><WorkflowIconLogout /></span>
+                  {t('awfAuthLogout')}
+                </button>
+              </div>
+              <div className="workflow-awf-account-name">
+                {awfAuth.displayName || awfAuth.email || ''}
+              </div>
+              {awfAuth.displayName && awfAuth.email ? (
+                <div className="workflow-awf-account-email">{awfAuth.email}</div>
+              ) : null}
+              <div className="workflow-awf-account-meta">
+                {awfAuth.tokenFingerprint ? (
+                  <span>{t('awfStatusToken')}: <code>{awfAuth.tokenFingerprint}</code></span>
+                ) : null}
+                <span>
+                  {t('awfAuthExpires')}: {awfAuth.accessTokenExpiresAt
+                    ? new Date(awfAuth.accessTokenExpiresAt).toLocaleString()
+                    : t('awfAuthNoExpiry')}
+                </span>
+              </div>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <div className="workflow-awf-signin">
+              <div className="workflow-awf-signin-title">{t('awfAuthEmailTab')}</div>
+              <div className="workflow-settings-grid">
+                <label className="workflow-settings-field">
+                  <span>{t('awfAuthEmail')}</span>
+                  <input
+                    value={awfAuthEmail}
+                    onChange={(event) => setAwfAuthEmail(event.target.value)}
+                    placeholder="you@example.com"
+                    autoComplete="off"
+                  />
+                </label>
+                <label className="workflow-settings-field">
+                  <span>{t('awfAuthPassword')}</span>
+                  <input
+                    type="password"
+                    value={awfAuthPassword}
+                    onChange={(event) => setAwfAuthPassword(event.target.value)}
+                    placeholder={t('awfAuthPasswordPlaceholder')}
+                    autoComplete="new-password"
+                  />
+                </label>
+              </div>
+              <label className="workflow-settings-field" style={{ maxWidth: 320 }}>
+                <span>{t('awfAuthDisplayName')}</span>
+                <input
+                  value={awfAuthDisplayName}
+                  onChange={(event) => setAwfAuthDisplayName(event.target.value)}
+                  placeholder={t('awfAuthDisplayNamePlaceholder')}
+                />
+              </label>
               <div className="workflow-settings-provider-actions" style={{ gap: 8 }}>
                 <button
                   type="button"
-                  className={`workflow-btn small ${awfAuthMode === 'email' ? 'primary' : ''}`}
-                  onClick={() => { setAwfAuthMode('email') }}
+                  className="workflow-btn small primary"
+                  disabled={busyAwf}
+                  onClick={() => { void submitAwfAuth('register') }}
                 >
-                  {t('awfAuthEmailTab')}
-                </button>
-                <button
-                  type="button"
-                  className={`workflow-btn small ${awfAuthMode === 'phone' ? 'primary' : ''}`}
-                  onClick={() => { setAwfAuthMode('phone') }}
-                >
-                  {t('awfAuthPhoneTab')}
+                  <span className="workflow-btn-icon"><WorkflowIconUserPlus /></span>
+                  {t('awfAuthRegister')}
                 </button>
                 <button
                   type="button"
                   className="workflow-btn small"
-                  disabled
-                  title={awfAuthMethodsView?.wechatReason ?? t('awfAuthWechatUnavailable')}
+                  disabled={busyAwf}
+                  onClick={() => { void submitAwfAuth('login') }}
                 >
-                  {t('awfAuthWechatTab')}
+                  <span className="workflow-btn-icon"><WorkflowIconLogin /></span>
+                  {t('awfAuthLogin')}
                 </button>
               </div>
-              {awfAuthMode === 'email' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="workflow-settings-grid">
-                    <label className="workflow-settings-field">
-                      <span>{t('awfAuthEmail')}</span>
-                      <input
-                        value={awfAuthEmail}
-                        onChange={(event) => setAwfAuthEmail(event.target.value)}
-                        placeholder="you@example.com"
-                        autoComplete="off"
-                      />
-                    </label>
-                    <label className="workflow-settings-field">
-                      <span>{t('awfAuthPassword')}</span>
-                      <input
-                        type="password"
-                        value={awfAuthPassword}
-                        onChange={(event) => setAwfAuthPassword(event.target.value)}
-                        placeholder={t('awfAuthPasswordPlaceholder')}
-                        autoComplete="new-password"
-                      />
-                    </label>
-                  </div>
-                  <label className="workflow-settings-field" style={{ maxWidth: 320 }}>
-                    <span>{t('awfAuthDisplayName')}</span>
-                    <input
-                      value={awfAuthDisplayName}
-                      onChange={(event) => setAwfAuthDisplayName(event.target.value)}
-                      placeholder={t('awfAuthDisplayNamePlaceholder')}
-                    />
-                  </label>
-                  <div className="workflow-settings-provider-actions" style={{ gap: 8 }}>
-                    <button
-                      type="button"
-                      className="workflow-btn small primary"
-                      disabled={busyAwf}
-                      onClick={() => { void submitAwfAuth('register') }}
-                    >
-                      {t('awfAuthRegister')}
-                    </button>
-                    <button
-                      type="button"
-                      className="workflow-btn small"
-                      disabled={busyAwf}
-                      onClick={() => { void submitAwfAuth('login') }}
-                    >
-                      {t('awfAuthLogin')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <div className="workflow-settings-grid">
-                    <label className="workflow-settings-field">
-                      <span>{t('awfAuthPhone')}</span>
-                      <input
-                        value={awfAuthPhone}
-                        onChange={(event) => setAwfAuthPhone(event.target.value)}
-                        placeholder="+8613800000000"
-                        autoComplete="off"
-                      />
-                    </label>
-                    <label className="workflow-settings-field">
-                      <span>{t('awfAuthCode')}</span>
-                      <input
-                        value={awfAuthCode}
-                        onChange={(event) => setAwfAuthCode(event.target.value)}
-                        placeholder="000000"
-                        autoComplete="one-time-code"
-                      />
-                    </label>
-                  </div>
-                  <div className="workflow-settings-provider-actions" style={{ gap: 8 }}>
-                    <button
-                      type="button"
-                      className="workflow-btn small"
-                      disabled={busyAwf}
-                      onClick={() => { void sendAwfPhoneCode() }}
-                    >
-                      {t('awfAuthSendCode')}
-                    </button>
-                    <button
-                      type="button"
-                      className="workflow-btn small primary"
-                      disabled={busyAwf}
-                      onClick={() => { void submitAwfPhoneAuth() }}
-                    >
-                      {t('awfAuthPhoneLoginBtn')}
-                    </button>
-                  </div>
-                </div>
-              )}
               <p className="workflow-settings-lead" style={{ margin: 0 }}>{t('awfAuthHint')}</p>
+              <p className="workflow-awf-signin-note">{t('awfAuthEmailOnly')}</p>
             </div>
           )}
         </div>
@@ -419,7 +339,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
             <input
               value={awfDraftBaseUrl}
               onChange={(event) => setAwfDraftBaseUrl(event.target.value)}
-              placeholder="http://127.0.0.1:8000"
+              placeholder={DEFAULT_AWF_BASE_URL}
             />
           </label>
           <label className="workflow-settings-field">
@@ -462,7 +382,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
             disabled={busyAwf}
             onClick={() => { void saveAwfSettings() }}
           >
-            {busyAwf ? t('loading') : t('awfSave')}
+            <span className="workflow-btn-icon"><WorkflowIconSave /></span>{busyAwf ? t('loading') : t('awfSave')}
           </button>
           <button
             type="button"
@@ -470,7 +390,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
             disabled={busyAwf}
             onClick={() => { void checkAwfConnection() }}
           >
-            {t('awfCheck')}
+            <span className="workflow-btn-icon"><WorkflowIconLink /></span>{t('awfCheck')}
           </button>
         </div>
 
@@ -559,7 +479,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
             disabled={busyAwf}
             onClick={() => { void syncAwf() }}
           >
-            {busyAwf ? t('loading') : t('awfSyncButton')}
+            <span className="workflow-btn-icon"><WorkflowIconUpload /></span>{busyAwf ? t('loading') : t('awfSyncButton')}
           </button>
         </div>
         {awfReceipt && (
@@ -608,7 +528,7 @@ export function WorkflowAwfPanel({ api, t }: WorkflowAwfPanelProps) {
             disabled={busyAwf}
             onClick={() => { void remoteRunAwf() }}
           >
-            {busyAwf ? t('loading') : t('awfRunButton')}
+            <span className="workflow-btn-icon"><WorkflowIconPlay /></span>{busyAwf ? t('loading') : t('awfRunButton')}
           </button>
         </div>
         {awfRunResult && <p className="workflow-settings-lead">{awfRunResult}</p>}

@@ -11,11 +11,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 
-export const AWF_DEFAULT_BASE_URL = 'http://127.0.0.1:8000'
+export const AWF_DEFAULT_BASE_URL = 'https://awf.seedwill.com'
 export const AWF_DEFAULT_TOKEN_ENV = 'AWF_API_TOKEN'
 
 export interface AwfSettings {
-  /** Platform base URL, e.g. http://127.0.0.1:8000 */
+  /** Platform base URL, e.g. https://awf.seedwill.com */
   readonly baseUrl: string
   /** Environment variable consulted for the API token (env wins over saved token). */
   readonly apiTokenEnv: string

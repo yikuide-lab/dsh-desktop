@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type Keyboa
 import { createPortal } from 'react-dom'
 import type { ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
+import { WorkflowIconChip, WorkflowIconNodes } from './WorkflowIcons.js'
 import type { WorkflowView } from './desktop-workflow-api.js'
 
 /** Provider id carrying workflow-backed routes (the OpenAI surface keys `model` to the workflow name). */
@@ -222,6 +223,7 @@ export function WorkflowModelSelect({
               className={`workflow-seat-tab${tab === 'models' ? ' active' : ''}`}
               onClick={() => setTab('models')}
             >
+              <span className="workflow-btn-icon"><WorkflowIconChip /></span>
               {t('seatTabModels')}
             </button>
             <button
@@ -231,6 +233,7 @@ export function WorkflowModelSelect({
               className={`workflow-seat-tab${tab === 'workflows' ? ' active' : ''}`}
               onClick={() => setTab('workflows')}
             >
+              <span className="workflow-btn-icon"><WorkflowIconNodes /></span>
               {t('seatTabWorkflows')}
             </button>
           </div>

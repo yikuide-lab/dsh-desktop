@@ -33,7 +33,7 @@ async function fixture(routes: Record<string, unknown>, status = 200) {
   const plugin = new WorkflowPlugin({ stateDir })
   await plugin.init()
   await plugin.createWorkflow(WF_YAML)
-  const allRoutes: Record<string, unknown> = { 'GET http://127.0.0.1:8000/health': { ok: true }, ...routes }
+  const allRoutes: Record<string, unknown> = { 'GET https://awf.seedwill.com/health': { ok: true }, ...routes }
   const calls: Array<{ method: string; url: string; body?: unknown; auth?: string }> = []
   const fetchImpl: AwfFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input)
@@ -67,6 +67,10 @@ describe('awf bridge + controller wiring', () => {
     expect(status.hasToken).toBe(true)
     expect(status.tokenFingerprint).toContain('…')
     expect(JSON.stringify(status)).not.toContain(TOKEN)
+
+    // controller 分发
+    const { plugin } = { plugin: undefined as unknown as WorkflowPlugin }
+    void plugin
   })
 
   it('awfSetSettings 持久化到 0600 文件并回显公开状态', async () => {
@@ -83,8 +87,8 @@ describe('awf bridge + controller wiring', () => {
 
   it('awfSync：预检 → 推送 → 回执，请求携带 Bearer 与可见性', async () => {
     const { bridge, calls } = await fixture({
-      'POST http://127.0.0.1:8000/api/sync/validate': [{ name: 'bridge-demo', ok: true, errors: [], conflict: null }],
-      'POST http://127.0.0.1:8000/api/sync/workflows': [{ id: 5, name: 'bridge-demo', title: 'bridge-demo', status: 'draft', visibility: 'unlisted' }],
+      'POST https://awf.seedwill.com/api/sync/validate': [{ name: 'bridge-demo', ok: true, errors: [], conflict: null }],
+      'POST https://awf.seedwill.com/api/sync/workflows': [{ id: 5, name: 'bridge-demo', title: 'bridge-demo', status: 'draft', visibility: 'unlisted' }],
     })
     const receipt = await bridge.syncWorkflow({ name: 'bridge-demo', visibility: 'unlisted' })
     expect(receipt.ok).toBe(true)
@@ -98,7 +102,7 @@ describe('awf bridge + controller wiring', () => {
 
   it('awfSync 预检冲突 → stage=preflight 且不推送', async () => {
     const { bridge, calls } = await fixture({
-      'POST http://127.0.0.1:8000/api/sync/validate': [
+      'POST https://awf.seedwill.com/api/sync/validate': [
         { name: 'bridge-demo', ok: false, errors: [], conflict: '工作流已发布冻结，请先「新建版本」再编辑' },
       ],
     })
@@ -118,7 +122,7 @@ describe('awf bridge + controller wiring', () => {
 
   it('checkConnection 失败分类（鉴权）', async () => {
     const { bridge } = await fixture(
-      { 'GET http://127.0.0.1:8000/api/auth/me': { detail: 'token 无效' } },
+      { 'GET https://awf.seedwill.com/api/auth/me': { detail: 'token 无效' } },
       401,
     )
     const result = await bridge.checkConnection()
@@ -128,9 +132,9 @@ describe('awf bridge + controller wiring', () => {
 
   it('executeDesktopWorkflowOp 分发 awf* 四个 op', async () => {
     const { plugin, bridge } = await fixture({
-      'GET http://127.0.0.1:8000/api/auth/me': { email: 'u@test.local' },
-      'POST http://127.0.0.1:8000/api/sync/validate': [{ name: 'bridge-demo', ok: true, errors: [], conflict: null }],
-      'POST http://127.0.0.1:8000/api/sync/workflows': [{ id: 9, name: 'bridge-demo', title: 't', status: 'draft', visibility: 'private' }],
+      'GET https://awf.seedwill.com/api/auth/me': { email: 'u@test.local' },
+      'POST https://awf.seedwill.com/api/sync/validate': [{ name: 'bridge-demo', ok: true, errors: [], conflict: null }],
+      'POST https://awf.seedwill.com/api/sync/workflows': [{ id: 9, name: 'bridge-demo', title: 't', status: 'draft', visibility: 'private' }],
     })
     const extras = { awf: bridge }
     const status = await executeDesktopWorkflowOp(plugin, { op: 'awfGetSettings' }, undefined, extras)

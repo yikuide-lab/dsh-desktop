@@ -491,6 +491,107 @@ export const WORKFLOW_STYLES = `
   gap: 10px;
 }
 
+/* Inline button/tab glyph. */
+.workflow-btn-icon {
+  display: inline-flex;
+  vertical-align: -2px;
+  margin-right: 6px;
+}
+
+.workflow-btn-icon svg {
+  display: block;
+}
+
+/* AWF account card + email-only sign-in block. */
+.workflow-awf-account {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.workflow-awf-account-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workflow-awf-account-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--accent-color, #2563eb);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.workflow-awf-account-badge .workflow-btn-icon {
+  margin-right: 4px;
+}
+
+.workflow-awf-account-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+  word-break: break-word;
+}
+
+.workflow-awf-account-email {
+  font-size: 12px;
+  color: var(--text-secondary, #6b7280);
+  word-break: break-word;
+}
+
+.workflow-awf-account-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+}
+
+.workflow-awf-account-meta code {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+
+.workflow-awf-signin {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  background: var(--bg-secondary, #f8fafc);
+}
+
+.workflow-awf-signin-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary, #1f2937);
+}
+
+.workflow-awf-signin-note {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Tab glyphs sit inline with the tab label. */
+.workflow-tab,
+.workflow-seat-tab,
+.workflow-preview-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Composer model seat (tabbed 常规模型 / 工作流). */
 .workflow-seat {
   position: relative;

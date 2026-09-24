@@ -4,6 +4,7 @@ import type { Workflow, WorkflowStep } from './workflow-store.js'
 import { workflowViewToYaml } from './desktop-workflow-api.js'
 import { parseWorkflowYaml } from './workflow-template-clone.js'
 import { WorkflowCanvas } from './WorkflowCanvas.js'
+import { WorkflowIconCode, WorkflowIconEye } from './WorkflowIcons.js'
 
 export type WorkflowPreviewMode = 'visual' | 'yaml'
 
@@ -89,6 +90,7 @@ export function WorkflowPreview({
             disabled={!canVisual}
             onClick={() => setMode('visual')}
           >
+            <span className="workflow-btn-icon"><WorkflowIconEye /></span>
             {t('previewVisual')}
           </button>
           <button
@@ -98,6 +100,7 @@ export function WorkflowPreview({
             className={`workflow-preview-tab${activeMode === 'yaml' ? ' active' : ''}`}
             onClick={() => setMode('yaml')}
           >
+            <span className="workflow-btn-icon"><WorkflowIconCode /></span>
             {t('previewYaml')}
           </button>
         </div>
