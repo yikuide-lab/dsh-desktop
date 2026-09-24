@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { supportedProtocols } from '@deepseek-ai/dsh-llm-pi-ai'
 import {
   deriveWorkflowKeyRef,
   listWorkflowModelCatalog,
@@ -28,6 +29,7 @@ describe('workflow model catalog helpers', () => {
       },
     }
     const catalog = await listWorkflowModelCatalog(ctx as never)
+    expect(catalog.protocols).toEqual(supportedProtocols())
     expect(catalog.providers).toEqual([{
       id: 'deepseek',
       name: 'DeepSeek',
@@ -106,5 +108,12 @@ describe('workflow model catalog helpers', () => {
       baseURL: 'not-a-url',
       modelId: 'm',
     })).rejects.toThrow(/baseURL/)
+
+    await expect(registerWorkflowCustomProvider({ get: () => undefined } as never, {
+      routeId: 'ok',
+      api: 'smoke-signals',
+      baseURL: 'https://api.example.com/v1',
+      modelId: 'm',
+    })).rejects.toThrow(/unsupported protocol/)
   })
 })

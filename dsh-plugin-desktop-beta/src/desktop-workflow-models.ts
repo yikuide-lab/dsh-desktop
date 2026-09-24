@@ -1,17 +1,13 @@
 /** Host helpers that expose DSH LLM registry + custom provider creation to the workflow UI. */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { supportedProtocols } from '@deepseek-ai/dsh-llm-pi-ai'
 import type {} from '@deepseek-ai/dsh-llm'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-credentials'
 
 const PI_AI_NS = 'llm-pi-ai' as const
 const ROUTE_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/
-const DEFAULT_PROTOCOLS = [
-  'openai-completions',
-  'openai-responses',
-  'anthropic-messages',
-] as const
 
 export interface WorkflowModelEntryView {
   readonly id: string
@@ -57,19 +53,14 @@ export function deriveWorkflowKeyRef(routeId: string): string {
   return `${routeId.toUpperCase().replace(/[^A-Z0-9]+/g, '_')}_API_KEY`
 }
 
-function readProtocols(ctx: Context): readonly string[] {
-  try {
-    const descriptors = ctx.settings.describe() as ReadonlyArray<{
-      ns?: string
-      schema?: unknown
-    }>
-    const pi = descriptors.find(entry => entry.ns === PI_AI_NS)
-    if (pi?.schema === undefined) return DEFAULT_PROTOCOLS
-    // Best-effort: fall back to the known pi-ai table when schema walk is awkward.
-    return DEFAULT_PROTOCOLS
-  } catch {
-    return DEFAULT_PROTOCOLS
-  }
+/**
+ * The wire protocols a hand-declared route may name. This reads llm-pi-ai's
+ * live table — the same one its settings schema validates against — so the
+ * picker and the create-path validation can never drift from what the runtime
+ * actually accepts.
+ */
+function readProtocols(): readonly string[] {
+  return supportedProtocols()
 }
 
 /** Project live LLM routes into a picker-friendly catalog for the workflow UI. */
@@ -79,7 +70,7 @@ export async function listWorkflowModelCatalog(ctx: Context): Promise<WorkflowMo
     listModels(providerId: string): Promise<ReadonlyArray<{ id: string; name?: string }>>
   } | undefined
   if (llm === undefined) {
-    return { protocols: readProtocols(ctx), providers: [] }
+    return { protocols: readProtocols(), providers: [] }
   }
 
   const providers = llm.listProviders()
@@ -109,7 +100,7 @@ export async function listWorkflowModelCatalog(ctx: Context): Promise<WorkflowMo
   const selection = agentDefault?.currentSelection()
 
   return {
-    protocols: readProtocols(ctx),
+    protocols: readProtocols(),
     providers: groups.filter(group => group.models.length > 0),
     ...(selection === undefined ? {} : {
       defaultRoute: selection.provider,
@@ -135,7 +126,7 @@ export async function registerWorkflowCustomProvider(
     throw new Error('baseURL must be an http(s) URL')
   }
   const api = input.api.trim()
-  if (!DEFAULT_PROTOCOLS.includes(api as typeof DEFAULT_PROTOCOLS[number])) {
+  if (!supportedProtocols().includes(api)) {
     throw new Error(`unsupported protocol: ${api}`)
   }
   const modelId = input.modelId.trim()

@@ -13,15 +13,23 @@ import {
   type NodeLlmConfig,
 } from '../src/node/hooks.js'
 
-const CONFIG: NodeLlmConfig = { baseUrl: 'http://llm.test/v1', apiKey: 'k', model: 'test-model' }
+const CONFIG: NodeLlmConfig = { baseUrl: 'http://llm.test/v1', apiKey: 'k', model: 'test-model', api: 'openai-completions' }
 
-function completionFetch(body: unknown, status = 200): { fetchImpl: AwfFetch; calls: Array<{ url: string; body: Record<string, unknown>; auth: string | null }> } {
-  const calls: Array<{ url: string; body: Record<string, unknown>; auth: string | null }> = []
+type CapturedCall = {
+  url: string
+  body: Record<string, unknown>
+  auth: string | null
+  headers: Record<string, string>
+}
+
+function completionFetch(body: unknown, status = 200): { fetchImpl: AwfFetch; calls: CapturedCall[] } {
+  const calls: CapturedCall[] = []
   const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
     calls.push({
       url: String(input),
       body: init?.body ? JSON.parse(String(init.body)) as Record<string, unknown> : {},
       auth: (init?.headers as Record<string, string>)?.Authorization ?? null,
+      headers: (init?.headers as Record<string, string>) ?? {},
     })
     return new Response(JSON.stringify(body), { status })
   }) as AwfFetch
@@ -61,7 +69,7 @@ describe('nodeLlmConfigFromEnv', () => {
       AWF_NODE_LLM_BASE_URL: 'http://x/v1/',
       AWF_NODE_LLM_API_KEY: ' k ',
       AWF_NODE_LLM_MODEL: 'm',
-    })).toEqual({ baseUrl: 'http://x/v1', apiKey: 'k', model: 'm' })
+    })).toEqual({ baseUrl: 'http://x/v1', apiKey: 'k', model: 'm', api: 'openai-completions' })
   })
 
   it('rejects non-http URLs', () => {
@@ -181,5 +189,79 @@ describe('createNodeExecutorHooks RSI review', () => {
     const { fetchImpl } = completionFetch({ choices: [{ message: { content: 'nope' } }] })
     const hooks = createNodeExecutorHooks(CONFIG, { fetchImpl })
     await expect(hooks.runRsiReview!(REQUEST)).rejects.toThrow(/JSON/)
+  })
+})
+
+describe('nodeLlmConfigFromEnv protocol selection', () => {
+  it('defaults to openai-completions and honors explicit protocols', () => {
+    const base = { AWF_NODE_LLM_BASE_URL: 'http://x/v1', AWF_NODE_LLM_MODEL: 'm' }
+    expect(nodeLlmConfigFromEnv(base)?.api).toBe('openai-completions')
+    expect(nodeLlmConfigFromEnv({ ...base, AWF_NODE_LLM_API: 'openai-responses' })?.api).toBe('openai-responses')
+    expect(nodeLlmConfigFromEnv({ ...base, AWF_NODE_LLM_API: 'anthropic-messages' })?.api).toBe('anthropic-messages')
+  })
+
+  it('refuses an unknown protocol instead of guessing', () => {
+    expect(nodeLlmConfigFromEnv({
+      AWF_NODE_LLM_BASE_URL: 'http://x/v1',
+      AWF_NODE_LLM_MODEL: 'm',
+      AWF_NODE_LLM_API: 'smoke-signals',
+    })).toBeNull()
+  })
+})
+
+describe('createNodeExecutorHooks wire protocols', () => {
+  it('openai-responses posts /responses and parses the nested output text', async () => {
+    const { fetchImpl, calls } = completionFetch({
+      output: [{ content: [{ type: 'output_text', text: ' hi there ' }] }],
+    })
+    const hooks = createNodeExecutorHooks({ ...CONFIG, api: 'openai-responses' }, { fetchImpl })
+    const outcome = await hooks.runLlm!(llmStep, context({ topic: 'AWF' }), '/tmp', new AbortController().signal)
+    expect(outcome.ok).toBe(true)
+    expect(outcome.output).toMatchObject({ text: 'hi there', provider: 'openai-compatible' })
+
+    const call = calls[0]!
+    expect(call.url).toBe('http://llm.test/v1/responses')
+    expect(call.body.model).toBe('test-model')
+    expect(call.body.max_output_tokens).toBe(8192)
+    const input = call.body.input as Array<{ role: string; content: Array<{ type: string; text: string }> }>
+    expect(input[0]!.role).toBe('user')
+    expect(input[0]!.content[0]!.type).toBe('input_text')
+    expect(input[0]!.content[0]!.text).toContain('Summarize AWF')
+  })
+
+  it('openai-responses reads output_text and the instructions field', async () => {
+    const verdict = JSON.stringify({ score: 70, feedback: 'ok', improvedYaml: 'a: 2' })
+    const { fetchImpl, calls } = completionFetch({ output_text: verdict })
+    const hooks = createNodeExecutorHooks({ ...CONFIG, api: 'openai-responses' }, { fetchImpl })
+    const outcome = await hooks.runRsiReview!({
+      problemId: 1,
+      title: 'T',
+      domain: 'summarization',
+      improvementCriteria: 'c',
+      iterationNumber: 0,
+      yaml: 'a: 1',
+    })
+    expect(outcome).toEqual({ score: 70, feedback: 'ok', improvedYaml: 'a: 2' })
+    expect(calls[0]!.body.instructions).toBeTypeOf('string')
+    expect(calls[0]!.body.max_output_tokens).toBe(8192)
+  })
+
+  it('anthropic-messages posts /messages with both auth headers and joins content blocks', async () => {
+    const { fetchImpl, calls } = completionFetch({
+      content: [{ type: 'text', text: 'bon' }, { type: 'text', text: 'jour' }],
+    })
+    const hooks = createNodeExecutorHooks({ ...CONFIG, api: 'anthropic-messages' }, { fetchImpl })
+    const outcome = await hooks.runLlm!(llmStep, context({ topic: 'AWF' }), '/tmp', new AbortController().signal)
+    expect(outcome.ok).toBe(true)
+    expect(outcome.output).toMatchObject({ text: 'bonjour' })
+
+    const call = calls[0]!
+    expect(call.url).toBe('http://llm.test/v1/messages')
+    expect(call.body.max_tokens).toBe(8192)
+    expect(call.body.system).toBeTypeOf('string')
+    expect(call.body.messages).toEqual([{ role: 'user', content: expect.stringContaining('Summarize AWF') }])
+    expect(call.headers['x-api-key']).toBe('k')
+    expect(call.headers['anthropic-version']).toBe('2023-06-01')
+    expect(call.auth).toBe('Bearer k')
   })
 })
