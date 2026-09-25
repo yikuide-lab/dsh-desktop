@@ -1008,6 +1008,21 @@ export const WORKFLOW_STYLES = `
   border-bottom-color: var(--accent-color, #2563eb);
 }
 
+.workflow-seat-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent-color, #2563eb);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+}
+
 .workflow-seat-pin {
   flex: none;
   width: 26px;

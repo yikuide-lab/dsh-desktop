@@ -196,18 +196,26 @@ export function WorkflowModelSelect({
     load()
   }, [open, load])
 
+  // Load the workflow rows once per menu open. The injected `listWorkflows` is
+  // a closure the slot machinery may rebuild per render, so it must NOT sit in
+  // the effect deps with a cancelling cleanup — that restarts the fetch on
+  // every render and the rows never land (the workflows tab spins forever).
+  const loadedForOpen = useRef(false)
   useEffect(() => {
-    if (!open || workflows !== null || workflowsError !== null) return
-    let cancelled = false
+    if (!open) {
+      loadedForOpen.current = false
+      return
+    }
+    if (loadedForOpen.current) return
+    loadedForOpen.current = true
     void listWorkflows().then(rows => {
-      if (!cancelled) setWorkflows(rows)
+      setWorkflows(rows)
       setRefreshing(false)
     }, (error: unknown) => {
-      if (!cancelled) setWorkflowsError(error instanceof Error ? error.message : String(error))
+      setWorkflowsError(error instanceof Error ? error.message : String(error))
       setRefreshing(false)
     })
-    return () => { cancelled = true }
-  }, [open, listWorkflows, workflows, workflowsError])
+  })
 
   // Close on outside click / Escape, and pin the menu under the trigger.
   useEffect(() => {
@@ -256,6 +264,7 @@ export function WorkflowModelSelect({
     setRefreshing(true)
     setWorkflowsError(null)
     setWorkflows(null)
+    loadedForOpen.current = false
     load()
   }
 
@@ -360,6 +369,11 @@ export function WorkflowModelSelect({
               onClick={() => setTab('workflows')}
             >
               {t('seatTabWorkflows')}
+              {rows.some(row => row.kind === 'workflow') && (
+                <span className="workflow-seat-tab-count">
+                  {rows.filter(row => row.kind === 'workflow').length}
+                </span>
+              )}
             </button>
           </div>
 
