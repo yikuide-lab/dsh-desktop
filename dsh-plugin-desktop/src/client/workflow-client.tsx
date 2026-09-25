@@ -12,7 +12,7 @@ import { WorkflowOverlay } from './WorkflowOverlay.js'
 import { WorkflowModelSelect, WORKFLOW_PROVIDER_ID } from './WorkflowModelSelect.js'
 import { createWorkflowStore } from './workflow-store.js'
 import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
-import { en, zh } from './locales-workflow.js'
+import { en, zh, ja, ko } from './locales-workflow.js'
 import { installWorkflowStyles } from './styles-workflow.js'
 import { WORKFLOW_PANEL_ID } from './workflow-layout.js'
 import { currentWorkspaceId, pickCurrentSessionCwd } from './workflow-run-params.js'
@@ -81,7 +81,12 @@ export function applyWorkflowClient(ctx: ClientContext): void {
     workflowView.actions.setPanelOpen(true)
   }
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-desktop/workflow: dictionaries')
+  // Built-in zh/en plus language-pack ja/ko for the workflow namespace.
+  ctx.effect(() => ctx.locale.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' }), 'dsh-plugin-desktop/workflow: language ja')
+  ctx.effect(() => ctx.locale.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' }), 'dsh-plugin-desktop/workflow: language ko')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-desktop/workflow: dictionaries zh/en')
+  ctx.effect(() => ctx.locale.register(NS, 'ja', ja), 'dsh-plugin-desktop/workflow: dictionary ja')
+  ctx.effect(() => ctx.locale.register(NS, 'ko', ko), 'dsh-plugin-desktop/workflow: dictionary ko')
   ctx.effect(() => installWorkflowStyles(), 'dsh-plugin-desktop/workflow: styles')
 
   // Best-effort main panel for environments where selectPanel works.
