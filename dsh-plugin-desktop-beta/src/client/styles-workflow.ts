@@ -980,6 +980,34 @@ export const WORKFLOW_STYLES = `
   gap: 2px;
 }
 
+.workflow-seat-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+
+.workflow-seat-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.workflow-seat-tab:hover {
+  color: var(--text-primary, #1f2937);
+}
+
+.workflow-seat-tab.active {
+  color: var(--text-primary, #1f2937);
+  border-bottom-color: var(--accent-color, #2563eb);
+}
+
 .workflow-seat-pin {
   flex: none;
   width: 26px;

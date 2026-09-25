@@ -14,12 +14,13 @@ import { WorkflowOverlay } from './WorkflowOverlay.js'
 import { WorkflowRecommend } from './WorkflowRecommend.js'
 import { WorkflowModelSelect, WORKFLOW_PROVIDER_ID } from './WorkflowModelSelect.js'
 import { createWorkflowStore } from './workflow-store.js'
-import { createDesktopWorkflowApi, type WorkflowView } from './desktop-workflow-api.js'
+import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
 import { en, zh } from './locales-workflow.js'
 import { installWorkflowStyles } from './styles-workflow.js'
 import { WORKFLOW_PANEL_ID } from './workflow-layout.js'
 import { currentWorkspaceId, pickCurrentSessionCwd } from './workflow-run-params.js'
 import { buildArmCandidate } from './workflow-recommend-candidates.js'
+import { buildSeatWorkflowRows } from './seat-workflows.js'
 import { setArmedWorkflow } from './workflow-arm.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
@@ -182,25 +183,14 @@ export function applyWorkflowClient(ctx: ClientContext): void {
             return directory.select(selection).then(() => true, () => false)
           },
           listWorkflows: () => api.listWorkflows().then(async local => {
-            // The unified seat lists every armable workflow source: saved
-            // workflows, templates, and the platform's public/private summaries.
-            // A same-name entry earlier in that order always wins.
+            // The workflow tab lists every armable source: saved workflows,
+            // templates, and the platform's public/private summaries.
             const [templates, remote] = await Promise.all([
               api.listTemplates().catch(() => []),
               api.pullAwfWorkflows().catch(() => []),
             ])
-            const seen = new Set<string>()
-            const rows: WorkflowView[] = []
-            for (const entry of [
-              ...local.map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
-              ...templates.map(entry => ({ name: entry.name, title: entry.name, steps: [] })),
-              ...remote.map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
-            ]) {
-              if (seen.has(entry.name)) continue
-              seen.add(entry.name)
-              rows.push(entry)
-            }
-            return rows
+            return buildSeatWorkflowRows({ workflows: local, templates, remote })
+              .map(entry => ({ ...entry, steps: [] }))
           }),
         }
       },

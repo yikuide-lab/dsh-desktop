@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { WORKFLOW_PROVIDER_ID } from '../src/client/WorkflowModelSelect.tsx'
 import { readSeatPins, toggleSeatPin, SEAT_PINS_STORAGE_KEY } from '../src/client/seat-pins.ts'
+import { buildSeatWorkflowRows } from '../src/client/seat-workflows.ts'
 import { WORKFLOW_STYLES } from '../src/client/styles-workflow.ts'
 
-describe('composer model seat (unified models + workflows)', () => {
+describe('composer model seat (one dropdown, tabbed models / workflows)', () => {
   const rule = (selector: string): string => {
     const at = WORKFLOW_STYLES.indexOf(`\n${selector} {`)
     expect(at, `missing CSS rule ${selector}`).toBeGreaterThanOrEqual(0)
@@ -20,6 +21,12 @@ describe('composer model seat (unified models + workflows)', () => {
     const menu = rule('.workflow-seat-menu')
     expect(menu).toContain('position: fixed')
     expect(menu).toContain('z-index')
+  })
+
+  it('separates the two categories with a tablist inside the one menu', () => {
+    const tabs = rule('.workflow-seat-tabs')
+    expect(tabs).toContain('display: flex')
+    expect(rule('.workflow-seat-tab.active')).toContain('border-bottom-color')
   })
 
   it('lays out a per-row pin toggle and a pinned state', () => {
@@ -65,5 +72,25 @@ describe('seat pin list', () => {
 
   it('keeps one stable storage key', () => {
     expect(SEAT_PINS_STORAGE_KEY).toContain('workflow')
+  })
+})
+
+describe('seat workflow rows', () => {
+  it('lists saved workflows, templates, and platform summaries once per name', () => {
+    const rows = buildSeatWorkflowRows({
+      workflows: [{ name: 'demo', title: 'Demo' }, { name: 'other', title: '' }],
+      templates: [{ name: 'other' }, { name: 'fresh' }],
+      remote: [{ name: 'demo', title: 'Platform twin' }, { name: 'remote-only' }],
+    })
+    expect(rows).toEqual([
+      { name: 'demo', title: 'Demo' },
+      { name: 'other', title: 'other' },
+      { name: 'fresh', title: 'fresh' },
+      { name: 'remote-only', title: 'remote-only' },
+    ])
+  })
+
+  it('stays empty when no source knows a workflow', () => {
+    expect(buildSeatWorkflowRows({ workflows: [], templates: [], remote: [] })).toEqual([])
   })
 })

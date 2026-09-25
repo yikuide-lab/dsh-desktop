@@ -28,7 +28,7 @@ export interface SeatDirectoryStore {
 /**
  * Business face injected into the composer model seat. The first four members
  * mirror upstream `ModelSelectInjected` so model rows keep stock behaviour;
- * `listWorkflows` supplies the workflow rows.
+ * `listWorkflows` supplies the workflow tab's rows.
  */
 export interface WorkflowModelSeatInjected {
   /** Whether this session supports Agent-bound model inspection and selection. */
@@ -43,7 +43,7 @@ export interface WorkflowModelSeatInjected {
    * @returns whether the host accepted the selection.
    */
   select: (selection: ModelSelection) => Promise<boolean>
-  /** Workflow rows for the workflow section. */
+  /** Workflow rows for the workflow tab. */
   listWorkflows: () => Promise<WorkflowView[]>
 }
 
@@ -53,6 +53,8 @@ type SeatProps = WorkflowModelSeatInjected & {
   t: (key: WorkflowLocaleKey) => string
 }
 
+type Tab = 'models' | 'workflows'
+
 function rowId(provider: string, model: string): string {
   return `${provider}/${model}`
 }
@@ -61,7 +63,7 @@ function newId(): string {
   return `wf-seat-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** One selectable row of the unified menu: a model or a workflow. */
+/** One selectable row of a tab: a model or a workflow. */
 interface SeatRow {
   key: string
   kind: 'model' | 'workflow'
@@ -73,14 +75,14 @@ interface SeatRow {
 }
 
 /**
- * The composer's model seat: ONE dropdown carrying models and workflows.
+ * The composer's model seat: ONE dropdown carrying models and workflows,
+ * separated by tabs (常规模型 / 工作流) inside the menu.
  *
  * Occupies `conversation.input.model` at a lower priority than upstream so this
  * component shadows the stock ModelSelect (the slot spec renders the lowest
- * priority). Rows are unified — a saved workflow is just a special model type
- * whose routes the workflow engine serves through its OpenAI-compatible
- * surface (`model` is the workflow name) — and any row can be pinned to the
- * 置顶 section at the top; pins persist per user in localStorage.
+ * priority). Any row can be pinned to the 置顶 section at the top of its tab;
+ * pins persist per user in localStorage. The refresh control re-reads the model
+ * directory and refetches the workflow rows in place.
  */
 export function WorkflowModelSelect({
   locked,
@@ -96,6 +98,7 @@ export function WorkflowModelSelect({
     () => directory.getSnapshot(),
   )
   const [open, setOpen] = useState(false)
+  const [tab, setTab] = useState<Tab>('models')
   const [workflows, setWorkflows] = useState<WorkflowView[] | null>(null)
   const [workflowsError, setWorkflowsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -150,7 +153,7 @@ export function WorkflowModelSelect({
     })),
   ], [groups, workflows, current])
 
-  // Pinned rows lead the menu in pin order (most recent first); everything
+  // Pinned rows lead their tab in pin order (most recent first); everything
   // else keeps the directory's grouping and never duplicates a pinned row.
   const pinnedRows = useMemo(() => {
     const byKey = new Map(rows.map(row => [row.key, row]))
@@ -159,6 +162,14 @@ export function WorkflowModelSelect({
       .filter((row): row is SeatRow => row !== undefined)
   }, [rows, pins])
   const pinnedKeys = useMemo(() => new Set(pinnedRows.map(row => row.key)), [pinnedRows])
+  const pinnedModelRows = useMemo(
+    () => pinnedRows.filter(row => row.kind === 'model'),
+    [pinnedRows],
+  )
+  const pinnedWorkflowRows = useMemo(
+    () => pinnedRows.filter(row => row.kind === 'workflow'),
+    [pinnedRows],
+  )
   const freeWorkflowRows = useMemo(
     () => rows.filter(row => row.kind === 'workflow' && !pinnedKeys.has(row.key)),
     [rows, pinnedKeys],
@@ -238,8 +249,8 @@ export function WorkflowModelSelect({
   }
 
   // Manual refresh: re-read the model directory (llm providers + api keys pick
-  // up stale or newly added models) and refetch the workflow rows (local saves
-  // plus the platform's public/private list, aggregated by listWorkflows).
+  // up stale or newly added models) and refetch the workflow rows (local saves,
+  // templates, and the platform's public/private list).
   const refreshSeat = () => {
     setRefreshing(true)
     setWorkflowsError(null)
@@ -329,41 +340,79 @@ export function WorkflowModelSelect({
               {t('seatRefresh')}
             </button>
           </div>
+
+          <div className="workflow-seat-tabs" role="tablist" aria-label={t('seatTitle')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'models'}
+              className={`workflow-seat-tab${tab === 'models' ? ' active' : ''}`}
+              onClick={() => setTab('models')}
+            >
+              {t('seatTabModels')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={tab === 'workflows'}
+              className={`workflow-seat-tab${tab === 'workflows' ? ' active' : ''}`}
+              onClick={() => setTab('workflows')}
+            >
+              {t('seatTabWorkflows')}
+            </button>
+          </div>
+
           <div className="workflow-seat-list">
-            {rows.length === 0 && state.status === 'loading' && workflows === null && (
-              <p className="workflow-seat-empty">{t('loading')}</p>
-            )}
-            {state.status === 'error' && (
-              <p className="workflow-seat-empty workflow-seat-error">{state.error ?? t('error')}</p>
-            )}
-            {workflowsError !== null && (
-              <p className="workflow-seat-empty workflow-seat-error">{workflowsError}</p>
-            )}
-            {rows.length === 0 && state.status !== 'loading' && workflows !== null && (
+            {tab === 'models' ? (
               <>
-                <p className="workflow-seat-empty">{t('seatModelsEmpty')}</p>
-                <p className="workflow-seat-empty">{t('seatWorkflowsEmpty')}</p>
+                {state.status === 'loading' && rows.length === 0 && (
+                  <p className="workflow-seat-empty">{t('loading')}</p>
+                )}
+                {state.status === 'error' && (
+                  <p className="workflow-seat-empty workflow-seat-error">{state.error ?? t('error')}</p>
+                )}
+                {pinnedModelRows.length > 0 && (
+                  <div className="workflow-seat-group">
+                    <div className="workflow-seat-group-name">{t('seatPinned')}</div>
+                    {pinnedModelRows.map(renderRow)}
+                  </div>
+                )}
+                {freeModelGroups.map(entry => (
+                  <div key={entry.group.id} className="workflow-seat-group">
+                    <div className="workflow-seat-group-name">{entry.group.name}</div>
+                    {entry.rows.map(renderRow)}
+                  </div>
+                ))}
+                {state.status !== 'loading' && state.status !== 'error'
+                  && pinnedModelRows.length === 0 && freeModelGroups.length === 0 && (
+                  <p className="workflow-seat-empty">{t('seatModelsEmpty')}</p>
+                )}
+              </>
+            ) : (
+              <>
+                {workflows === null && workflowsError === null && (
+                  <p className="workflow-seat-empty">{t('loading')}</p>
+                )}
+                {workflowsError !== null && (
+                  <p className="workflow-seat-empty workflow-seat-error">{workflowsError}</p>
+                )}
+                {pinnedWorkflowRows.length > 0 && (
+                  <div className="workflow-seat-group">
+                    <div className="workflow-seat-group-name">{t('seatPinned')}</div>
+                    {pinnedWorkflowRows.map(renderRow)}
+                  </div>
+                )}
+                {freeWorkflowRows.length > 0 && (
+                  <div className="workflow-seat-group">
+                    <div className="workflow-seat-group-name">{t('seatWorkflowBadge')}</div>
+                    {freeWorkflowRows.map(renderRow)}
+                  </div>
+                )}
+                {workflows !== null && pinnedWorkflowRows.length === 0 && freeWorkflowRows.length === 0 && (
+                  <p className="workflow-seat-empty">{t('seatWorkflowsEmpty')}</p>
+                )}
               </>
             )}
-
-            {pinnedRows.length > 0 && (
-              <div className="workflow-seat-group">
-                <div className="workflow-seat-group-name">{t('seatPinned')}</div>
-                {pinnedRows.map(renderRow)}
-              </div>
-            )}
-            {freeWorkflowRows.length > 0 && (
-              <div className="workflow-seat-group">
-                <div className="workflow-seat-group-name">{t('seatWorkflowBadge')}</div>
-                {freeWorkflowRows.map(renderRow)}
-              </div>
-            )}
-            {freeModelGroups.map(entry => (
-              <div key={entry.group.id} className="workflow-seat-group">
-                <div className="workflow-seat-group-name">{entry.group.name}</div>
-                {entry.rows.map(renderRow)}
-              </div>
-            ))}
           </div>
         </div>,
         document.body,
