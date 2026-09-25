@@ -135,6 +135,12 @@ export function WorkflowRecommend({
   return (
     <span className="dshWorkflowRecommend dshWorkflowRecommend--armed" data-mode="workflow">
       {error !== null && <span className="dshWorkflowRecommendMeta">{error}</span>}
+      <span
+        className="dshWorkflowModeIdleBadge dshWorkflowModeIdleBadge--workflow"
+        title={armed.title || armed.workflowName}
+      >
+        {t('seatWorkflowBadge')}: {armed.title || armed.workflowName}
+      </span>
       <Button
         variant="ghost"
         className="dshWorkflowRecommendClear"

@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import type { ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-session-controller/types'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 import { readSeatPins, toggleSeatPin, SEAT_PINS_STORAGE_KEY } from './seat-pins.js'
+import { getArmedWorkflow, subscribeArmedWorkflow } from './workflow-arm.js'
 import type { WorkflowView } from './desktop-workflow-api.js'
 
 /** Provider id carrying workflow-backed routes (the OpenAI surface keys `model` to the workflow name). */
@@ -119,6 +120,10 @@ export function WorkflowModelSelect({
 
   const groups = state.groups
   const current = state.current
+  // Armed workflow is the composer's submit target; prefer its title for the
+  // trigger caption so a successful arm is visible even when the directory's
+  // workflow route has not (or cannot) land as `current`.
+  const armed = useSyncExternalStore(subscribeArmedWorkflow, getArmedWorkflow, getArmedWorkflow)
 
   useEffect(() => {
     try {
@@ -182,14 +187,22 @@ export function WorkflowModelSelect({
     }))
     .filter(entry => entry.rows.length > 0), [groups, rows, pinnedKeys])
 
-  // Caption: a workflow route reads as a special model type, never as a bare name.
+  // Trigger caption: armed workflow title, else selected model/workflow name.
   const caption = useMemo(() => {
+    if (armed !== null) {
+      return `${t('seatWorkflowBadge')}: ${armed.title || armed.workflowName}`
+    }
     if (current === null) return t('seatModelAuto')
-    if (current.provider === WORKFLOW_PROVIDER_ID) return `${t('seatWorkflowBadge')}: ${current.model}`
+    if (current.provider === WORKFLOW_PROVIDER_ID) {
+      const match = (workflows ?? []).find(entry => entry.name === current.model)
+      const label = match?.title || current.model
+      return `${t('seatWorkflowBadge')}: ${label}`
+    }
     const group = groups.find(entry => entry.id === current.provider)
     const model = group?.models.find(entry => entry.id === current.model)
-    return model?.name ?? `${current.provider}/${current.model}`
-  }, [current, groups, t])
+    const label = model?.name ?? `${current.provider}/${current.model}`
+    return `${t('modeModelShort')}: ${label}`
+  }, [armed, current, groups, workflows, t])
 
   useEffect(() => {
     if (!open) return

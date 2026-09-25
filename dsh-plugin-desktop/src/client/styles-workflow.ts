@@ -258,6 +258,7 @@ export const WORKFLOW_STYLES = `
   display: inline-flex;
   align-items: center;
   height: 22px;
+  max-width: 180px;
   padding: 0 7px;
   border-radius: 999px;
   font-size: 11px;
@@ -267,6 +268,9 @@ export const WORKFLOW_STYLES = `
   background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
   border: 1px solid var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
   flex: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .dshWorkflowModeIdleBadge--workflow {
   color: #fff;

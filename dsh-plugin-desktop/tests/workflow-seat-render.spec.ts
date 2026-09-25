@@ -50,4 +50,30 @@ describe('composer model seat render smoke', () => {
     expect(html).toContain('demo-flow')
     expect(html).toContain('seatWorkflowBadge')
   })
+
+  it('renders a model caption with the model badge and selected name', () => {
+    const html = renderToStaticMarkup(createElement(WorkflowModelSelect, {
+      locked: false,
+      available: true,
+      directory: {
+        subscribe: () => () => undefined,
+        getSnapshot: () => ({
+          current: { provider: 'openai', model: 'gpt-x' },
+          groups: [{
+            id: 'openai',
+            name: 'OpenAI',
+            models: [{ id: 'gpt-x', name: 'GPT-X' }],
+          }],
+          status: 'ready',
+          error: null,
+        }),
+      },
+      load: () => undefined,
+      select: async () => true,
+      listWorkflows: async () => [],
+      t: (key: string) => key,
+    } as never))
+    expect(html).toContain('modeModelShort')
+    expect(html).toContain('GPT-X')
+  })
 })
