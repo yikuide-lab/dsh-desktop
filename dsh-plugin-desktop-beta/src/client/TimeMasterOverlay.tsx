@@ -269,61 +269,67 @@ export function TimeMasterOverlay({
           </div>
 
           <div className="dshTimeMasterForm">
-            <h3>{form.id ? t('editPlan') : t('newPlan')}</h3>
-            <label className="dshTimeMasterField">
-              {t('fieldName')}
-              <input value={form.name} onChange={event => patchForm({ name: event.target.value })} />
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldProvider')}
-              <input
-                value={form.providerHint}
-                onChange={event => patchForm({ providerHint: event.target.value })}
-              />
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldCycle')}
-              <select
-                value={form.cycle}
-                onChange={event => patchForm({ cycle: event.target.value as TokenPlanCycle })}
-              >
-                <option value="monthly">{t('cycleMonthly')}</option>
-                <option value="yearly">{t('cycleYearly')}</option>
-                <option value="custom">{t('cycleCustom')}</option>
-              </select>
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldStartsAt')}
-              <input
-                type="date"
-                value={form.startsAt}
-                onChange={event => patchForm({ startsAt: event.target.value })}
-              />
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldExpiresAt')}
-              <input
-                type="date"
-                value={form.expiresAt}
-                onChange={event => patchForm({ expiresAt: event.target.value })}
-              />
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldRemindDays')}
-              <input
-                value={form.remindDays}
-                onChange={event => patchForm({ remindDays: event.target.value })}
-              />
-            </label>
-            <label className="dshTimeMasterField">
-              {t('fieldNotes')}
-              <textarea
-                value={form.notes}
-                onChange={event => patchForm({ notes: event.target.value })}
-              />
-            </label>
-            {status && <div className="dshTimeMasterStatus">{status}</div>}
-            {error && <div className="dshTimeMasterError">{error}</div>}
+            <div className="dshTimeMasterFormFields">
+              <h3>{form.id ? t('editPlan') : t('newPlan')}</h3>
+              <label className="dshTimeMasterField">
+                {t('fieldName')}
+                <input value={form.name} onChange={event => patchForm({ name: event.target.value })} />
+              </label>
+              <label className="dshTimeMasterField">
+                {t('fieldProvider')}
+                <input
+                  value={form.providerHint}
+                  onChange={event => patchForm({ providerHint: event.target.value })}
+                />
+              </label>
+              <div className="dshTimeMasterFieldRow">
+                <label className="dshTimeMasterField">
+                  {t('fieldCycle')}
+                  <select
+                    value={form.cycle}
+                    onChange={event => patchForm({ cycle: event.target.value as TokenPlanCycle })}
+                  >
+                    <option value="monthly">{t('cycleMonthly')}</option>
+                    <option value="yearly">{t('cycleYearly')}</option>
+                    <option value="custom">{t('cycleCustom')}</option>
+                  </select>
+                </label>
+                <label className="dshTimeMasterField">
+                  {t('fieldRemindDays')}
+                  <input
+                    value={form.remindDays}
+                    onChange={event => patchForm({ remindDays: event.target.value })}
+                  />
+                </label>
+              </div>
+              <div className="dshTimeMasterFieldRow">
+                <label className="dshTimeMasterField">
+                  {t('fieldStartsAt')}
+                  <input
+                    type="date"
+                    value={form.startsAt}
+                    onChange={event => patchForm({ startsAt: event.target.value })}
+                  />
+                </label>
+                <label className="dshTimeMasterField">
+                  {t('fieldExpiresAt')}
+                  <input
+                    type="date"
+                    value={form.expiresAt}
+                    onChange={event => patchForm({ expiresAt: event.target.value })}
+                  />
+                </label>
+              </div>
+              <label className="dshTimeMasterField">
+                {t('fieldNotes')}
+                <textarea
+                  value={form.notes}
+                  onChange={event => patchForm({ notes: event.target.value })}
+                />
+              </label>
+              {status && <div className="dshTimeMasterStatus">{status}</div>}
+              {error && <div className="dshTimeMasterError">{error}</div>}
+            </div>
             <div className="dshTimeMasterFormActions">
               <Button variant="primary" disabled={saving} onClick={() => void save()}>
                 {saving ? t('saving') : t('save')}

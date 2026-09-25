@@ -39,8 +39,10 @@ describe('time-master overlay render smoke', () => {
       t: (key: string) => key,
     } as never))
     expect(html).toContain('dshTimeMasterDialog')
+    expect(html).toContain('dshTimeMasterFormActions')
     expect(html).toContain('title')
     expect(html).toContain('aiFill')
     expect(html).toContain('newPlan')
+    expect(html).toContain('save')
   })
 })

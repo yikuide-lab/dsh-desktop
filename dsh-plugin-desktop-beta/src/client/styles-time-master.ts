@@ -139,8 +139,15 @@ const TIME_MASTER_STYLES = `
 }
 .dshTimeMasterForm {
   min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.dshTimeMasterFormFields {
+  flex: 1;
+  min-height: 0;
   overflow: auto;
-  padding: 12px 16px 16px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -150,12 +157,18 @@ const TIME_MASTER_STYLES = `
   font-size: 14px;
   font-weight: 650;
 }
+.dshTimeMasterFieldRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 .dshTimeMasterField {
   display: flex;
   flex-direction: column;
   gap: 4px;
   font-size: 12px;
   color: var(--text-secondary, #6b7280);
+  min-width: 0;
 }
 .dshTimeMasterField input,
 .dshTimeMasterField select,
@@ -170,15 +183,20 @@ const TIME_MASTER_STYLES = `
 }
 .dshTimeMasterField textarea {
   height: auto;
-  min-height: 72px;
+  min-height: 56px;
+  max-height: 120px;
   padding: 8px 10px;
   resize: vertical;
 }
 .dshTimeMasterFormActions {
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 4px;
+  align-items: center;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  background: var(--bg-primary, #fff);
 }
 .dshTimeMasterStatus {
   font-size: 12px;
@@ -191,17 +209,25 @@ const TIME_MASTER_STYLES = `
   font-size: 13px;
   color: var(--text-secondary, #6b7280);
 }
+.dshTimeMasterFormFields > .dshTimeMasterError {
+  padding: 0;
+  text-align: left;
+}
 .dshTimeMasterError {
   color: #b91c1c;
 }
 @media (max-width: 720px) {
   .dshTimeMasterBody {
     grid-template-columns: 1fr;
+    grid-template-rows: minmax(140px, 36%) minmax(0, 1fr);
   }
   .dshTimeMasterList {
     border-right: none;
     border-bottom: 1px solid var(--border-color, #e5e7eb);
-    max-height: 40%;
+    max-height: none;
+  }
+  .dshTimeMasterFieldRow {
+    grid-template-columns: 1fr;
   }
 }
 `
