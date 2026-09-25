@@ -115,7 +115,7 @@
   },
   "scripts": {
     "prebuild": "yarn workspace dsh-plugin-workflow build && yarn workspace awf-runner build",
-    "build": "node scripts/generate-mac-app-icon.mjs && node scripts/generate-tray-icons.mjs && node scripts/clean.mjs && tsdown && vite build --config vite.native-ui.config.ts && tsc -p tsconfig.json --emitDeclarationOnly && tsc -p tsconfig.client.json --emitDeclarationOnly",
+    "build": "node scripts/generate-mac-app-icon.mjs && node scripts/generate-tray-icons.mjs && node scripts/generate-linux-app-icons.mjs && node scripts/clean.mjs && tsdown && vite build --config vite.native-ui.config.ts && tsc -p tsconfig.json --emitDeclarationOnly && tsc -p tsconfig.client.json --emitDeclarationOnly",
     "pretypecheck": "yarn workspace dsh-plugin-workflow build && yarn workspace awf-runner build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.client.json --noEmit && tsc -p tsconfig.native-ui.json --noEmit && tsc -p tsconfig.tests.json --noEmit && tsc -p tsconfig.tests.client.json --noEmit",
     "pretest": "yarn workspace dsh-plugin-workflow build && yarn workspace awf-runner build",
@@ -465,7 +465,7 @@
       "target": [
         "dir"
       ],
-      "icon": "build/app-icon.png",
+      "icon": "build/icons",
       "syncDesktopName": true
     }
   }
