@@ -875,7 +875,6 @@ export const WORKFLOW_STYLES = `
 
 /* Tab glyphs sit inline with the tab label. */
 .workflow-tab,
-.workflow-seat-tab,
 .workflow-preview-tab {
   display: inline-flex;
   align-items: center;
