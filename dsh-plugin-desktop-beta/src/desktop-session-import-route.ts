@@ -57,8 +57,8 @@ function executeOp(ctx: Context, body: DesktopSessionImportRequest): object {
       ok: true,
       items: searchExternalSessions({
         query: body.query ?? '',
-        sources: body.sources,
-        content: body.content === true,
+        ...(body.sources ? { sources: body.sources } : {}),
+        ...(body.content === true ? { content: true } : {}),
       }),
     }
   }

@@ -102,7 +102,7 @@ function scanJsonStorage(dataDir: string): ExternalSessionSummary[] {
       source: 'opencode',
       sourcePath,
       title: `[OpenCode] ${title}`,
-      cwd,
+      ...(cwd ? { cwd } : {}),
       mtimeMs,
       preview: firstUserPreview(dataDir, id) || title,
     })
@@ -139,12 +139,13 @@ function scanSqlite(dataDir: string): ExternalSessionSummary[] {
           const title = asString(row.title) ?? id
           const created = typeof row.time_created === 'number' ? row.time_created : 0
           const updated = typeof row.time_updated === 'number' ? row.time_updated : created
+          const cwd = asString(row.directory)
           out.push({
             id,
             source: 'opencode',
             sourcePath: dbPath,
             title: `[OpenCode] ${title}`,
-            cwd: asString(row.directory),
+            ...(cwd ? { cwd } : {}),
             mtimeMs: updated,
             preview: title,
           })

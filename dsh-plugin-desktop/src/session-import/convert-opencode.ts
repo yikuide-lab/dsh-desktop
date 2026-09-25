@@ -59,7 +59,7 @@ function convertFromJsonStorage(sessionPath: string): ConvertResult {
   } catch {
     return {
       turns: [],
-      cwd,
+      ...(cwd ? { cwd } : {}),
       title: `[OpenCode] ${truncateTitle(title)}`,
       warnings: ['Message directory missing.'],
     }
@@ -96,7 +96,7 @@ function convertFromJsonStorage(sessionPath: string): ConvertResult {
 
   return {
     turns,
-    cwd,
+    ...(cwd ? { cwd } : {}),
     title: `[OpenCode] ${truncateTitle(title)}`,
     warnings,
   }
@@ -151,7 +151,7 @@ function convertFromSqlite(dbPath: string, sessionId: string): ConvertResult {
     if (turns.length === 0) warnings.push('No user/assistant text turns found in SQLite.')
     return {
       turns,
-      cwd,
+      ...(cwd ? { cwd } : {}),
       title: `[OpenCode] ${truncateTitle(title)}`,
       warnings,
     }

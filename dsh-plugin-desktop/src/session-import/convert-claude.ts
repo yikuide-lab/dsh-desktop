@@ -41,7 +41,7 @@ export function convertClaudeSession(sourcePath: string): ConvertResult {
   const id = basename(sourcePath, '.jsonl')
   return {
     turns,
-    cwd,
+    ...(cwd ? { cwd } : {}),
     title: firstUser ? `[Claude] ${truncateTitle(firstUser)}` : `[Claude] ${id.slice(0, 8)}`,
     warnings,
   }

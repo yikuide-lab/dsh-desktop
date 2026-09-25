@@ -29,9 +29,16 @@ function firstUserPreview(path: string): { preview: string; cwd?: string; titleH
     const message = asRecord(row.message)
     const text = extractText(message?.content)
     if (!text) continue
-    return { preview: text.slice(0, 160), cwd, titleHint: text.slice(0, 72) }
+    return {
+      preview: text.slice(0, 160),
+      ...(cwd ? { cwd } : {}),
+      titleHint: text.slice(0, 72),
+    }
   }
-  return { preview: '', cwd }
+  return {
+    preview: '',
+    ...(cwd ? { cwd } : {}),
+  }
 }
 
 /** Enumerate Claude Code transcripts under a projects root. */

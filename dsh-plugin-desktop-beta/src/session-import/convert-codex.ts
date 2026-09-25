@@ -69,7 +69,7 @@ export function convertCodexSession(sourcePath: string): ConvertResult {
   const id = basename(sourcePath).replace(/\.jsonl$/, '')
   return {
     turns,
-    cwd,
+    ...(cwd ? { cwd } : {}),
     title: title
       ? `[Codex] ${truncateTitle(title)}`
       : firstUser

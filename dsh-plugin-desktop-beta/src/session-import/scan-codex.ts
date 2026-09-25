@@ -61,7 +61,12 @@ function metaFromRollout(path: string): { id: string; cwd?: string; title?: stri
   const match = /rollout-[^-]+-[^-]+-[^-]+-[^-]+-([0-9a-f-]{36})/i.exec(basename(path))
     ?? /rollout-.*?-([0-9a-f]{8}-[0-9a-f-]{27,})\.jsonl$/i.exec(basename(path))
   if (match?.[1]) id = match[1]
-  return { id, cwd, title, preview }
+  return {
+    id,
+    ...(cwd ? { cwd } : {}),
+    ...(title ? { title } : {}),
+    preview,
+  }
 }
 
 /** Enumerate Codex rollout transcripts under sessions and archived roots. */
@@ -82,7 +87,7 @@ export function scanCodexSessions(sessionRoots: readonly string[]): ExternalSess
       source: 'codex',
       sourcePath,
       title: meta.title ? `[Codex] ${meta.title}` : `[Codex] ${meta.id.slice(0, 8)}`,
-      cwd: meta.cwd,
+      ...(meta.cwd ? { cwd: meta.cwd } : {}),
       mtimeMs,
       preview: meta.preview || meta.title || '',
     })
