@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { WORKFLOW_PROVIDER_ID } from '../src/client/WorkflowModelSelect.tsx'
+import { inject as desktopClientInject } from '../src/client/index.ts'
 import { readSeatPins, toggleSeatPin, SEAT_PINS_STORAGE_KEY } from '../src/client/seat-pins.ts'
 import { buildSeatWorkflowRows } from '../src/client/seat-workflows.ts'
 import { WORKFLOW_STYLES } from '../src/client/styles-workflow.ts'
@@ -10,6 +11,15 @@ describe('composer model seat (one dropdown, tabbed models / workflows)', () => 
     expect(at, `missing CSS rule ${selector}`).toBeGreaterThanOrEqual(0)
     return WORKFLOW_STYLES.slice(at, WORKFLOW_STYLES.indexOf('}', at))
   }
+
+  it('grants remote.session so directoryFor does not abdicate the seat', () => {
+    // The seat runs inside the desktop client fiber. ModelDirectoryResolver
+    // needs remote.session; without it the factory crashes and stock ModelSelect
+    // silently wins conversation.input.model.
+    expect(desktopClientInject).toContain('remote.session')
+    expect(desktopClientInject).toContain('sessions')
+    expect(desktopClientInject).toContain('remote')
+  })
 
   it('identifies workflow-backed routes with one stable provider id', () => {
     // The workflow engine's OpenAI surface keys `model` to the workflow name, so

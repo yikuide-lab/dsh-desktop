@@ -109,7 +109,10 @@ describe('unified seat menu (open → tabs → workflow rows)', () => {
     ])
     const menu = await openSeat(container)
     const tabs = menu.querySelectorAll('[role="tab"]')
-    expect([...tabs].map(tab => tab.textContent)).toEqual(['seatTabModels', 'seatTabWorkflows2'])
+    expect(tabs).toHaveLength(2)
+    expect(tabs[0]!.textContent).toBe('seatTabModels')
+    expect(tabs[1]!.childNodes[0]?.textContent).toBe('seatTabWorkflows')
+    expect(tabs[1]!.querySelector('.workflow-seat-tab-count')?.textContent).toBe('2')
 
     await openWorkflowsTab(menu)
     const text = menu.textContent ?? ''

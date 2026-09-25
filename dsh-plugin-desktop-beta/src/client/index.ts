@@ -97,6 +97,10 @@ export const inject = [
   'locale',
   'connection',
   'remote',
+  // ModelDirectoryResolver (composer seat → directoryFor) also needs the
+  // nested remote.session face; without it the seat factory crashes under the
+  // strict-access guard and the stock ModelSelect silently wins the slot.
+  'remote.session',
   'settingsScope',
   'sessions',
   'theme',

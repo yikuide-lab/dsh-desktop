@@ -2,12 +2,10 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/types'
-// Type-only: pulls upstream's ctx.modelDirectories Context merge (the shared
-// per-session model directory both selection entries read). No runtime edge.
-import type {} from '@deepseek-ai/dsh-client-ui-model-selection/client'
 import { WorkflowPanel } from './WorkflowPanel.js'
 import { WorkflowIcon, WorkflowLauncher } from './WorkflowLauncher.js'
 import { WorkflowOverlay } from './WorkflowOverlay.js'
@@ -29,6 +27,8 @@ declare module '@deepseek-ai/dsh-client-ui-slots' {
   }
 }
 
+// Declared for symmetry with other client modules; the Cordis fiber privileges
+// come from `src/client/index.ts` (this file is apply()'d, not loaded alone).
 export const inject = ['slots', 'locale']
 export const NS = 'dsh-plugin-desktop/workflow'
 export { WORKFLOW_PANEL_ID, resolveLayout, selectWorkflowPanel } from './workflow-layout.js'
@@ -150,14 +150,21 @@ export function applyWorkflowClient(ctx: ClientContext): void {
   // `sessions` instead let this callback fire before `slots` existed and die
   // silently, which is how the seat never mounted. `sessions` is read from the
   // scope the same way the stock does once those services have landed.
-  ctx.inject(['slots', 'modelDirectories'], (scope) => {
+  //
+  // modelDirectories is read through a local face (not ui-model-selection/client):
+  // that package merges ISessions onto Context.sessions, which collides with
+  // Cordis SessionStore already pulled in by the desktop client entry and
+  // erases the inject-narrowed locale/slots faces from this module's typecheck.
+  ctx.inject(['slots', 'modelDirectories'], (rawScope) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
+    const scope = rawScope as any
     const models = scope.modelDirectories
     const sessions = scope.sessions
     scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model',
       locale: NS,
       priority: -1,
-      inject: (sessionId) => {
+      inject: (sessionId: unknown) => {
         const directory = models.directoryFor(sessionId)
         const available = sessions.subagentAddress(sessionId) === undefined
         return {
