@@ -43,10 +43,10 @@ function syncComposerModeAttr(armed: boolean): void {
 }
 
 /**
- * Composer submit actions for the armed workflow. Selection lives in the
- * unified model/workflow seat (which also arms the picked workflow); this
- * control renders only the armed actions — 「用工作流发送」submits the composer
- * draft as a workflow run, 「模型」returns to plain model chat.
+ * Composer submit for the armed workflow. Selection (and its caption) live in
+ * the unified seat — this control only owns 「用工作流发送」. Clearing the arm
+ * is picking a model in the seat; the stock ↑ send is hidden while armed so
+ * there is one submit path.
  */
 export function WorkflowRecommend({
   api,
@@ -135,26 +135,12 @@ export function WorkflowRecommend({
   return (
     <span className="dshWorkflowRecommend dshWorkflowRecommend--armed" data-mode="workflow">
       {error !== null && <span className="dshWorkflowRecommendMeta">{error}</span>}
-      <span
-        className="dshWorkflowModeIdleBadge dshWorkflowModeIdleBadge--workflow"
-        title={armed.title || armed.workflowName}
-      >
-        {t('seatWorkflowBadge')}: {armed.title || armed.workflowName}
-      </span>
-      <Button
-        variant="ghost"
-        className="dshWorkflowRecommendClear"
-        disabled={busy}
-        aria-label={t('recommendClear')}
-        onClick={() => setArmedWorkflow(null)}
-      >
-        {t('modeModelShort')}
-      </Button>
       <Button
         variant="ghost"
         className="dshWorkflowRecommendSend"
         disabled={busy || !draft.trim()}
         aria-label={t('recommendSend')}
+        title={armed.title || armed.workflowName}
         onClick={() => void sendArmed()}
       >
         {t('recommendSend')}

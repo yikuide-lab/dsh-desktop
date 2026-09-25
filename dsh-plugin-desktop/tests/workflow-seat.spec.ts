@@ -66,6 +66,14 @@ describe('composer model seat (one dropdown, tabbed models / workflows)', () => 
   })
 })
 
+describe('armed composer chrome', () => {
+  it('hides the stock send button so Recommend is the only submit path', () => {
+    expect(WORKFLOW_STYLES).toContain('[data-composer-card][data-workflow-armed="true"]')
+    expect(WORKFLOW_STYLES).toContain('button[class*="primary"]:last-of-type')
+    expect(WORKFLOW_STYLES).toContain('display: none')
+  })
+})
+
 describe('seat pin list', () => {
   it('parses stored pins defensively', () => {
     expect(readSeatPins(null)).toEqual([])

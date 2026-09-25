@@ -249,60 +249,10 @@ export const WORKFLOW_STYLES = `
 }
 .dshWorkflowRecommend--armed {
   gap: 6px;
-  padding: 2px 4px 2px 2px;
-  border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 45%, transparent);
-  background: color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 10%, transparent);
-}
-.dshWorkflowModeIdleBadge {
-  display: inline-flex;
-  align-items: center;
-  height: 22px;
-  max-width: 180px;
-  padding: 0 7px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  color: var(--dsw-alias-text-secondary, #6b7280);
-  background: var(--dsw-alias-interactive-bg-hover, rgba(0, 0, 0, 0.06));
-  border: 1px solid var(--dsw-alias-border-subtle, rgba(0, 0, 0, 0.08));
-  flex: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dshWorkflowModeIdleBadge--workflow {
-  color: #fff;
-  background: var(--dsw-alias-text-brand, #0b57d0);
-  border-color: color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 70%, transparent);
-}
-.dshWorkflowRecommendTrigger {
-  min-width: 28px;
-  height: 28px;
-  padding: 0 8px;
-  gap: 4px;
-  font-size: 12px;
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.dshWorkflowRecommendTrigger[data-active],
-.dshWorkflowRecommendTrigger[data-mode="workflow"] {
-  background: color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 14%, transparent);
-  color: var(--dsw-alias-text-brand, #0b57d0);
-  font-weight: 600;
-}
-.dshWorkflowRecommendClear {
-  height: 28px;
-  padding: 0 8px;
-  font-size: 12px;
-  color: var(--dsw-alias-text-secondary, #6b7280);
-  flex: none;
-}
-.dshWorkflowRecommendClear:hover {
-  color: var(--dsw-alias-text-primary, #111827);
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 0;
 }
 .dshWorkflowRecommendSend {
   height: 28px;
@@ -341,6 +291,12 @@ export const WORKFLOW_STYLES = `
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 55%, transparent),
     0 0 0 4px color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 12%, transparent);
+}
+
+/* One submit path while armed: Recommend owns send; hide the stock ↑ button
+   (CSS-module class names contain these substrings). */
+[data-composer-card][data-workflow-armed="true"] [class*="trailing"] > button[class*="primary"]:last-of-type {
+  display: none;
 }
 
 /* Workflow Panel */
