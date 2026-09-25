@@ -9,7 +9,6 @@ import type { ModelSelection } from '@deepseek-ai/dsh-api-session-controller/typ
 import { WorkflowPanel } from './WorkflowPanel.js'
 import { WorkflowIcon, WorkflowLauncher } from './WorkflowLauncher.js'
 import { WorkflowOverlay } from './WorkflowOverlay.js'
-import { WorkflowRecommend } from './WorkflowRecommend.js'
 import { WorkflowModelSelect, WORKFLOW_PROVIDER_ID } from './WorkflowModelSelect.js'
 import { createWorkflowStore } from './workflow-store.js'
 import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
@@ -129,16 +128,6 @@ export function applyWorkflowClient(ctx: ClientContext): void {
     inject: () => ({ api }),
   }, WorkflowOverlay))
 
-  ctx.slots.inject('conversation.input.right', () => ctx.slots.register({
-    name: 'conversation.input.right',
-    id: 'workflow-recommend',
-    order: 40,
-    locale: NS,
-    // Do not attach workflowStore here: that handle is already pinned to root
-    // (main / footer / overlay). Session+root reuse throws "one handle, one scope".
-    inject: () => ({ api, openRunsPanel, openWorkflowPanel, openSettingsPanel }),
-  }, WorkflowRecommend))
-
   // The composer's model seat: one unified models + workflows menu. Priority -1
   // shadows upstream's stock ModelSelect: the slot spec renders the LOWEST
   // priority and rejects a second same-priority registration, so this is the
@@ -155,6 +144,9 @@ export function applyWorkflowClient(ctx: ClientContext): void {
   // that package merges ISessions onto Context.sessions, which collides with
   // Cordis SessionStore already pulled in by the desktop client entry and
   // erases the inject-narrowed locale/slots faces from this module's typecheck.
+  //
+  // Armed-workflow send sits on the seat (icon to the right of the caption);
+  // there is no separate conversation.input.right recommend chip.
   ctx.inject(['slots', 'modelDirectories'], (rawScope) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- see above
     const scope = rawScope as any
@@ -204,6 +196,9 @@ export function applyWorkflowClient(ctx: ClientContext): void {
             return buildSeatWorkflowRows({ workflows: local, templates, remote })
               .map(entry => ({ ...entry, steps: [] }))
           }),
+          api,
+          openRunsPanel,
+          openSettingsPanel,
         }
       },
     }, WorkflowModelSelect))

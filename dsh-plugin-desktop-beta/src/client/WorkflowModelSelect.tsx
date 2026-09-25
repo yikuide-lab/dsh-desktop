@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type KeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-session-controller/types'
+import type { PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { WorkflowLocaleKey } from './locales-workflow.js'
 import { readSeatPins, toggleSeatPin, SEAT_PINS_STORAGE_KEY } from './seat-pins.js'
 import { getArmedWorkflow, subscribeArmedWorkflow } from './workflow-arm.js'
-import type { WorkflowView } from './desktop-workflow-api.js'
+import type { DesktopWorkflowApi, WorkflowView } from './desktop-workflow-api.js'
+import { WorkflowIcon } from './WorkflowLauncher.js'
+import { pickSessionCwd } from './workflow-run-params.js'
+import { sendArmedWorkflow, syncComposerArmedAttr } from './workflow-armed-send.js'
 
 /** Provider id carrying workflow-backed routes (the OpenAI surface keys `model` to the workflow name). */
 export const WORKFLOW_PROVIDER_ID = 'workflow'
@@ -46,13 +50,30 @@ export interface WorkflowModelSeatInjected {
   select: (selection: ModelSelection) => Promise<boolean>
   /** Workflow rows for the workflow tab. */
   listWorkflows: () => Promise<WorkflowView[]>
+  /** Desktop workflow HTTP/RPC surface used to start an armed run. */
+  api: DesktopWorkflowApi
+  /** Open the workflow runs tab after a successful send. */
+  openRunsPanel: () => void
+  /** Jump to settings when dependency checks ask the user to configure. */
+  openSettingsPanel: () => void
 }
 
-type SeatProps = WorkflowModelSeatInjected & {
-  locked: boolean
-  /** Bound translator for the `dsh-plugin-desktop/workflow` namespace. */
-  t: (key: WorkflowLocaleKey) => string
+/** Unit-test / SSR fallback when session input props are not wired. */
+function fallbackUseInput<T>(selector: (state: { draft: string }) => T): T {
+  return selector({ draft: '' })
 }
+
+/** Unit-test / SSR fallback when session store props are not wired. */
+function fallbackUseSessions<T>(selector: (state: { byId: Record<string, never> }) => T): T {
+  return selector({ byId: {} })
+}
+
+export type WorkflowModelSelectProps =
+  PropsRuntime<'conversation.input.model'>
+  & PropsLocale<'dsh-plugin-desktop/workflow'>
+  & WorkflowModelSeatInjected
+
+type SeatProps = WorkflowModelSelectProps
 
 type Tab = 'models' | 'workflows'
 
@@ -84,6 +105,9 @@ interface SeatRow {
  * priority). Any row can be pinned to the 置顶 section at the top of its tab;
  * pins persist per user in localStorage. The refresh control re-reads the model
  * directory and refetches the workflow rows in place.
+ *
+ * When a workflow is armed, a workflow-icon send control sits to the right of
+ * the trigger caption (replacing the old `conversation.input.right` text button).
  */
 export function WorkflowModelSelect({
   locked,
@@ -92,7 +116,14 @@ export function WorkflowModelSelect({
   load,
   select,
   listWorkflows,
+  api,
+  openRunsPanel,
+  openSettingsPanel,
   t,
+  useInput = fallbackUseInput as unknown as SeatProps['useInput'],
+  useSessions = fallbackUseSessions as unknown as SeatProps['useSessions'],
+  sessionId,
+  inputActions,
 }: SeatProps) {
   const state = useSyncExternalStore(
     fn => directory.subscribe(fn),
@@ -104,6 +135,8 @@ export function WorkflowModelSelect({
   const [workflows, setWorkflows] = useState<WorkflowView[] | null>(null)
   const [workflowsError, setWorkflowsError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [pins, setPins] = useState<string[]>(() => {
     try {
@@ -124,6 +157,14 @@ export function WorkflowModelSelect({
   // trigger caption so a successful arm is visible even when the directory's
   // workflow route has not (or cannot) land as `current`.
   const armed = useSyncExternalStore(subscribeArmedWorkflow, getArmedWorkflow, getArmedWorkflow)
+  const draft = useInput((inputState) => inputState.draft)
+  const sessionCwd = useSessions((sessionsState) => pickSessionCwd(sessionsState, sessionId))
+
+  useEffect(() => {
+    syncComposerArmedAttr(armed != null)
+    if (armed === null) setSendError(null)
+    return () => syncComposerArmedAttr(false)
+  }, [armed])
 
   useEffect(() => {
     try {
@@ -288,6 +329,28 @@ export function WorkflowModelSelect({
     }
   }
 
+  const sendArmed = async (): Promise<void> => {
+    if (sending || api === undefined) return
+    setSending(true)
+    setSendError(null)
+    try {
+      const result = await sendArmedWorkflow({
+        api,
+        prompt: draft,
+        sessionCwd,
+        t,
+        confirmStop: (message) => window.confirm(message),
+        confirmDeps: (message) => window.confirm(message),
+        openSettingsPanel,
+        openRunsPanel,
+        clearDraft: () => inputActions?.setDraft(''),
+      })
+      if (!result.ok) setSendError(result.error)
+    } finally {
+      setSending(false)
+    }
+  }
+
   const renderRow = (row: SeatRow) => {
     const pinned = pinnedKeys.has(row.key)
     return (
@@ -339,6 +402,23 @@ export function WorkflowModelSelect({
         <span className="workflow-seat-caption">{caption}</span>
         <span className="workflow-seat-chevron" aria-hidden="true">▾</span>
       </button>
+
+      {armed !== null && (
+        <button
+          type="button"
+          className="workflow-seat-send"
+          disabled={locked || sending || !draft.trim()}
+          aria-label={t('recommendSend')}
+          title={armed.title || armed.workflowName}
+          onClick={() => void sendArmed()}
+        >
+          <WorkflowIcon size={16} />
+        </button>
+      )}
+
+      {sendError !== null && (
+        <span className="workflow-seat-send-error" role="alert">{sendError}</span>
+      )}
 
       {open && menuPos !== null && createPortal(
         <div

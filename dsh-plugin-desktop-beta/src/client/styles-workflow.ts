@@ -237,7 +237,8 @@ export const WORKFLOW_STYLES = `
   }
 }
 
-/* Composer recommend chip (conversation.input.right). */
+/* Composer recommend chip styles kept for any residual className references;
+   armed send now lives on .workflow-seat-send beside the seat caption. */
 .dshWorkflowRecommend {
   display: inline-flex;
   align-items: center;
@@ -293,7 +294,7 @@ export const WORKFLOW_STYLES = `
     0 0 0 4px color-mix(in srgb, var(--dsw-alias-text-brand, #0b57d0) 12%, transparent);
 }
 
-/* One submit path while armed: Recommend owns send; hide the stock ↑ button
+/* One submit path while armed: the seat owns send; hide the stock ↑ button
    (CSS-module class names contain these substrings). */
 [data-composer-card][data-workflow-armed="true"] [class*="trailing"] > button[class*="primary"]:last-of-type {
   display: none;
@@ -845,6 +846,8 @@ export const WORKFLOW_STYLES = `
 .workflow-seat {
   position: relative;
   display: inline-flex;
+  align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -882,6 +885,41 @@ export const WORKFLOW_STYLES = `
   flex: none;
   color: var(--text-secondary, #6b7280);
   font-size: 10px;
+}
+
+/* Icon send beside the armed workflow caption (same glyph as the sidebar launcher). */
+.workflow-seat-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--dsw-alias-text-brand, #0b57d0);
+  color: #fff;
+  cursor: pointer;
+  flex: none;
+}
+
+.workflow-seat-send:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.workflow-seat-send:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.workflow-seat-send-error {
+  max-width: 180px;
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--dsw-alias-text-secondary, #6b7280);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .workflow-seat-menu {
