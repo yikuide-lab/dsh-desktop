@@ -1,0 +1,8 @@
+{
+  "id": "ses_test001",
+  "version": "1.0.0",
+  "projectID": "global",
+  "directory": "/tmp/opencode",
+  "title": "OpenCode fixture",
+  "time": { "created": 1700000000000, "updated": 1700000001000 }
+}

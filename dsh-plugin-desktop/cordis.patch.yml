@@ -20,6 +20,8 @@
       name: dsh-plugin-desktop/updates
     - id: desktop-workflow
       name: dsh-plugin-desktop/workflow
+    - id: desktop-session-import
+      name: dsh-plugin-desktop/session-import
 
 # A desktop launch has no terminal operator waiting for the Web readiness line.
 - id: web-runtime

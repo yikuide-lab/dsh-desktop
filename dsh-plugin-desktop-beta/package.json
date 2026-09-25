@@ -76,6 +76,10 @@
       "types": "./lib/types/workflow.d.ts",
       "default": "./lib/workflow.js"
     },
+    "./session-import": {
+      "types": "./lib/types/session-import-host.d.ts",
+      "default": "./lib/session-import-host.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [
