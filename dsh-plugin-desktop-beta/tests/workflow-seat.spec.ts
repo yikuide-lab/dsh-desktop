@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { WORKFLOW_PROVIDER_ID } from '../src/client/WorkflowModelSelect.tsx'
+import { readSeatPins, toggleSeatPin, SEAT_PINS_STORAGE_KEY } from '../src/client/seat-pins.ts'
 import { WORKFLOW_STYLES } from '../src/client/styles-workflow.ts'
 
-describe('composer model seat (tabbed models / workflows)', () => {
+describe('composer model seat (unified models + workflows)', () => {
   const rule = (selector: string): string => {
     const at = WORKFLOW_STYLES.indexOf(`\n${selector} {`)
     expect(at, `missing CSS rule ${selector}`).toBeGreaterThanOrEqual(0)
@@ -21,10 +22,18 @@ describe('composer model seat (tabbed models / workflows)', () => {
     expect(menu).toContain('z-index')
   })
 
-  it('renders the two categories as a tablist', () => {
-    const tabs = rule('.workflow-seat-tabs')
-    expect(tabs).toContain('display: flex')
-    expect(rule('.workflow-seat-tab.active')).toContain('border-bottom-color')
+  it('lays out a per-row pin toggle and a pinned state', () => {
+    const row = rule('.workflow-seat-row')
+    expect(row).toContain('display: flex')
+    const pin = rule('.workflow-seat-pin')
+    expect(pin).toContain('cursor: pointer')
+    expect(rule('.workflow-seat-pin.active')).toContain('opacity: 1')
+  })
+
+  it('offers a manual refresh beside the menu title', () => {
+    const refresh = rule('.workflow-seat-refresh')
+    expect(refresh).toContain('cursor: pointer')
+    expect(rule('.workflow-seat-refresh:disabled')).toContain('opacity')
   })
 
   it('badges workflow rows so a special model type never reads as a bare model', () => {
@@ -37,5 +46,24 @@ describe('composer model seat (tabbed models / workflows)', () => {
     const caption = rule('.workflow-seat-caption')
     expect(caption).toContain('text-overflow: ellipsis')
     expect(caption).toContain('white-space: nowrap')
+  })
+})
+
+describe('seat pin list', () => {
+  it('parses stored pins defensively', () => {
+    expect(readSeatPins(null)).toEqual([])
+    expect(readSeatPins('not json')).toEqual([])
+    expect(readSeatPins('{"a":1}')).toEqual([])
+    expect(readSeatPins('["workflow/w1","openai/g-1","workflow/w1",42,""]')).toEqual(['workflow/w1', 'openai/g-1'])
+  })
+
+  it('toggles a pin to the front and back off', () => {
+    expect(toggleSeatPin([], 'workflow/w1')).toEqual(['workflow/w1'])
+    expect(toggleSeatPin(['a'], 'b')).toEqual(['b', 'a'])
+    expect(toggleSeatPin(['b', 'a'], 'b')).toEqual(['a'])
+  })
+
+  it('keeps one stable storage key', () => {
+    expect(SEAT_PINS_STORAGE_KEY).toContain('workflow')
   })
 })

@@ -322,6 +322,10 @@ export async function executeDesktopWorkflowOp(
         ...(request.awfPublish === true ? { publish: true } : {}),
       })
     }
+    case 'awfSyncPull': {
+      if (!extras?.awf) throw new Error('AWF connector unavailable')
+      return extras.awf.pullWorkflows()
+    }
     case 'awfRemoteRun': {
       if (!extras?.awf) throw new Error('AWF connector unavailable')
       if (!request.awfWorkflowId) throw new Error('awfWorkflowId is required')

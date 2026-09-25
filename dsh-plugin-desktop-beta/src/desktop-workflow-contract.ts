@@ -57,6 +57,7 @@ export type DesktopWorkflowOp =
   | 'awfSetSettings'
   | 'awfCheckConnection'
   | 'awfSync'
+  | 'awfSyncPull'
   | 'awfRemoteRun'
   | 'awfSetTelemetrySettings'
   | 'awfGetExecutorStatus'

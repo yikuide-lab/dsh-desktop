@@ -16,6 +16,7 @@ const AWF_OPS = [
   'awfSetSettings',
   'awfCheckConnection',
   'awfSync',
+  'awfSyncPull',
   'awfRemoteRun',
   'awfSetTelemetrySettings',
   'awfGetExecutorStatus',

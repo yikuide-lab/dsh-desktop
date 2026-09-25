@@ -66,6 +66,7 @@ export const DESKTOP_WORKFLOW_OPS = new Set<DesktopWorkflowOp>([
   'awfSetSettings',
   'awfCheckConnection',
   'awfSync',
+  'awfSyncPull',
   'awfRemoteRun',
   'awfSetTelemetrySettings',
   'awfGetExecutorStatus',

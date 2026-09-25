@@ -326,6 +326,15 @@ export interface AwfSyncReceiptView {
   errorMessage?: string
 }
 
+export interface AwfWorkflowSummaryView {
+  id: number
+  name: string
+  title: string
+  status: string
+  visibility: string
+  updated_at?: string
+}
+
 export interface WorkflowModelEntryView {
   id: string
   name: string
@@ -457,6 +466,7 @@ export interface DesktopWorkflowApi {
   awfAuthPhoneLogin(input: { phone: string; code: string }): Promise<AwfAuthAccountView>
   awfAuthLogout(): Promise<{ ok: boolean }>
   syncWorkflowToAwf(name: string, visibility?: string, yaml?: string, publish?: boolean): Promise<AwfSyncReceiptView>
+  pullAwfWorkflows(): Promise<readonly AwfWorkflowSummaryView[]>
   remoteRunOnAwf(workflowId: number, params?: Record<string, string>): Promise<{
     ok: boolean
     status?: string
@@ -1540,6 +1550,10 @@ export function createDesktopWorkflowApi(fetchImpl: FetchLike = fetch): DesktopW
         ...(typeof result.errorMessage === 'string' ? { errorMessage: result.errorMessage } : {}),
       }
     },
+    async pullAwfWorkflows() {
+      return await callOp(fetchImpl, { op: 'awfSyncPull' }) as readonly AwfWorkflowSummaryView[]
+    },
+
     async remoteRunOnAwf(workflowId, params) {
       const result = await callOp(fetchImpl, {
         op: 'awfRemoteRun',

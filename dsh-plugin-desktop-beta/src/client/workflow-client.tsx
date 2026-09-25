@@ -136,11 +136,12 @@ export function applyWorkflowClient(ctx: ClientContext): void {
     inject: () => ({ api, openRunsPanel, openWorkflowPanel, openSettingsPanel }),
   }, WorkflowRecommend))
 
-  // The composer's model seat, tabbed 常规模型 / 工作流. Priority -1 shadows
-  // upstream's stock ModelSelect: the slot spec renders the LOWEST priority and
-  // rejects a second same-priority registration, so this is the supported
-  // "replace a documented slot" path. Upstream stays loaded for its /model popup
-  // and the shared ctx.modelDirectories, which the models tab reads unchanged.
+  // The composer's model seat: one unified models + workflows menu. Priority -1
+  // shadows upstream's stock ModelSelect: the slot spec renders the LOWEST
+  // priority and rejects a second same-priority registration, so this is the
+  // supported "replace a documented slot" path. Upstream stays loaded for its
+  // /model popup and the shared ctx.modelDirectories, which the seat reads
+  // unchanged.
   ctx.inject(['sessions', 'modelDirectories'], (scope) => {
     const models = scope.modelDirectories
     const sessions = scope.sessions
@@ -160,7 +161,18 @@ export function applyWorkflowClient(ctx: ClientContext): void {
           select: (selection: ModelSelection) => available
             ? directory.select(selection).then(() => true, () => false)
             : Promise.resolve(false),
-          listWorkflows: () => api.listWorkflows(),
+          listWorkflows: () => api.listWorkflows().then(async local => {
+            // Aggregate the platform's public + private summaries on top of
+            // local saves; a local workflow of the same name always wins.
+            const remote = await api.pullAwfWorkflows().catch(() => [])
+            const seen = new Set(local.map(entry => entry.name))
+            return [
+              ...local,
+              ...remote
+                .filter(entry => !seen.has(entry.name))
+                .map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
+            ]
+          }),
         }
       },
     }, WorkflowModelSelect))

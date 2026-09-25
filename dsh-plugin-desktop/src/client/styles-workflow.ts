@@ -882,7 +882,7 @@ export const WORKFLOW_STYLES = `
   gap: 6px;
 }
 
-/* Composer model seat (tabbed 常规模型 / 工作流). */
+/* Composer model seat (unified models + workflows, pinnable, refreshable). */
 .workflow-seat {
   position: relative;
   display: inline-flex;
@@ -937,32 +937,72 @@ export const WORKFLOW_STYLES = `
   box-shadow: var(--dsw-shadow-lv3, 0 18px 48px rgba(0, 0, 0, 0.22));
 }
 
-.workflow-seat-tabs {
+.workflow-seat-head {
   display: flex;
-  gap: 4px;
-  margin-bottom: 6px;
-  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  padding: 2px 4px;
 }
 
-.workflow-seat-tab {
-  flex: 1;
-  padding: 6px 8px;
-  border: none;
-  border-bottom: 2px solid transparent;
+.workflow-seat-head-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary, #6b7280);
+}
+
+.workflow-seat-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
   background: transparent;
   color: var(--text-secondary, #6b7280);
-  font-size: 12px;
-  font-weight: 500;
+  font-size: 11px;
   cursor: pointer;
 }
 
-.workflow-seat-tab:hover {
+.workflow-seat-refresh:hover {
+  background: var(--bg-hover, #f3f4f6);
   color: var(--text-primary, #1f2937);
 }
 
-.workflow-seat-tab.active {
-  color: var(--text-primary, #1f2937);
-  border-bottom-color: var(--accent-color, #2563eb);
+.workflow-seat-refresh:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.workflow-seat-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.workflow-seat-pin {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.45;
+}
+
+.workflow-seat-pin:hover {
+  background: var(--bg-hover, #f3f4f6);
+  opacity: 1;
+}
+
+.workflow-seat-pin.active {
+  color: var(--accent-color, #2563eb);
+  opacity: 1;
 }
 
 .workflow-seat-list {
@@ -985,7 +1025,8 @@ export const WORKFLOW_STYLES = `
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: 6px 8px;
   border: none;
   border-radius: 6px;

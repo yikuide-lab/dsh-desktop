@@ -7,7 +7,7 @@
  */
 
 import type { WorkflowPlugin } from 'dsh-plugin-workflow'
-import { AwfError, createAwfClient, type AwfFetch, type AwfSyncItem } from './desktop-awf-client.ts'
+import { AwfError, createAwfClient, type AwfFetch, type AwfSyncItem, type AwfWorkflowSummary } from './desktop-awf-client.ts'
 import {
   readAwfSettings,
   resolveAwfToken,
@@ -87,6 +87,8 @@ export interface AwfBridge {
   }): Promise<AwfPublicStatus>
   checkConnection(): Promise<AwfConnectionResult>
   syncWorkflow(input: { name: string; yaml?: string; visibility?: string; publish?: boolean }): Promise<AwfSyncReceipt>
+  /** 列出登录账号的平台工作流摘要（public + private），供会话座位聚合与刷新。 */
+  pullWorkflows(): Promise<readonly AwfWorkflowSummary[]>
   /** 平台账号：可选注册/登录（邮箱、手机验证码）；密码绝不落盘。 */
   authStatus(): Promise<AwfAuthStatusView>
   authMethods(): Promise<AwfAuthMethods>
@@ -364,6 +366,11 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         }
         return { ok: false, errorKind: 'network', errorMessage: String(error) }
       }
+    },
+
+    async pullWorkflows() {
+      const settings = await currentSettings()
+      return await clientFor(settings).syncPull()
     },
 
     async getTunnelStatus() {
