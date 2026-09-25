@@ -64,6 +64,10 @@
       "types": "./lib/types/session-import-host.d.ts",
       "default": "./lib/session-import-host.js"
     },
+    "./time-master": {
+      "types": "./lib/types/time-master-host.d.ts",
+      "default": "./lib/time-master-host.js"
+    },
     "./profiles": {
       "types": "./lib/types/profiles.d.ts",
       "default": "./lib/profiles.js"

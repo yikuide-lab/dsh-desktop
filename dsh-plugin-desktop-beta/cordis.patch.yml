@@ -22,6 +22,8 @@
       name: dsh-plugin-desktop-beta/workflow
     - id: desktop-session-import
       name: dsh-plugin-desktop-beta/session-import
+    - id: desktop-time-master
+      name: dsh-plugin-desktop-beta/time-master
 
 # A desktop launch has no terminal operator waiting for the Web readiness line.
 - id: web-runtime

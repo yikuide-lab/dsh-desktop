@@ -16,6 +16,7 @@ import { parseDesktopClientEnvironment } from './environment.ts'
 import { applyExtendedShell, applyFramedShell } from './extended-shell.ts'
 import { applyWorkflowClient } from './workflow-client.tsx'
 import { applySessionImportClient } from './session-import-client.tsx'
+import { applyTimeMasterClient } from './time-master-client.tsx'
 import { desktopWindowService, provideDesktopWindow } from './window-service.ts'
 
 export { applyAdvancedShell } from './advanced-shell.ts'
@@ -23,6 +24,7 @@ export { applyDesktopSettings } from './desktop-settings.ts'
 export { applyExtendedShell, applyFramedShell } from './extended-shell.ts'
 export { applyWorkflowClient } from './workflow-client.tsx'
 export { applySessionImportClient } from './session-import-client.tsx'
+export { applyTimeMasterClient } from './time-master-client.tsx'
 export {
   createDesktopSettingsApi,
   desktopSettingsPaths,
@@ -144,5 +146,6 @@ export function apply(ctx: ClientContext): void {
   if (environment.mode === 'advanced' || environment.mode === 'compatibility' || environment.mode === 'extended') {
     applyWorkflowClient(ctx)
     applySessionImportClient(ctx)
+    applyTimeMasterClient(ctx)
   }
 }
