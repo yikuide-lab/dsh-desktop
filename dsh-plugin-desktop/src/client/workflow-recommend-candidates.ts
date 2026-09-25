@@ -87,3 +87,59 @@ export function buildRecommendCandidates(input: {
 
   return out
 }
+
+/**
+ * Resolve a unified-seat workflow row (keyed by name) to its arm candidate.
+ * Unlike {@link buildRecommendCandidates} this applies no multi-LLM filter —
+ * the seat lists every workflow source, and each row must arm. Priority:
+ * workspace binding, then saved workflow, then template; a platform-only name
+ * falls back to a minimal saved candidate (the send path reports it honestly).
+ */
+export function buildArmCandidate(input: {
+  bindingName: string | null
+  workflows: readonly WorkflowView[]
+  templates: readonly WorkflowTemplateView[]
+  workflowName: string
+}): WorkflowRecommendCandidate {
+  const saved = input.workflows.find(entry => entry.name === input.workflowName)
+  if (input.bindingName === input.workflowName && input.bindingName !== null) {
+    return {
+      id: `enabled:${input.workflowName}`,
+      workflowName: input.workflowName,
+      title: saved?.title || input.workflowName,
+      source: 'enabled',
+      needsProblem: saved
+        ? needsProblemParam(saved)
+        : input.workflowName === 'multi-llm-problem-review',
+    }
+  }
+  if (saved) {
+    return {
+      id: `saved:${saved.name}`,
+      workflowName: saved.name,
+      title: saved.title || saved.name,
+      source: 'saved',
+      needsProblem: needsProblemParam(saved),
+    }
+  }
+  const template = input.templates.find(entry => entry.name === input.workflowName)
+  if (template) {
+    return {
+      id: `template:${template.id}`,
+      workflowName: template.name,
+      title: template.name,
+      source: 'template',
+      needsProblem: template.id === 'multi-llm-coder'
+        || template.yaml.includes('$PROBLEM')
+        || template.yaml.includes('$PROMPT'),
+      templateYaml: template.yaml,
+    }
+  }
+  return {
+    id: `saved:${input.workflowName}`,
+    workflowName: input.workflowName,
+    title: input.workflowName,
+    source: 'saved',
+    needsProblem: false,
+  }
+}

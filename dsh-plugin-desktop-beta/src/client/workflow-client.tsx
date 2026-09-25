@@ -12,13 +12,15 @@ import { WorkflowPanel } from './WorkflowPanel.js'
 import { WorkflowIcon, WorkflowLauncher } from './WorkflowLauncher.js'
 import { WorkflowOverlay } from './WorkflowOverlay.js'
 import { WorkflowRecommend } from './WorkflowRecommend.js'
-import { WorkflowModelSelect } from './WorkflowModelSelect.js'
+import { WorkflowModelSelect, WORKFLOW_PROVIDER_ID } from './WorkflowModelSelect.js'
 import { createWorkflowStore } from './workflow-store.js'
-import { createDesktopWorkflowApi } from './desktop-workflow-api.js'
+import { createDesktopWorkflowApi, type WorkflowView } from './desktop-workflow-api.js'
 import { en, zh } from './locales-workflow.js'
 import { installWorkflowStyles } from './styles-workflow.js'
 import { WORKFLOW_PANEL_ID } from './workflow-layout.js'
-import { pickCurrentSessionCwd } from './workflow-run-params.js'
+import { currentWorkspaceId, pickCurrentSessionCwd } from './workflow-run-params.js'
+import { buildArmCandidate } from './workflow-recommend-candidates.js'
+import { setArmedWorkflow } from './workflow-arm.js'
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
@@ -158,20 +160,47 @@ export function applyWorkflowClient(ctx: ClientContext): void {
           load: () => {
             if (available) directory.load().catch(() => { /* surfaced on the store */ })
           },
-          select: (selection: ModelSelection) => available
-            ? directory.select(selection).then(() => true, () => false)
-            : Promise.resolve(false),
+          select: async (selection: ModelSelection) => {
+            if (!available) return false
+            if (selection.provider === WORKFLOW_PROVIDER_ID) {
+              // Picking a workflow in the unified seat arms it as the composer's
+              // submit target; picking a model returns to plain model chat.
+              const [workflows, templates, binding] = await Promise.all([
+                api.listWorkflows().catch(() => []),
+                api.listTemplates().catch(() => []),
+                api.getBinding(currentWorkspaceId()).catch(() => null),
+              ])
+              setArmedWorkflow(buildArmCandidate({
+                bindingName: binding?.workflowName ?? null,
+                workflows,
+                templates,
+                workflowName: selection.model,
+              }))
+            } else {
+              setArmedWorkflow(null)
+            }
+            return directory.select(selection).then(() => true, () => false)
+          },
           listWorkflows: () => api.listWorkflows().then(async local => {
-            // Aggregate the platform's public + private summaries on top of
-            // local saves; a local workflow of the same name always wins.
-            const remote = await api.pullAwfWorkflows().catch(() => [])
-            const seen = new Set(local.map(entry => entry.name))
-            return [
-              ...local,
-              ...remote
-                .filter(entry => !seen.has(entry.name))
-                .map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
-            ]
+            // The unified seat lists every armable workflow source: saved
+            // workflows, templates, and the platform's public/private summaries.
+            // A same-name entry earlier in that order always wins.
+            const [templates, remote] = await Promise.all([
+              api.listTemplates().catch(() => []),
+              api.pullAwfWorkflows().catch(() => []),
+            ])
+            const seen = new Set<string>()
+            const rows: WorkflowView[] = []
+            for (const entry of [
+              ...local.map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
+              ...templates.map(entry => ({ name: entry.name, title: entry.name, steps: [] })),
+              ...remote.map(entry => ({ name: entry.name, title: entry.title || entry.name, steps: [] })),
+            ]) {
+              if (seen.has(entry.name)) continue
+              seen.add(entry.name)
+              rows.push(entry)
+            }
+            return rows
           }),
         }
       },
