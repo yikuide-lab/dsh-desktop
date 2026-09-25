@@ -227,3 +227,10 @@ awf-9zy (C-P1 连接器) ──► awf-0bx (C-P2 远程运行)
 awf-a3c (C-P4) 依赖 C-P2
 awf-45y (C-P5 反向隧道) 依赖 C-P2、S-P5（平台侧 Phase 3a 已交付）
 ```
+
+---
+
+## 7. 后续：Collab Loop（2026-09-26）
+
+跨会话协作状态机在 **Desktop Host**；AWF 仅托管纯净工作流的 `remoteRun`。  
+完整计划见 **[collab-loop-plan.md](./collab-loop-plan.md)**；平台侧契约见 AWF 仓 `docs/COLLAB_BRIDGE.md`。
