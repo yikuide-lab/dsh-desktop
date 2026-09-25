@@ -145,10 +145,15 @@ export function applyWorkflowClient(ctx: ClientContext): void {
   // supported "replace a documented slot" path. Upstream stays loaded for its
   // /model popup and the shared ctx.modelDirectories, which the seat reads
   // unchanged.
-  ctx.inject(['sessions', 'modelDirectories'], (scope) => {
+  // Mirror the stock ModelSelect's proven wait list: the callback registers
+  // through `slots`, so `slots` must be in the wait list itself — waiting on
+  // `sessions` instead let this callback fire before `slots` existed and die
+  // silently, which is how the seat never mounted. `sessions` is read from the
+  // scope the same way the stock does once those services have landed.
+  ctx.inject(['slots', 'modelDirectories'], (scope) => {
     const models = scope.modelDirectories
     const sessions = scope.sessions
-    ctx.slots.inject('conversation.input.model', () => ctx.slots.register({
+    scope.slots.inject('conversation.input.model', () => scope.slots.register({
       name: 'conversation.input.model',
       locale: NS,
       priority: -1,

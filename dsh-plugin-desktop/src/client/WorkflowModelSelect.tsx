@@ -96,6 +96,7 @@ export function WorkflowModelSelect({
   const state = useSyncExternalStore(
     fn => directory.subscribe(fn),
     () => directory.getSnapshot(),
+    () => directory.getSnapshot(),
   )
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('models')
