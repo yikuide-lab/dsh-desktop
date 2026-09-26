@@ -2,8 +2,10 @@
 
 > 日期：2026-09-26 · **本仓库正式交付文档**（自 Cursor plan 完善后入库）  
 > 概要：跨会话协作 Loop（Desktop 主战场）+ AWF 仅 `remote.workflow` 后端；含 AWF 对齐契约。真 ASP wire 留待 V2。  
-> AWF 交叉契约：同机 `~/Documents/ai-dev/ai-workflow-dev/docs/COLLAB_BRIDGE.md`（远端以 AWF 仓为准）  
+> AWF 交叉契约：sibling 仓 `ai-workflow-dev` 的 `docs/COLLAB_BRIDGE.md`（以该仓为准）  
 > 客户端既有集成：[`awf-client-plan.md`](./awf-client-plan.md)
+
+> **权威性**：以实现与排期为准的唯一正文；勿与过期 Cursor/本地 plan 并行维护。相关产品计划：[`time-master-plan.md`](./time-master-plan.md)（时间轴；Collab handoff 见该文 V2）。
 
 ## 实施 todos（V1）
 
@@ -21,7 +23,7 @@
 
 ## 决策（本版锁定）
 
-- **ASP 用法**：V1 实现 **ASP 形协调层**（JID、Message/Presence/IQ、CapabilityToken、会话共享上下文），字段命名对齐 `[ai-agent-protocol](/home/yikd/Documents/ai-dev/ai-agent-protocol/)` proto；**不**依赖 Rust ASP Server / Python SDK（无 TS SDK）。预留 `AspBridge`，V2 接 TCP/Protobuf。
+- **ASP 用法**：V1 实现 **ASP 形协调层**（JID、Message/Presence/IQ、CapabilityToken、会话共享上下文），字段命名对齐 sibling 仓 `ai-agent-protocol` 的 proto；**不**依赖 Rust ASP Server / Python SDK（无 TS SDK）。预留 `AspBridge`，V2 接 TCP/Protobuf。
 - **节点模型**：单一新步骤 `collab_peer`，用 `peer.kind` 区分；本地先通；远程仅 `workflow` 走 AWF `remoteRun`；`session`/`agent` 的 `remote.`* **显式拒绝**（清晰错误，不做假远程）。
 - **开放自稳**：默认开放成员制；单 peer 失联不整环失败（除非 quorum）；规则自愈与 AI 自愈分层。
 - **控制面**：每 Loop 唯一 Admin；高危动作可再经 workflow `approval` 或 collab 待批队列。
@@ -31,7 +33,7 @@
 
 ## AWF 对齐（2026-09-26 修订）
 
-> 交叉文档（AWF 仓）：`~/Documents/ai-dev/ai-workflow-dev/docs/COLLAB_BRIDGE.md`
+> 交叉文档（AWF 仓）：sibling `ai-workflow-dev/docs/COLLAB_BRIDGE.md`
 
 ### 双端职责
 
@@ -73,34 +75,34 @@
 
 ### AWF 仓配套（不挡 Desktop V1；并行）
 
-- **A1** `awf-4h3` 稳定按 runner UUID 查单 run；文档澄清双 ID  
-- **A2** `awf-uu4` CreateRun 可选 `external_loop_id` / `external_branch_id`（params 或列）+ telemetry  
-- **A3** `awf-t9e` capabilities / sync：未知或 desktop-only feature warn/strip  
-- **A4**（可选）委托 gate token  
-- **A5**（更远）身份联邦 / remote session·agent  
+- **A1** `awf-4h3` ✅ 稳定按 runner UUID 查单 run；文档澄清双 ID  
+- **A2** `awf-uu4` ✅ CreateRun 可选 `external_loop_id` / `external_branch_id`（params 或列）+ telemetry  
+- **A3** `awf-t9e` ✅ capabilities / sync：未知或 desktop-only feature warn/strip  
+- **A4**（延期）`awf-kvb` 委托 gate token  
+- **A5**（延期）`awf-2ib` 身份联邦 / remote session·agent  
 
 ## 包边界与职责（自洽分层）
 
 
 | 层            | 包 / 路径                                                               | 职责                                                                                                                                          |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 纯 Node 内核    | `[dsh-plugin-workflow/src/collab/](dsh-plugin-workflow/src/collab/)` | JID、envelope、Bus（进程内）、Vision/Roster/Admin/Branch 类型与磁盘 schema、Membership 状态机、CapToken HMAC、Stability 规则、HealPlan/TaskPlan **校验与 apply 纯函数** |
-| 引擎接入         | `[dsh-plugin-workflow/src/engine/](dsh-plugin-workflow/src/engine/)` | `StepType.CollabPeer`、`validateStep`、`runStep` → hook、**collab gate**（等 join）、`engineCapabilities.features` 增 `'collab'`                    |
-| Desktop Host | `[dsh-plugin-desktop-beta/src/](dsh-plugin-desktop-beta/src/)`       | HTTP `/api/desktop/collab`、Host tick（Stability/Healer）、LLM（evaluate/heal）、session/agent/workflow 执行 hook、AWF bridge、UI                      |
+| 纯 Node 内核    | `[dsh-plugin-workflow/src/collab/](../dsh-plugin-workflow/src/collab/)` | JID、envelope、Bus（进程内）、Vision/Roster/Admin/Branch 类型与磁盘 schema、Membership 状态机、CapToken HMAC、Stability 规则、HealPlan/TaskPlan **校验与 apply 纯函数** |
+| 引擎接入         | `[dsh-plugin-workflow/src/engine/](../dsh-plugin-workflow/src/engine/)` | `StepType.CollabPeer`、`validateStep`、`runStep` → hook、**collab gate**（等 join）、`engineCapabilities.features` 增 `'collab'`                    |
+| Desktop Host | `[dsh-plugin-desktop-beta/src/](../dsh-plugin-desktop-beta/src/)`       | HTTP `/api/desktop/collab`、Host tick（Stability/Healer）、LLM（evaluate/heal）、session/agent/workflow 执行 hook、AWF bridge、UI                      |
 | 镜像           | `dsh-plugin-desktop/`                                                | P8 同步；变体差异保留                                                                                                                                |
 
 
-命名隔离：引擎已有 run 内黑板 `[shared-vision.ts](dsh-plugin-workflow/src/engine/shared-vision.ts)`（`Run.shared`）。跨 session 协作视野一律称 `**CollabVision**`（文件 `vision.json`），避免与 `shared`/`vision_append` 混淆。
+命名隔离：引擎已有 run 内黑板 [`shared-vision.ts`](../dsh-plugin-workflow/src/engine/shared-vision.ts)（`Run.shared`）。跨 session 协作视野一律称 **CollabVision**（文件 `vision.json`），避免与 `shared`/`vision_append` 混淆。
 
 ## 现状锚点
 
-- `StepType`：`script|task|llm|approval|sub_workflow` — `[models.ts](dsh-plugin-workflow/src/engine/models.ts)`
-- Gate 等待：`Approval` + `resolveGate` + `isWaitingOnlyOnGates` — `[coordinator.ts](dsh-plugin-workflow/src/engine/coordinator.ts)` / `[plugin.ts](dsh-plugin-workflow/src/plugin.ts)`（**开放槽 wait 锁定复用此路径**）
+- `StepType`：`script|task|llm|approval|sub_workflow` — `[models.ts](../dsh-plugin-workflow/src/engine/models.ts)`
+- Gate 等待：`Approval` + `resolveGate` + `isWaitingOnlyOnGates` — `[coordinator.ts](../dsh-plugin-workflow/src/engine/coordinator.ts)` / `[plugin.ts](../dsh-plugin-workflow/src/plugin.ts)`（**开放槽 wait 锁定复用此路径**）
 - 嵌套：`maxNestedDepth` 默认 **3**，`maxActiveRuns` 默认 **4**
-- Desktop hooks：`[desktop-workflow-executor.ts](dsh-plugin-desktop-beta/src/desktop-workflow-executor.ts)`（扩展 `runCollabPeer`）
+- Desktop hooks：`[desktop-workflow-executor.ts](../dsh-plugin-desktop-beta/src/desktop-workflow-executor.ts)`（扩展 `runCollabPeer`）
 - LLM：`designWorkflowWithLlm` / `runRsiReview` 同路径
-- AWF：`[desktop-awf-bridge.ts](dsh-plugin-desktop-beta/src/desktop-awf-bridge.ts)` `remoteRun`
-- Host 定时器范式：`[time-master-host.ts](dsh-plugin-desktop-beta/src/time-master-host.ts)`（`ctx.effect` + `setInterval`；Collab 用更短间隔）
+- AWF：`[desktop-awf-bridge.ts](../dsh-plugin-desktop-beta/src/desktop-awf-bridge.ts)` `remoteRun`
+- Host 定时器范式：`[time-master-host.ts](../dsh-plugin-desktop-beta/src/time-master-host.ts)`（`ctx.effect` + `setInterval`；Collab 用更短间隔；产品计划见 [`time-master-plan.md`](./time-master-plan.md)）
 - API 范式：`*-contract.ts` + `*-route.ts` + `webServer.register` exact path
 - ASP：JID `node@domain[/resource]`；Presence `ONLINE|AWAY|DND|XA|OFFLINE`；无 TS SDK
 
@@ -193,28 +195,29 @@ interface CollabLoop {
 }
 ```
 
-- `collab.startLoop`：分配 `loopId`，写 `$DSH_HOME/collab/<loopId>/`（`loop.json` + vision + roster + admin），再启动（或附着）workflow run，把 `loopId` 写入 run 元数据 / 上下文。
-- 一个 Loop 生命周期内可有多次 root run（失败重跑）；**roster/vision 按 loopId 持久化**，不随单次 run 清零（除非 `collab.closeLoop`）。
+- `loop.start`：分配 `loopId`，写 `$DSH_HOME/collab/<loopId>/`（`loop.json` + vision + roster + admin），再启动（或附着）workflow run，把 `loopId` 写入 run 元数据 / 上下文。
+- 一个 Loop 生命周期内可有多次 root run（失败重跑）；**roster/vision 按 loopId 持久化**，不随单次 run 清零（除非 `loop.close`）。
 - 进程重启：`isWaitingOnlyOnGates` 的 collab gate 可恢复；Stability tick 重启后继续。
 
 磁盘布局：
 
 ```
-$DSH_HOME/collab/<loopId>/
-  loop.json
-  admin.json
-  roster.json
-  vision.json
-  branches/<branchId>.yaml      # 动态分支定义
-  branches/index.json           # BranchRecord[]
-  heal/pending.json             # 待批 HealPlan
-  plan/latest.json              # 最近 TaskPlan
-  secret                        # 仅 $DSH_HOME/collab/secret（全局 HMAC）
+$DSH_HOME/collab/
+  secret                        # 全局 HMAC（0600）；非 per-loop
+  <loopId>/
+    loop.json
+    admin.json
+    roster.json
+    vision.json
+    branches/<branchId>.yaml    # 动态分支定义
+    branches/index.json         # BranchRecord[]
+    heal/pending.json           # 待批 HealPlan
+    plan/latest.json            # 最近 TaskPlan
 ```
 
 ### 2. 步骤 `collab_peer`
 
-扩展 `[StepType](dsh-plugin-workflow/src/engine/models.ts)`：
+扩展 `[StepType](../dsh-plugin-workflow/src/engine/models.ts)`：
 
 ```ts
 // type: 'collab_peer'
