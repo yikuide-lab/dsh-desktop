@@ -74,3 +74,4 @@ export {
   type CoordSnapshot,
 } from './coord.js'
 export { coordinateTasks } from './coordinate.js'
+export { bindLoopIdToProjectTasks } from './collab-handoff.js'

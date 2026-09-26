@@ -193,5 +193,36 @@ describe('awf client', () => {
     expect(calls[4]?.url).toBe('http://awf.test/api/workflows/runs/run_uuid')
     await client.resolveGate('run_uuid', 't1', 'approved')
     expect(calls[5]?.url).toBe('http://awf.test/api/workflows/runs/run_uuid/gates/t1')
+
+    const mintCalls: Array<{ url: string; auth?: string | null; body: unknown }> = []
+    const mintFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      const auth = init?.headers && typeof init.headers === 'object' && 'Authorization' in (init.headers as Record<string, string>)
+        ? (init.headers as Record<string, string>).Authorization
+        : null
+      let body: unknown = null
+      if (init?.body && typeof init.body === 'string') body = JSON.parse(init.body)
+      mintCalls.push({ url, auth, body })
+      if (url.includes('/gate-delegates')) {
+        return new Response(JSON.stringify({
+          delegate_token: 'del-tok',
+          expires_at: '2099-01-01T00:00:00Z',
+          run_id: 'run_uuid',
+          ttl_seconds: 120,
+          gate_token: 't1',
+        }), { status: 200 })
+      }
+      if (url.includes('/gates/')) {
+        return new Response(JSON.stringify({ run_id: 'run_uuid', status: 'completed' }), { status: 200 })
+      }
+      return new Response('{}', { status: 404 })
+    }) as AwfFetch
+    const mintClient = createAwfClient(settings, { fetchImpl: mintFetch, token: TOKEN })
+    const minted = await mintClient.createGateDelegate('run_uuid', { gateToken: 't1', ttlSeconds: 120 })
+    expect(minted.delegate_token).toBe('del-tok')
+    expect(mintCalls[0]?.url).toBe('http://awf.test/api/workflows/runs/run_uuid/gate-delegates')
+    expect(mintCalls[0]?.body).toMatchObject({ gate_token: 't1', ttl_seconds: 120 })
+    await mintClient.resolveGate('run_uuid', 't1', 'approved', { delegateToken: 'del-tok' })
+    expect(mintCalls[1]?.auth).toBe('Bearer del-tok')
   })
 })

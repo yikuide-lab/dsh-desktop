@@ -95,6 +95,8 @@ export interface DesktopWorkflowHostServices {
     runnerRunId: string
     token: string
     decision: string
+    /** A4 gate_delegate Bearer；有则无需 access JWT */
+    delegateToken?: string
   }) => Promise<{
     ok: boolean
     status?: string
@@ -580,6 +582,7 @@ export async function runCollabPeerStep(
       const externalLoopId = pickExternalId(params, ['external_loop_id', 'COLLAB_LOOP_ID', 'collab_loop_id'])
       const externalBranchId = pickExternalId(params, ['external_branch_id', 'COLLAB_BRANCH_ID', 'collab_branch_id'])
       const gateDecision = pickExternalId(params, ['AWF_GATE_DECISION', 'awf_gate_decision'])
+      const gateDelegate = pickExternalId(params, ['AWF_GATE_DELEGATE', 'awf_gate_delegate'])
       const remoteInput = {
         workflowId,
         params,
@@ -607,6 +610,7 @@ export async function runCollabPeerStep(
             runnerRunId,
             token,
             decision: gateDecision,
+            ...(gateDelegate ? { delegateToken: gateDelegate } : {}),
           })
           if (!resolved.ok) {
             return {
@@ -638,7 +642,7 @@ export async function runCollabPeerStep(
           const tokenHint = token ? `, token=${token}` : ''
           return {
             ok: false,
-            error: `AWF run waiting_gate (runnerRunId=${runnerRunId ?? remote.runId ?? '?'}${tokenHint}); resolve as JWT owner or set AWF_GATE_DECISION`,
+            error: `AWF run waiting_gate (runnerRunId=${runnerRunId ?? remote.runId ?? '?'}${tokenHint}); resolve as JWT owner, mint A4 gate_delegate, or set AWF_GATE_DECISION`,
           }
         }
       }

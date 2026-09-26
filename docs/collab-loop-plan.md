@@ -90,8 +90,8 @@
 - **A1** `awf-4h3` ✅ 稳定按 runner UUID 查单 run；文档澄清双 ID；**Desktop P7 hard-close 已接 `getRun` 轮询**  
 - **A2** `awf-uu4` ✅ CreateRun 可选 `external_loop_id` / `external_branch_id`（params 或列）+ telemetry；**Desktop 已传 external_*（COLLAB_LOOP_ID 等）**  
 - **A3** `awf-t9e` ✅ capabilities / sync：未知或 desktop-only feature warn/strip  
-- **A4**（延期）`awf-kvb` 委托 gate token  
-- **A5**（延期）`awf-2ib` 身份联邦 / remote session·agent  
+- **A4** `awf-kvb` ✅ 委托 gate 短时 `gate_delegate`（平台 mint + ResolveGate Bearer；Desktop `AWF_GATE_DELEGATE`）  
+- **A5**（延期）`awf-2ib` 身份联邦 / remote session·agent / 真 ASP（Desktop V2 DID/AspBridge interim 已落；平台联邦仍开）  
 
 ## 包边界与职责（自洽分层）
 
@@ -522,6 +522,7 @@ interface TaskPlan {
 - 单测：JID 解析；epoch 吊销后旧 token 失效  
 - 单测：sync 预检拒绝/剥离 `collab_peer`；remoteRun 路径强制 `auto_approve:false`  
 - **P7 hard-close（2026-09-26）**：`getRun(runner UUID)` 轮询；CreateRun/telemetry 传 `external_loop_id`/`external_branch_id`；`waiting_gate` 可经 `AWF_GATE_DECISION` + JWT `resolveAwfGate` 后续轮询；失败信息含 gate token  
+- **A4（2026-09-26）**：`createGateDelegate` / `resolveGate(..., {delegateToken})`；executor 可读 `AWF_GATE_DELEGATE`；属主 JWT 仍可用  
 - 手工：拆大任务 → 两 agent + 一本地分支 → 一 `awf@` 远程 → kick → AI 待批自愈 → 重联完成；远程门由本机 JWT 属主 resolve
 
 ## 评审修订摘要（相对前稿）

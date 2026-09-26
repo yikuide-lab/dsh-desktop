@@ -155,12 +155,25 @@ export function createAwfClient(settings, options = {}) {
         getRun(runId) {
             return request(`/api/workflows/runs/${encodeURIComponent(String(runId))}`).then(normalizeAwfRun);
         },
-        resolveGate(runId, gateToken, decision) {
+        createGateDelegate(runId, options = {}) {
+            const body = {};
+            if (options.gateToken)
+                body.gate_token = options.gateToken;
+            if (options.ttlSeconds != null)
+                body.ttl_seconds = options.ttlSeconds;
+            return request(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gate-delegates`, {
+                method: 'POST',
+                body: JSON.stringify(body),
+            });
+        },
+        resolveGate(runId, gateToken, decision, options = {}) {
             // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义；runId 可为 runner UUID
+            // A4：delegateToken 作 Bearer，跳过 access 刷新重试（delegate 单次有效）
+            const delegate = options.delegateToken?.trim() || null;
             return request(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gates/${encodeURIComponent(gateToken)}`, {
                 method: 'POST',
                 body: JSON.stringify({ decision }),
-            }).then(normalizeAwfRun);
+            }, true, !delegate, delegate).then(normalizeAwfRun);
         },
         publish(workflowId, note = 'dsh sync') {
             return request(`/api/workflows/${workflowId}/publish`, {

@@ -94,7 +94,23 @@ export interface AwfClient {
     /** GET single run by runner UUID or run_records numeric id (AWF A1). */
     getRun(runId: string | number): Promise<AwfRun>;
     /** Path run id: runner UUID preferred; numeric id still accepted for legacy. */
-    resolveGate(runId: string | number, token: string, decision: string): Promise<AwfRun>;
+    resolveGate(runId: string | number, token: string, decision: string, options?: {
+        delegateToken?: string;
+    }): Promise<AwfRun>;
+    /**
+     * A4: mint short-lived gate_delegate JWT (owner access token required).
+     * Host may resolveGate with `delegateToken` without holding user access JWT.
+     */
+    createGateDelegate(runId: string | number, options?: {
+        gateToken?: string;
+        ttlSeconds?: number;
+    }): Promise<{
+        delegate_token: string;
+        expires_at: string;
+        run_id: string;
+        ttl_seconds: number;
+        gate_token?: string;
+    }>;
     publish(workflowId: number, note?: string): Promise<AwfWorkflowSummary>;
     /** 摘要级遥测上报（C-P4）：只含名称/状态/步骤状态/token 估算/耗时。 */
     telemetryRun(summary: AwfTelemetrySummary): Promise<{

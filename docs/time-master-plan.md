@@ -16,6 +16,7 @@
 | tm-v2-project-plan | ProjectPlan / TaskItem + aiPlanProject + 截止日期提醒复用 | completed |
 | tm-v2-coord | 多任务/跨会话绑定（session/workflow 引用）+ 协调面板 + 冲突检测 | completed |
 | tm-v2-tests-sync | V2 单测 + beta→desktop + check:desktop-variants + locales | completed |
+| tm-v2-collab-handoff | Collab 探测 + handoff 启动 Loop + 任务绑 loopId（V2.3） | completed |
 
 ## 现状（V1 已落地，勿回退）
 
@@ -154,7 +155,7 @@ AI 输出经 schema 校验；失败回退启发式。
 - **V2.0** store v2 + UsageSchedule + `aiOrchestrateUsage` + 编排 Tab  
 - **V2.1** ProjectPlan + `aiPlanProject` + 任务到期提醒  
 - **V2.2** coord + 协调 Tab + session/workflow 跳转  
-- **V2.3** Collab handoff（Collab 未装载则隐藏）  
+- **V2.3** Collab handoff（Collab 未装载则隐藏；`loop.start` + 任务绑 `loopId`）✅  
 - 每步：单测 + beta→desktop + `check:desktop-variants`
 
 ## 明确不做

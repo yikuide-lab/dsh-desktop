@@ -68,6 +68,8 @@ export type TimeMasterLocaleKey =
   | 'coordApplied'
   | 'collabHandoff'
   | 'collabStarting'
+  | 'collabStarted'
+  | 'collabUnavailable'
   | 'statusActive'
   | 'statusPaused'
   | 'statusDone'
@@ -148,6 +150,8 @@ const sharedEn: Record<TimeMasterLocaleKey, string> = {
   coordApplied: 'Suggestions applied',
   collabHandoff: 'Open Collab',
   collabStarting: 'Starting loop…',
+  collabStarted: 'Collab loop ready',
+  collabUnavailable: 'Collab host not available',
   statusActive: 'Active',
   statusPaused: 'Paused',
   statusDone: 'Done',
@@ -229,6 +233,8 @@ export const zh: Record<TimeMasterLocaleKey, string> = {
   coordApplied: '已应用建议',
   collabHandoff: '打开协作',
   collabStarting: '正在启动 Loop…',
+  collabStarted: '协作 Loop 已就绪',
+  collabUnavailable: '协作 Host 未装载',
   statusActive: '进行中',
   statusPaused: '暂停',
   statusDone: '已完成',
@@ -260,6 +266,9 @@ export const ja: Record<TimeMasterLocaleKey, string> = {
   cancel: 'キャンセル',
   refresh: '更新',
   collabHandoff: 'コラボを開く',
+  collabStarting: 'Loop を起動中…',
+  collabStarted: 'コラボ Loop 準備完了',
+  collabUnavailable: 'コラボ Host が未搭載',
 }
 
 export const ko: Record<TimeMasterLocaleKey, string> = {
@@ -278,4 +287,7 @@ export const ko: Record<TimeMasterLocaleKey, string> = {
   cancel: '취소',
   refresh: '새로고침',
   collabHandoff: '협업 열기',
+  collabStarting: 'Loop 시작 중…',
+  collabStarted: '협업 Loop 준비됨',
+  collabUnavailable: '협업 Host 미탑재',
 }

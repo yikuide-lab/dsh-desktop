@@ -158,12 +158,23 @@ export interface AwfBridge {
     input: AwfRemoteRunInput,
     options?: { timeoutMs?: number; pollIntervalMs?: number },
   ): Promise<AwfRemoteRunResult>
-  /** JWT 属主 resolve 平台 approval gate（run id = runner UUID）。 */
+  /** JWT 属主或 A4 gate_delegate 代 resolve 平台 approval gate（run id = runner UUID）。 */
   resolveAwfGate(input: {
     runnerRunId: string
     token: string
     decision: string
+    /** A4 短时委托 token；有则作 Bearer，无需 access JWT */
+    delegateToken?: string
   }): Promise<AwfRemoteRunResult>
+  /** A4：属主签发短时 gate_delegate（需已登录 access JWT）。 */
+  createAwfGateDelegate(input: {
+    runnerRunId: string
+    gateToken?: string
+    ttlSeconds?: number
+  }): Promise<
+    | { ok: true; delegateToken: string; expiresAt: string; runId: string; ttlSeconds: number; gateToken?: string }
+    | { ok: false; errorKind: string; errorMessage: string }
+  >
   /** 按 runner UUID 轮询至终态 / waiting_gate / 超时。 */
   pollAwfRun(
     runnerRunId: string,
@@ -479,7 +490,12 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
     async resolveAwfGate(input): Promise<AwfRemoteRunResult> {
       const settings = await currentSettings()
       try {
-        const run = await clientFor(settings).resolveGate(input.runnerRunId, input.token, input.decision)
+        const run = await clientFor(settings).resolveGate(
+          input.runnerRunId,
+          input.token,
+          input.decision,
+          input.delegateToken ? { delegateToken: input.delegateToken } : undefined,
+        )
         // ResolveGate may return stateOut shape (run_id) without numeric id — normalize.
         const normalized: {
           id: number
@@ -505,6 +521,29 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
           return { ok: false, errorKind: error.kind, errorMessage: error.message }
         }
         return { ok: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async createAwfGateDelegate(input) {
+      const settings = await currentSettings()
+      try {
+        const out = await clientFor(settings).createGateDelegate(input.runnerRunId, {
+          ...(input.gateToken ? { gateToken: input.gateToken } : {}),
+          ...(input.ttlSeconds != null ? { ttlSeconds: input.ttlSeconds } : {}),
+        })
+        return {
+          ok: true as const,
+          delegateToken: out.delegate_token,
+          expiresAt: out.expires_at,
+          runId: out.run_id,
+          ttlSeconds: out.ttl_seconds,
+          ...(out.gate_token ? { gateToken: out.gate_token } : {}),
+        }
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false as const, errorKind: error.kind, errorMessage: error.message }
+        }
+        return { ok: false as const, errorKind: 'network', errorMessage: String(error) }
       }
     },
 

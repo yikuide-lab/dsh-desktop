@@ -25,6 +25,7 @@ import {
   upsertProject,
   upsertSchedule,
   writeTimeMasterStore,
+  bindLoopIdToProjectTasks,
 } from '../src/time-master/index.ts'
 import type { TimeMasterContextSnapshot } from '../src/time-master/types.ts'
 
@@ -241,5 +242,18 @@ describe('time-master core', () => {
     }).store
     expect(store.projects).toHaveLength(1)
     expect(store.projects[0]?.tasks).toHaveLength(1)
+  })
+
+  it('binds Collab loopId onto the first unbound active task', () => {
+    const tasks = bindLoopIdToProjectTasks([
+      { id: 't1', title: 'Done', status: 'done' as const },
+      { id: 't2', title: 'Open', status: 'todo' as const },
+      { id: 't3', title: 'Next', status: 'todo' as const },
+    ], 'loop-abc')
+    expect(tasks[0]?.loopId).toBeUndefined()
+    expect(tasks[1]?.loopId).toBe('loop-abc')
+    expect(tasks[2]?.loopId).toBeUndefined()
+    const all = bindLoopIdToProjectTasks(tasks, 'loop-xyz', { allUnbound: true })
+    expect(all[2]?.loopId).toBe('loop-xyz')
   })
 })

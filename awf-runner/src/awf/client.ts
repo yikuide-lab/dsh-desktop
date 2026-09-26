@@ -103,7 +103,26 @@ export interface AwfClient {
   /** GET single run by runner UUID or run_records numeric id (AWF A1). */
   getRun(runId: string | number): Promise<AwfRun>
   /** Path run id: runner UUID preferred; numeric id still accepted for legacy. */
-  resolveGate(runId: string | number, token: string, decision: string): Promise<AwfRun>
+  resolveGate(
+    runId: string | number,
+    token: string,
+    decision: string,
+    options?: { delegateToken?: string },
+  ): Promise<AwfRun>
+  /**
+   * A4: mint short-lived gate_delegate JWT (owner access token required).
+   * Host may resolveGate with `delegateToken` without holding user access JWT.
+   */
+  createGateDelegate(
+    runId: string | number,
+    options?: { gateToken?: string; ttlSeconds?: number },
+  ): Promise<{
+    delegate_token: string
+    expires_at: string
+    run_id: string
+    ttl_seconds: number
+    gate_token?: string
+  }>
   publish(workflowId: number, note?: string): Promise<AwfWorkflowSummary>
   /** 摘要级遥测上报（C-P4）：只含名称/状态/步骤状态/token 估算/耗时。 */
   telemetryRun(summary: AwfTelemetrySummary): Promise<{ ok: boolean; id: number }>
@@ -272,12 +291,35 @@ export function createAwfClient(
     getRun(runId) {
       return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runId))}`).then(normalizeAwfRun)
     },
-    resolveGate(runId, gateToken, decision) {
-      // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义；runId 可为 runner UUID
-      return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gates/${encodeURIComponent(gateToken)}`, {
+    createGateDelegate(runId, options = {}) {
+      const body: Record<string, unknown> = {}
+      if (options.gateToken) body.gate_token = options.gateToken
+      if (options.ttlSeconds != null) body.ttl_seconds = options.ttlSeconds
+      return request<{
+        delegate_token: string
+        expires_at: string
+        run_id: string
+        ttl_seconds: number
+        gate_token?: string
+      }>(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gate-delegates`, {
         method: 'POST',
-        body: JSON.stringify({ decision }),
-      }).then(normalizeAwfRun)
+        body: JSON.stringify(body),
+      })
+    },
+    resolveGate(runId, gateToken, decision, options = {}) {
+      // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义；runId 可为 runner UUID
+      // A4：delegateToken 作 Bearer，跳过 access 刷新重试（delegate 单次有效）
+      const delegate = options.delegateToken?.trim() || null
+      return request<AwfRun>(
+        `/api/workflows/runs/${encodeURIComponent(String(runId))}/gates/${encodeURIComponent(gateToken)}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ decision }),
+        },
+        true,
+        !delegate,
+        delegate,
+      ).then(normalizeAwfRun)
     },
     publish(workflowId, note = 'dsh sync') {
       return request<AwfWorkflowSummary>(`/api/workflows/${workflowId}/publish`, {

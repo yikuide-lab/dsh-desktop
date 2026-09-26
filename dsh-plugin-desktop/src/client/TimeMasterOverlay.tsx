@@ -23,8 +23,8 @@ import type {
   UsageScheduleItem,
 } from '../time-master/types.js'
 import { DEFAULT_REMIND_DAYS } from '../time-master/types.js'
-import { DESKTOP_COLLAB_PATH } from './collab-api.js'
-import { DEFAULT_COLLAB_ACTOR_JID } from './collab-api.js'
+import { DESKTOP_COLLAB_PATH, DEFAULT_COLLAB_ACTOR_JID, createDesktopCollabApi } from './collab-api.js'
+import { bindLoopIdToProjectTasks } from '../time-master/collab-handoff.js'
 
 export type TimeMasterOverlayProps = PropsRuntime<'shell.overlay'>
   & PropsStore<ReturnType<typeof createTimeMasterStore>>
@@ -420,21 +420,58 @@ export function TimeMasterOverlay({
 
   const openCollab = async (): Promise<void> => {
     if (collabStarting) return
+    if (!collabAvailable) {
+      setError(t('collabUnavailable'))
+      return
+    }
     setCollabStarting(true)
     setError(null)
     try {
+      const collabApi = createDesktopCollabApi()
       const goal = tab === 'projects' ? projectForm.goal : aiHint
-      await fetch(DESKTOP_COLLAB_PATH, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({
-          op: 'loop.start',
-          workflowName: 'problem-loop',
-          actorJid: DEFAULT_COLLAB_ACTOR_JID,
-          ...(goal?.trim() ? { hint: goal.trim() } : {}),
-        }),
+      const started = await collabApi.call<{
+        loop: { loopId: string }
+      }>({
+        op: 'loop.start',
+        workflowName: 'problem-loop',
+        actorJid: DEFAULT_COLLAB_ACTOR_JID,
+        ...(goal?.trim() ? { hint: goal.trim() } : {}),
       })
-      setStatus(t('collabHandoff'))
+      const loopId = started.loop.loopId
+      if (goal?.trim()) {
+        await collabApi.call({
+          op: 'vision.append',
+          loopId,
+          actorJid: DEFAULT_COLLAB_ACTOR_JID,
+          goals: [{ id: `goal-${loopId.slice(0, 8)}`, title: goal.trim(), status: 'open' }],
+        })
+      }
+      if (tab === 'projects' && projectForm.title.trim()) {
+        let tasks: ProjectTaskDraft[] = []
+        try {
+          const parsed = JSON.parse(projectForm.tasksJson || '[]') as unknown
+          tasks = Array.isArray(parsed) ? parsed as ProjectTaskDraft[] : []
+        } catch {
+          tasks = []
+        }
+        const boundTasks = bindLoopIdToProjectTasks(tasks, loopId)
+        const result = await api.projectUpsert({
+          ...(projectForm.id ? { id: projectForm.id } : {}),
+          title: projectForm.title.trim() || 'Untitled',
+          goal: projectForm.goal,
+          status: projectForm.status,
+          tasks: boundTasks,
+        })
+        setProjectForm(projectToForm({
+          ...result.project,
+          tasks: result.project.tasks.map((task) => ({
+            ...task,
+            urgency: 'none' as const,
+          })),
+        }))
+        await reload()
+      }
+      setStatus(`${t('collabStarted')}: ${loopId}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : t('error'))
     } finally {
