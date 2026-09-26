@@ -26,11 +26,12 @@ export interface AwfSyncItem {
 export interface AwfValidateResult {
     readonly name: string;
     readonly ok: boolean;
-    readonly errors: Array<{
+    /** Platform may return string messages or structured {path,code,msg}. */
+    readonly errors: ReadonlyArray<string | {
         path: string;
         code: string;
         msg: string;
-    } | string>;
+    }>;
     readonly warnings?: readonly string[];
     readonly conflict: string | null;
 }

@@ -75,8 +75,8 @@
 
 ### AWF 仓配套（不挡 Desktop V1；并行）
 
-- **A1** `awf-4h3` ✅ 稳定按 runner UUID 查单 run；文档澄清双 ID  
-- **A2** `awf-uu4` ✅ CreateRun 可选 `external_loop_id` / `external_branch_id`（params 或列）+ telemetry  
+- **A1** `awf-4h3` ✅ 稳定按 runner UUID 查单 run；文档澄清双 ID；**Desktop P7 hard-close 已接 `getRun` 轮询**  
+- **A2** `awf-uu4` ✅ CreateRun 可选 `external_loop_id` / `external_branch_id`（params 或列）+ telemetry；**Desktop 已传 external_*（COLLAB_LOOP_ID 等）**  
 - **A3** `awf-t9e` ✅ capabilities / sync：未知或 desktop-only feature warn/strip  
 - **A4**（延期）`awf-kvb` 委托 gate token  
 - **A5**（延期）`awf-2ib` 身份联邦 / remote session·agent  
