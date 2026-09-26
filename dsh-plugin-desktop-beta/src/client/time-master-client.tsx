@@ -4,7 +4,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type { TimeMasterLocaleKey } from './locales-time-master.js'
-import { en, zh } from './locales-time-master.js'
+import { en, ja, ko, zh } from './locales-time-master.js'
 import { installTimeMasterStyles } from './styles-time-master.js'
 import { createDesktopTimeMasterApi } from './time-master-api.js'
 import { createTimeMasterStore } from './time-master-store.js'
@@ -31,7 +31,7 @@ export function applyTimeMasterClient(ctx: ClientContext): void {
     view.actions.setPanelOpen(true)
   }
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-desktop/time-master: dictionaries')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko }), 'dsh-plugin-desktop/time-master: dictionaries')
   ctx.effect(() => installTimeMasterStyles(), 'dsh-plugin-desktop/time-master: styles')
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

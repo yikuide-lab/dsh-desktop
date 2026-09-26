@@ -11,15 +11,15 @@
 
 | ID | 内容 | 状态 |
 |----|------|------|
-| collab-core | 纯 Node collab 内核（JID/Bus/Vision/Roster/CapToken/Membership）+ 单测；与 run 内 shared 黑板命名隔离 | pending |
-| collab-engine | `StepType.collab_peer` + validate/executor + 本地 collab gate（复用 resolveGate；非 AWF gate）+ Desktop hook | pending |
-| collab-stability | StabilityController（heartbeat/offline/rejoin/目标 orphan\|改派）+ Host tick | pending |
-| collab-admin | LoopAdmin + `/api/desktop/collab` 控制面（snapshot/invite/kick/reassign/pause/transfer） | pending |
-| collab-ai-heal | NetworkHealer（观察→HealPlan→待批 apply；默认不自动执行） | pending |
-| collab-task-plan | TaskPlanner（evaluate/assign/invite/spawnBranch）+ BranchRecord 持久化 | pending |
-| collab-template-ui | problem-loop 模板 + 协作面板五 Tab + palette/inspector + zh/en/ja/ko | pending |
-| collab-remote-awf | P7 Remote lifecycle：`auto_approve:false` + 轮询终态 + resolveGate(runnerUUID)；禁 sync `collab_peer`；session/agent remote 拒绝 | pending |
-| collab-sync | beta→desktop 同步 + `check:desktop-variants` | pending |
+| collab-core | 纯 Node collab 内核（JID/Bus/Vision/Roster/CapToken/Membership）+ 单测；与 run 内 shared 黑板命名隔离 | completed |
+| collab-engine | `StepType.collab_peer` + validate/executor + 本地 collab gate（复用 resolveGate；非 AWF gate）+ Desktop hook | completed |
+| collab-stability | StabilityController（heartbeat/offline/rejoin/目标 orphan\|改派）+ Host tick | completed |
+| collab-admin | LoopAdmin + `/api/desktop/collab` 控制面（snapshot/invite/kick/reassign/pause/transfer） | completed |
+| collab-ai-heal | NetworkHealer（观察→HealPlan→待批 apply；默认不自动执行） | completed |
+| collab-task-plan | TaskPlanner（evaluate/assign/invite/spawnBranch）+ BranchRecord 持久化 | completed |
+| collab-template-ui | problem-loop 模板 + 协作面板五 Tab + palette/inspector + zh/en/ja/ko | completed |
+| collab-remote-awf | P7 Remote lifecycle：`auto_approve:false` + 轮询终态 + resolveGate(runnerUUID)；禁 sync `collab_peer`；session/agent remote 拒绝 | completed |
+| collab-sync | beta→desktop 同步 + `check:desktop-variants` | completed |
 
 ## 决策（本版锁定）
 

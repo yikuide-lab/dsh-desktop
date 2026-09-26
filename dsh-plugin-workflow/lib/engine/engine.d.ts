@@ -62,6 +62,10 @@ export declare function createGate(run: Run, workflow: Workflow, stepId: string)
 };
 /** Build an approval gate document from a workflow step definition. */
 export declare function buildApprovalGate(step: Step): Gate;
+/** True when an open collab_peer slot must wait for a join before dispatch. */
+export declare function collabPeerNeedsJoinGate(step: Step): boolean;
+/** Build a collab join gate for an open, unbound collab_peer step. */
+export declare function buildCollabJoinGate(step: Step): Gate;
 /**
  * Decisions that complete an approval gate.
  * Prefer explicit `pass`; else `approved` when listed; else the first option.
@@ -76,6 +80,11 @@ export declare function isGatePass(gate: Pick<Gate, 'options' | 'pass'>, decisio
 export declare function resolveGate(run: Run, stepId: string, decision: string, resolvedBy: string, token: string, options?: {
     workflow?: Workflow;
 }): Run;
+/**
+ * Resolve a collab join gate without completing the step task.
+ * The coordinator can dispatch runCollabPeer once the gate is resolved.
+ */
+export declare function resolveCollabJoinGate(run: Run, stepId: string, token: string, resolvedBy: string): Run;
 export declare function markAborted(run: Run, reason?: string): Run;
 export declare function isRunComplete(run: Run): boolean;
 export declare function getRunProgress(run: Run): {

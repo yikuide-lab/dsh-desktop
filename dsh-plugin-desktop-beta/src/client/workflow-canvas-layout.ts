@@ -70,6 +70,9 @@ export function createBlankStep(type: WorkflowStepType, id: string): WorkflowSte
   }
   if (type === 'sub_workflow') step.ref = 'other-workflow'
   if (type === 'task') step.role = 'implement'
+  if (type === 'collab_peer') {
+    step.peer = { kind: 'agent', open: true, slot: 'slot-1', role: 'peer' }
+  }
   return step
 }
 
@@ -137,6 +140,7 @@ export function stepsToGraph(steps: readonly WorkflowStepView[]): {
       stepType: step.type,
       label: step.id,
       ...(step.type === 'sub_workflow' && step.ref ? { detail: step.ref } : {}),
+      ...(step.type === 'collab_peer' && step.peer?.slot ? { detail: step.peer.slot } : {}),
     },
   }))
 

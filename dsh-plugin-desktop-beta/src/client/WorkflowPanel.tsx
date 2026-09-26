@@ -8,6 +8,7 @@ import { WorkflowRunView } from './WorkflowRunView.js'
 import { WorkflowTemplateManager } from './WorkflowTemplateManager.js'
 import { WorkflowSettingsPanel } from './WorkflowSettingsPanel.js'
 import { WorkflowAwfPanel } from './WorkflowAwfPanel.js'
+import { CollabPanel } from './CollabPanel.js'
 import { WorkflowTriggers } from './WorkflowTriggers.js'
 import { WorkflowStats } from './WorkflowStats.js'
 import {
@@ -350,6 +351,7 @@ export function WorkflowPanel({
         {awfOpen && (
           <div className="workflow-awf-rail-body">
             <WorkflowAwfPanel api={api} t={t} />
+            <CollabPanel t={t} />
           </div>
         )}
       </aside>

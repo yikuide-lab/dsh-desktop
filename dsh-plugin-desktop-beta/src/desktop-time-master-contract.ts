@@ -8,6 +8,16 @@ export type DesktopTimeMasterOp =
   | 'delete'
   | 'contextSnapshot'
   | 'aiSuggest'
+  | 'schedule.list'
+  | 'schedule.upsert'
+  | 'schedule.delete'
+  | 'aiOrchestrateUsage'
+  | 'project.list'
+  | 'project.upsert'
+  | 'project.delete'
+  | 'aiPlanProject'
+  | 'coord.snapshot'
+  | 'aiCoordinate'
 
 export interface DesktopTimeMasterRequest {
   readonly op: DesktopTimeMasterOp
@@ -22,6 +32,41 @@ export interface DesktopTimeMasterRequest {
     remindDays?: number[]
     notes?: string
   }
+  readonly scheduleDraft?: {
+    id?: string
+    name?: string
+    horizonDays?: number
+    items?: {
+      planId: string
+      role: 'primary' | 'backup' | 'burst' | 'idle'
+      windowStart: string
+      windowEnd: string
+      dailyBudgetHint?: string
+      notes?: string
+    }[]
+    rationale?: string
+  }
+  readonly projectDraft?: {
+    id?: string
+    title?: string
+    goal?: string
+    status?: 'active' | 'paused' | 'done'
+    tasks?: {
+      id?: string
+      title?: string
+      status?: 'todo' | 'doing' | 'blocked' | 'done'
+      dueAt?: string
+      remindDays?: number[]
+      estimateHours?: number
+      dependsOn?: string[]
+      sessionId?: string
+      workflowName?: string
+      loopId?: string
+      planId?: string
+      notes?: string
+    }[]
+  }
+  readonly applySuggestions?: boolean
   readonly hint?: string
 }
 

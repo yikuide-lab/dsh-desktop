@@ -211,14 +211,14 @@ corepack yarn workspace dsh-plugin-desktop-beta check
 corepack yarn check            # 根全量门禁（含双 desktop 变体）
 # 同步 stable 前
 corepack yarn check:desktop-variants
-# 联调（AWF 仓库侧）
-cd ~/Documents/ai-dev/ai-workflow-dev && ./scripts/smoke.sh   # 23 项平台基线
+# 联调（AWF 仓库侧；sibling 仓 ai-workflow-dev）
+./scripts/smoke.sh   # 在 ai-workflow-dev 根目录；23 项平台基线
 ```
 
 提交纪律：beta 与 stable 的同步独立成提交；不与上游 submodule pin 更新混合
 （本仓库 AGENTS.md 既定规则）。
 
-## 6. 依赖与顺序
+## 7. 依赖与顺序
 
 ```
 awf-9zy (C-P1 连接器) ──► awf-0bx (C-P2 远程运行)
@@ -230,7 +230,7 @@ awf-45y (C-P5 反向隧道) 依赖 C-P2、S-P5（平台侧 Phase 3a 已交付）
 
 ---
 
-## 7. 后续：Collab Loop（2026-09-26）
+## 8. 后续：Collab Loop（2026-09-26）
 
 跨会话协作状态机在 **Desktop Host**；AWF 仅托管纯净工作流的 `remoteRun`。  
-完整计划见 **[collab-loop-plan.md](./collab-loop-plan.md)**；平台侧契约见 AWF 仓 `docs/COLLAB_BRIDGE.md`。
+完整计划见 **[collab-loop-plan.md](./collab-loop-plan.md)**（权威正文；英文摘要 [`collab-loop-plan.en.md`](./collab-loop-plan.en.md)）；平台侧契约见 sibling 仓 `ai-workflow-dev/docs/COLLAB_BRIDGE.md`。

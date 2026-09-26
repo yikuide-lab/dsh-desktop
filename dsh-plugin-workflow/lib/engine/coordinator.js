@@ -5,7 +5,7 @@
  */
 import { EventEmitter } from 'node:events';
 import { WorkflowStatus, TaskStatus, StepType, DispatchStatus, } from './models.js';
-import { createRun, computeReady, dispatchTask, dispatchCompensation, settleDispatch, transitionWorkflow, isRunComplete, markAborted, resolveGate, resolveEffectiveConcurrency, DEFAULT_FAILURE_POLICY, } from './engine.js';
+import { createRun, computeReady, dispatchTask, dispatchCompensation, settleDispatch, transitionWorkflow, isRunComplete, markAborted, resolveGate, resolveCollabJoinGate, resolveEffectiveConcurrency, DEFAULT_FAILURE_POLICY, } from './engine.js';
 import { extractSharedPatch, mergeSharedVision } from './shared-vision.js';
 /**
  * First string-valued param among `keys`, in priority order.
@@ -188,11 +188,11 @@ export class Coordinator extends EventEmitter {
                 const step = this.state.workflow.spec.steps.find(s => s.id === stepId);
                 if (!step)
                     continue;
-                // Skip approval steps - they need manual resolution
-                if (step.type === StepType.Approval) {
+                // Skip approval / collab join steps until their gate is resolved
+                if (step.type === StepType.Approval || step.type === StepType.CollabPeer) {
                     const gate = this.state.run.gates[stepId];
                     if (gate && !gate.resolved) {
-                        continue; // wait for manual resolution
+                        continue;
                     }
                 }
                 try {
@@ -390,6 +390,13 @@ export class Coordinator extends EventEmitter {
         this.state.run = resolveGate(this.state.run, stepId, decision, resolvedBy, token, {
             workflow: this.state.workflow,
         });
+    }
+    /** Resolve a collab join gate (task stays pending until dispatch). */
+    resolveCollabJoinGate(stepId, token, resolvedBy) {
+        if (!this.state) {
+            throw new Error('Coordinator not initialized');
+        }
+        this.state.run = resolveCollabJoinGate(this.state.run, stepId, token, resolvedBy);
     }
 }
 /** Per-dispatch wall-clock limit: step.timeout, else script default 600s, else heartbeat ceiling. */

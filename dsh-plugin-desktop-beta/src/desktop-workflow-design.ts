@@ -71,11 +71,12 @@ Hard requirements:
 - metadata.uid: stable UUID document id. When present on the current draft, KEEP it unchanged. Never invent or replace uid. New workflows may omit uid (Host allocates on save).
 - metadata.title and metadata.description are encouraged
 - spec.steps: non-empty array
-- Each step needs id ([a-z0-9-]+) and type in: script, task, llm, approval, sub_workflow
+- Each step needs id ([a-z0-9-]+) and type in: script, task, llm, approval, sub_workflow, collab_peer
 - script steps need run
 - llm steps need prompt
 - approval steps need question and options (array)
 - approval may include pass: list of options that mean success
+- collab_peer steps need peer: { kind: session|agent|workflow, open?, slot?, role?, jid?, quorum? }
 - task steps may include role, inputs, outputs, acceptance
 - sub_workflow steps need ref (name of another saved workflow)
 - Use deps: [step-id, ...] for ordering; no cycles
@@ -119,6 +120,14 @@ spec:
       question: Ship it?
       options: [approved, rejected]
       pass: [approved]
+    - id: reviewer
+      type: collab_peer
+      deps: [implement]
+      peer:
+        kind: agent
+        open: true
+        slot: reviewer
+        role: reviewer
 `
 
 /** Strip markdown fences / prose and keep the YAML document body. */

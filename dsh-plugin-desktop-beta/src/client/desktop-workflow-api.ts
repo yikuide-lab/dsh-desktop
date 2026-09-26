@@ -2,7 +2,23 @@
 
 const WORKFLOW_PATH = '/api/desktop/workflow'
 
-export type WorkflowStepType = 'script' | 'task' | 'llm' | 'approval' | 'sub_workflow'
+export type WorkflowStepType = 'script' | 'task' | 'llm' | 'approval' | 'sub_workflow' | 'collab_peer'
+export type CollabPeerKind = 'session' | 'agent' | 'workflow'
+export type CollabPeerRejoin = 'resume' | 'replace' | 'reject'
+
+export interface CollabPeerView {
+  kind: CollabPeerKind
+  jid?: string
+  role?: string
+  goals?: string[]
+  grant?: string[]
+  open?: boolean
+  slot?: string
+  quorum?: number
+  heartbeatMs?: number
+  offlineGraceMs?: number
+  rejoin?: CollabPeerRejoin
+}
 export type WorkflowOnFailure = 'fail' | 'skip' | 'compensate'
 
 /** 本地引擎可执行的步骤类型；之外的类型仅 AWF 平台可运行（能力协商，见 /api/dsl/capabilities）。 */
@@ -12,6 +28,7 @@ export const LOCAL_STEP_TYPES: ReadonlySet<string> = new Set<string>([
   'llm',
   'approval',
   'sub_workflow',
+  'collab_peer',
 ])
 
 /** 返回该工作流中超出本地引擎能力的步骤类型（去重、保序）；空数组表示可本地运行。 */
@@ -56,6 +73,8 @@ export interface WorkflowStepView {
   retries?: number
   onFailure?: WorkflowOnFailure
   compensation?: WorkflowCompensationView
+  /** Collab peer step binding (type collab_peer). */
+  peer?: CollabPeerView
   /** Optional canvas position for the visual designer. */
   ui?: { x: number; y: number }
 }
@@ -552,6 +571,25 @@ function mapStep(raw: Record<string, unknown>): WorkflowStepView {
   if (typeof raw.ref === 'string') step.ref = raw.ref
   if (typeof raw.model === 'string') step.model = raw.model
   if (typeof raw.role === 'string') step.role = raw.role
+  const peerRaw = raw.peer
+  if (isObject(peerRaw)) {
+    const kind = peerRaw.kind
+    if (kind === 'session' || kind === 'agent' || kind === 'workflow') {
+      const peer: CollabPeerView = { kind }
+      if (typeof peerRaw.jid === 'string') peer.jid = peerRaw.jid
+      if (typeof peerRaw.role === 'string') peer.role = peerRaw.role
+      if (Array.isArray(peerRaw.goals)) peer.goals = peerRaw.goals.map(String)
+      if (Array.isArray(peerRaw.grant)) peer.grant = peerRaw.grant.map(String)
+      if (typeof peerRaw.open === 'boolean') peer.open = peerRaw.open
+      if (typeof peerRaw.slot === 'string') peer.slot = peerRaw.slot
+      if (typeof peerRaw.quorum === 'number') peer.quorum = peerRaw.quorum
+      if (typeof peerRaw.heartbeatMs === 'number') peer.heartbeatMs = peerRaw.heartbeatMs
+      if (typeof peerRaw.offlineGraceMs === 'number') peer.offlineGraceMs = peerRaw.offlineGraceMs
+      const rejoin = peerRaw.rejoin
+      if (rejoin === 'resume' || rejoin === 'replace' || rejoin === 'reject') peer.rejoin = rejoin
+      step.peer = peer
+    }
+  }
   if (typeof raw.retries === 'number' && Number.isInteger(raw.retries) && raw.retries >= 0) {
     step.retries = raw.retries
   }
@@ -769,8 +807,26 @@ export function workflowViewToYaml(workflow: WorkflowView): string {
       lines.push(`      pass: [${step.pass.map((item) => escapeYamlScalar(item)).join(', ')}]`)
     }
     if (step.ref) lines.push(`      ref: ${step.ref}`)
+    if (step.peer) {
+      lines.push('      peer:')
+      lines.push(`        kind: ${step.peer.kind}`)
+      if (step.peer.jid) lines.push(`        jid: ${escapeYamlScalar(step.peer.jid)}`)
+      if (step.peer.role) lines.push(`        role: ${escapeYamlScalar(step.peer.role)}`)
+      if (step.peer.goals && step.peer.goals.length > 0) {
+        lines.push(`        goals: [${step.peer.goals.map((item) => escapeYamlScalar(item)).join(', ')}]`)
+      }
+      if (step.peer.grant && step.peer.grant.length > 0) {
+        lines.push(`        grant: [${step.peer.grant.map((item) => escapeYamlScalar(item)).join(', ')}]`)
+      }
+      if (typeof step.peer.open === 'boolean') lines.push(`        open: ${step.peer.open}`)
+      if (step.peer.slot) lines.push(`        slot: ${escapeYamlScalar(step.peer.slot)}`)
+      if (typeof step.peer.quorum === 'number') lines.push(`        quorum: ${step.peer.quorum}`)
+      if (typeof step.peer.heartbeatMs === 'number') lines.push(`        heartbeatMs: ${step.peer.heartbeatMs}`)
+      if (typeof step.peer.offlineGraceMs === 'number') lines.push(`        offlineGraceMs: ${step.peer.offlineGraceMs}`)
+      if (step.peer.rejoin) lines.push(`        rejoin: ${step.peer.rejoin}`)
+    }
     if (step.model) lines.push(`      model: ${step.model}`)
-    if (step.role) lines.push(`      role: ${step.role}`)
+    if (step.role && step.type !== 'collab_peer') lines.push(`      role: ${step.role}`)
     if (step.timeout) lines.push(`      timeout: ${step.timeout}`)
     if (typeof step.maxTokens === 'number') lines.push(`      maxTokens: ${step.maxTokens}`)
     if (typeof step.retries === 'number') lines.push(`      retries: ${step.retries}`)

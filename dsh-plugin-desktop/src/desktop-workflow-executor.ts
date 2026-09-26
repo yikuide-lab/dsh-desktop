@@ -20,6 +20,7 @@ import {
 } from 'dsh-plugin-workflow/engine'
 import type { ExecutionContext, Executor, Step } from 'dsh-plugin-workflow/engine'
 import type { WorkflowSettings } from 'dsh-plugin-workflow'
+import { isLocalDesktopJid, parseJid, peerKindFromJid } from 'dsh-plugin-workflow/collab'
 
 interface ModelRoute {
   provider: string
@@ -45,6 +46,36 @@ export interface DesktopWorkflowHostServices {
   }
   /** Optional workflow LLM preference lookup (bias → provider/model). */
   getWorkflowSettings?: () => WorkflowSettings
+  /** AWF platform remote run (P7 collab_peer awf@ workflow peer). */
+  /** Prefer waiting until AWF run reaches a terminal or gate state when provided. */
+  awfRemoteRunAndWait?: (input: {
+    workflowId: number
+    params?: Record<string, string>
+    timeoutMs?: number
+    signal?: AbortSignal
+  }) => Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    runnerRunId?: string
+    errorKind?: string
+    errorMessage?: string
+  }>
+  awfRemoteRun?: (input: {
+    workflowId: number
+    params?: Record<string, string>
+  }) => Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    runnerRunId?: string
+    errorKind?: string
+    errorMessage?: string
+  }>
 }
 
 function parseProviderModel(value: string): ModelRoute | undefined {
@@ -371,6 +402,163 @@ export async function runTaskStep(
   }
 }
 
+function isRemoteCollabJid(jid: string): boolean {
+  try {
+    const parsed = parseJid(jid)
+    if (parsed.domain !== 'desktop.local') return true
+    const node = parsed.node.toLowerCase()
+    if (node.startsWith('remote.') || node.includes('remote')) return true
+    return false
+  } catch {
+    return true
+  }
+}
+
+function collabParamsFromContext(context: ExecutionContext): Record<string, string> {
+  const out: Record<string, string> = {}
+  const params = context.params ?? {}
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === 'string' || typeof value === 'number') out[key] = String(value)
+  }
+  const env = context.env ?? {}
+  for (const [key, value] of Object.entries(env)) {
+    if (typeof value === 'string') out[key] = value
+  }
+  return out
+}
+
+/** Validate peer JID and dispatch local attach or AWF remote.workflow (P7). */
+export async function runCollabPeerStep(
+  services: DesktopWorkflowHostServices,
+  step: Step,
+  context: ExecutionContext,
+  _cwd: string,
+  signal: AbortSignal,
+): Promise<StepOutcome> {
+  signal.throwIfAborted()
+  const peer = step.peer
+  if (!peer) return { ok: false, error: 'collab_peer step missing peer config' }
+
+  const jid = peer.jid?.trim()
+  if (jid && !isLocalDesktopJid(jid)) {
+    return { ok: false, error: `remote collab peer rejected: ${jid} (domain must be desktop.local)` }
+  }
+  if (jid && isRemoteCollabJid(jid)) {
+    return { ok: false, error: `remote collab peer rejected: ${jid}` }
+  }
+
+  if (peer.kind === 'session') {
+    if (!jid) return { ok: false, error: 'session peer requires jid' }
+    return {
+      ok: true,
+      output: {
+        kind: 'session',
+        jid,
+        note: 'local session peer attached; presence heartbeat expected from client',
+      },
+    }
+  }
+
+  if (peer.kind === 'agent') {
+    if (!jid) return { ok: false, error: 'agent peer requires jid' }
+    return {
+      ok: true,
+      output: {
+        kind: 'agent',
+        jid,
+        note: 'local agent peer attached; Host agent wiring deferred',
+      },
+    }
+  }
+
+  if (peer.kind === 'workflow') {
+    if (!jid) return { ok: false, error: 'workflow peer requires jid' }
+    let node: string
+    try {
+      node = parseJid(jid).node
+    } catch {
+      return { ok: false, error: `invalid workflow peer jid: ${jid}` }
+    }
+    if (node === 'awf') {
+      const resource = parseJid(jid).resource?.trim()
+      if (!resource) {
+        return { ok: false, error: 'AWF workflow peer requires platform workflow id in JID resource' }
+      }
+      const workflowId = Number(resource)
+      if (!Number.isFinite(workflowId) || workflowId <= 0) {
+        return { ok: false, error: `invalid AWF workflow id in JID resource: ${resource}` }
+      }
+      if (!services.awfRemoteRunAndWait && !services.awfRemoteRun) {
+        return { ok: false, error: 'AWF remote run unavailable (Host AWF bridge not wired)' }
+      }
+      signal.throwIfAborted()
+      const remote = services.awfRemoteRunAndWait
+        ? await services.awfRemoteRunAndWait({
+          workflowId,
+          params: collabParamsFromContext(context),
+          signal,
+        })
+        : await services.awfRemoteRun!({
+          workflowId,
+          params: collabParamsFromContext(context),
+        })
+      if (!remote.ok) {
+        return {
+          ok: false,
+          error: remote.errorMessage ?? remote.errorKind ?? 'AWF remote run failed',
+        }
+      }
+      if (remote.status === 'waiting_gate') {
+        return {
+          ok: false,
+          error: `AWF run waiting_gate (runnerRunId=${remote.runnerRunId ?? remote.runId ?? '?'}); resolve as JWT owner`,
+        }
+      }
+      if (remote.status === 'failed') {
+        return {
+          ok: false,
+          error: remote.errorText ?? remote.errorMessage ?? 'AWF remote run failed',
+        }
+      }
+      return {
+        ok: true,
+        output: {
+          kind: 'workflow',
+          remote: 'awf',
+          workflowId,
+          jid,
+          status: remote.status,
+          runId: remote.runId,
+          runnerRunId: remote.runnerRunId,
+          ...(remote.resultText !== undefined ? { resultText: remote.resultText } : {}),
+          ...(remote.errorText !== undefined ? { errorText: remote.errorText } : {}),
+          note: 'AWF remote run waited (auto_approve=false)',
+        },
+      }
+    }
+    if (node !== 'workflow') {
+      return { ok: false, error: `unsupported workflow peer node: ${node}` }
+    }
+    const ref = parseJid(jid).resource ?? jid
+    return {
+      ok: true,
+      output: {
+        kind: 'workflow',
+        ref,
+        jid,
+        note: 'local workflow peer stub; executeSubWorkflow wiring deferred',
+      },
+    }
+  }
+
+  try {
+    if (jid) peerKindFromJid(jid)
+  } catch {
+    // peer.kind is authoritative when jid absent or generic
+  }
+  return { ok: false, error: `unsupported collab peer kind: ${peer.kind}` }
+}
+
 /** Build Host hooks that call Cordis LLM / agents services. */
 export function createDesktopWorkflowHostHooks(
   services: DesktopWorkflowHostServices,
@@ -379,6 +567,7 @@ export function createDesktopWorkflowHostHooks(
     runLlm: (step, context, _cwd, signal) => runLlmStep(services, step, context, signal),
     runTask: (step, context, cwd, signal) => runTaskStep(services, step, context, cwd, signal),
     runRsiReview: (request, signal) => runRsiReview(services, request, signal),
+    runCollabPeer: (step, context, cwd, signal) => runCollabPeerStep(services, step, context, cwd, signal),
   }
 }
 

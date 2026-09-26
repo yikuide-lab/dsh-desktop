@@ -31,7 +31,8 @@
 | [Market 目录提供方合同](../dsh-community-market/docs/catalog-provider-contract.zh.md) | 面向后续实现团队的 Schema、query 参数、多来源和适配器规范 |
 | [架构说明](architecture.md) | Electron、Host、Web carrier、profile 和打包之间的关系 |
 | [AWF 客户端计划](awf-client-plan.md) | Desktop 作为 AWF 平台客户端的通道与整合收尾 |
-| [Collab Loop 计划](collab-loop-plan.md) | 跨会话协作 Loop（Desktop 主战场）与 AWF remote.workflow 对齐 |
+| [Collab Loop 计划](collab-loop-plan.md) | 跨会话协作 Loop（Desktop 主战场）与 AWF remote.workflow 对齐；[英文摘要](collab-loop-plan.en.md) |
+| [时间大师计划](time-master-plan.md) | Token 套餐登记与提醒（V1 已交付）；V2 编排 / 项目规划 / 跨会话协调 |
 | [Desktop service 参考](../dsh-plugin-desktop/docs/plugin-services.md) | `desktopProfiles`、`desktopPnpm` 的稳定 contract 和 TypeScript 示例 |
 | [包级参考](../dsh-plugin-desktop/README.md) | 完整的构建、运行、发布和已知限制 |
 
@@ -49,4 +50,4 @@
 
 ## 状态约定
 
-文档会明确区分已实现能力、平台限制和 roadmap。Desktop 的兼容模式在独立 Desktop frame 下保留上游默认 Web 客户端；扩展窗口安装自己独立注册的 Desktop layout/sidebar surface，并在倒 L 中承载官方 occupant；增强模式保留独立 root registration 与紧凑内部 caption。Desktop frame 会按系统能力提供原生材质。插件市场已建立 [`dsh-community-market`](../dsh-community-market/README.zh.md) 文档初始化工程，但尚无可用页面或安装器；手机远程和 Channels 也仍是独立 roadmap，不代表当前安装包已经提供这些产品入口。
+文档会明确区分已实现能力、平台限制和 roadmap。Desktop 的兼容模式在独立 Desktop frame 下保留上游默认 Web 客户端；扩展窗口安装自己独立注册的 Desktop layout/sidebar surface，并在倒 L 中承载官方 occupant；增强模式保留独立 root registration 与紧凑内部 caption。Desktop frame 会按系统能力提供原生材质。插件市场已建立 [`dsh-community-market`](../dsh-community-market/README.zh.md) 文档初始化工程，但尚无可用页面或安装器；手机远程和 Channels 也仍是独立 roadmap，不代表当前安装包已经提供这些产品入口。[Collab Loop](collab-loop-plan.md) V1 已落地（引擎/Host/UI/AWF 对齐；真 ASP 仍为 V2）；[时间大师](time-master-plan.md) V1+V2（套餐登记、编排、项目规划、跨会话协调）已交付。

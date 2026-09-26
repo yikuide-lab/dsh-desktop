@@ -12,6 +12,7 @@ import { designWorkflowWithLlm, type WorkflowDesignMode } from './desktop-workfl
 import type { WorkflowOpenAiApiController } from './desktop-workflow-openai-controller.ts'
 import type { AwfBridge } from './desktop-awf-bridge.ts'
 import type { AwfExecutorController } from './desktop-awf-executor.ts'
+import { problemLoopBuiltinTemplate } from './collab-host/problem-loop-template.ts'
 
 export interface DesktopWorkflowOpExtras {
   readonly openAiApi?: WorkflowOpenAiApiController
@@ -115,8 +116,12 @@ export async function executeDesktopWorkflowOp(
         request.token,
       )
     }
-    case 'listTemplates':
-      return plugin.listTemplates()
+    case 'listTemplates': {
+      const builtin = plugin.listTemplates()
+      const problemLoop = problemLoopBuiltinTemplate()
+      if (builtin.some((entry) => entry.id === problemLoop.id)) return builtin
+      return [...builtin, problemLoop]
+    }
     case 'saveTemplate': {
       if (!request.yaml?.trim()) throw new Error('yaml is required')
       const category = request.templateCategory === 'development'

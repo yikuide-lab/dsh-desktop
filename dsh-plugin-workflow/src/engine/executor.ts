@@ -35,6 +35,12 @@ export interface DesktopExecutorHooks {
   ) => Promise<StepOutcome>
   /** RSI review pass over a workflow YAML (absent → engine's deterministic stub). */
   runRsiReview?: RsiReviewer
+  runCollabPeer?: (
+    step: Step,
+    context: ExecutionContext,
+    cwd: string,
+    signal: AbortSignal,
+  ) => Promise<StepOutcome>
 }
 
 interface PendingJob {
@@ -189,6 +195,12 @@ async function runStep(
       }
     case StepType.Approval:
       return { ok: true, output: { skipped: true } }
+    case StepType.CollabPeer:
+      if (hooks.runCollabPeer) return hooks.runCollabPeer(step, context, cwd, signal)
+      return {
+        ok: false,
+        error: 'Collab peer steps require a Host-bound runCollabPeer hook.',
+      }
     default:
       return { ok: false, error: `Unsupported step type: ${String(step.type)}` }
   }

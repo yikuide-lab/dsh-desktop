@@ -47,6 +47,27 @@ const TIME_MASTER_STYLES = `
   font-size: 16px;
   font-weight: 650;
 }
+.dshTimeMasterTabs {
+  display: flex;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+}
+.dshTimeMasterTab {
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #6b7280);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.dshTimeMasterTab[data-active='true'] {
+  color: var(--text-primary, #111);
+  border-bottom-color: #2563eb;
+}
 .dshTimeMasterHint {
   padding: 8px 16px 0;
   font-size: 12px;
@@ -197,6 +218,52 @@ const TIME_MASTER_STYLES = `
   padding: 10px 16px 12px;
   border-top: 1px solid var(--border-color, #e5e7eb);
   background: var(--bg-primary, #fff);
+}
+.dshTimeMasterJsonArea {
+  min-height: 120px !important;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px !important;
+}
+.dshTimeMasterCoordPane {
+  grid-column: 1 / -1;
+  min-height: 0;
+  overflow: auto;
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.dshTimeMasterCoordToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dshTimeMasterCoordList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dshTimeMasterCoordItem {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 10px;
+  background: var(--bg-secondary, #fafafa);
+  font-size: 12px;
+}
+.dshTimeMasterJsonPreview {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--bg-secondary, #f3f4f6);
+  font-size: 11px;
+  overflow: auto;
+  max-height: 200px;
+}
+.dshTimeMasterStatusBar {
+  padding: 0 16px 8px;
 }
 .dshTimeMasterStatus {
   font-size: 12px;

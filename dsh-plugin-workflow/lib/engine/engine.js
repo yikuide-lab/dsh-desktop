@@ -87,6 +87,10 @@ export function createRun(workflow, params, coordinatorId, lineage) {
         if (step.type === StepType.Approval) {
             gates[step.id] = buildApprovalGate(step);
         }
+        // Open collab_peer slots wait for join before dispatch
+        if (step.type === StepType.CollabPeer && collabPeerNeedsJoinGate(step)) {
+            gates[step.id] = buildCollabJoinGate(step);
+        }
     }
     const parentRunId = lineage?.parentRunId;
     const rootRunId = lineage?.rootRunId ?? parentRunId;
@@ -415,9 +419,36 @@ export function buildApprovalGate(step) {
     return {
         id: `gate-${step.id}`,
         stepId: step.id,
+        kind: 'approval',
         question: step.question ?? 'Approve?',
         options,
         pass: resolveGatePassDecisions(options, step.pass),
+        token: randomUUID(),
+    };
+}
+/** True when an open collab_peer slot must wait for a join before dispatch. */
+export function collabPeerNeedsJoinGate(step) {
+    return step.type === StepType.CollabPeer
+        && !!step.peer
+        && step.peer.open !== false
+        && !step.peer.jid;
+}
+/** Build a collab join gate for an open, unbound collab_peer step. */
+export function buildCollabJoinGate(step) {
+    if (step.type !== StepType.CollabPeer) {
+        throw new Error(`Step ${step.id} is not a collab_peer step`);
+    }
+    if (!step.peer) {
+        throw new Error(`Step ${step.id} is missing peer`);
+    }
+    const slot = step.peer.slot ?? step.id;
+    return {
+        id: `gate-${step.id}`,
+        stepId: step.id,
+        kind: 'collab_join',
+        question: `Waiting for peer join (slot=${slot})`,
+        options: ['joined'],
+        pass: ['joined'],
         token: randomUUID(),
     };
 }
@@ -486,6 +517,38 @@ export function resolveGate(run, stepId, decision, resolvedBy, token, options) {
         return skipUnreachableTasks(updated, options.workflow);
     }
     return updated;
+}
+/**
+ * Resolve a collab join gate without completing the step task.
+ * The coordinator can dispatch runCollabPeer once the gate is resolved.
+ */
+export function resolveCollabJoinGate(run, stepId, token, resolvedBy) {
+    const gate = run.gates[stepId];
+    if (!gate) {
+        throw new Error(`Gate not found: ${stepId}`);
+    }
+    if (gate.kind !== 'collab_join') {
+        throw new Error(`Gate ${stepId} is not a collab join gate`);
+    }
+    if (gate.token !== token) {
+        throw new Error('Invalid gate token');
+    }
+    if (gate.resolved) {
+        throw new Error(`Gate ${stepId} already resolved`);
+    }
+    const updatedGate = {
+        ...gate,
+        resolved: 'joined',
+        resolvedBy,
+        resolvedAt: new Date().toISOString(),
+    };
+    return {
+        ...run,
+        gates: {
+            ...run.gates,
+            [stepId]: updatedGate,
+        },
+    };
 }
 // ============================================================================
 // Abort & Compensation

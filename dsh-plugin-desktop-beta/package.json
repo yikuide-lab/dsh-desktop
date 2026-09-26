@@ -84,6 +84,10 @@
       "types": "./lib/types/time-master-host.d.ts",
       "default": "./lib/time-master-host.js"
     },
+    "./collab-host": {
+      "types": "./lib/types/collab-host.d.ts",
+      "default": "./lib/collab-host.js"
+    },
     "./package.json": "./package.json"
   },
   "files": [

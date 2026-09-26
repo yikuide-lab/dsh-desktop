@@ -29,6 +29,7 @@ import {
   isRunComplete,
   markAborted,
   resolveGate,
+  resolveCollabJoinGate,
   resolveEffectiveConcurrency,
   DEFAULT_FAILURE_POLICY,
   type FailurePolicyDefaults,
@@ -295,11 +296,11 @@ export class Coordinator extends EventEmitter {
         const step = this.state.workflow.spec.steps.find(s => s.id === stepId);
         if (!step) continue;
 
-        // Skip approval steps - they need manual resolution
-        if (step.type === StepType.Approval) {
+        // Skip approval / collab join steps until their gate is resolved
+        if (step.type === StepType.Approval || step.type === StepType.CollabPeer) {
           const gate = this.state.run.gates[stepId];
           if (gate && !gate.resolved) {
-            continue;  // wait for manual resolution
+            continue;
           }
         }
 
@@ -530,6 +531,15 @@ export class Coordinator extends EventEmitter {
     this.state.run = resolveGate(this.state.run, stepId, decision, resolvedBy, token, {
       workflow: this.state.workflow,
     });
+  }
+
+  /** Resolve a collab join gate (task stays pending until dispatch). */
+  resolveCollabJoinGate(stepId: string, token: string, resolvedBy: string): void {
+    if (!this.state) {
+      throw new Error('Coordinator not initialized');
+    }
+
+    this.state.run = resolveCollabJoinGate(this.state.run, stepId, token, resolvedBy);
   }
 }
 

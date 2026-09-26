@@ -159,6 +159,7 @@ export declare class WorkflowPlugin {
     executeSubWorkflow(step: Step, context: ExecutionContext, signal: AbortSignal): Promise<StepOutcome>;
     listPendingGates(runId?: string): Promise<PendingGateView[]>;
     resolveGate(runId: string, stepId: string, decision: string, resolvedBy: string, token: string): Promise<Run>;
+    resolveCollabJoinGate(runId: string, stepId: string, resolvedBy: string, token: string): Promise<Run>;
     /** Resume a persisted running run with a live coordinator + tick loop. */
     private reattachRun;
     getTranscript(runId: string, options?: {

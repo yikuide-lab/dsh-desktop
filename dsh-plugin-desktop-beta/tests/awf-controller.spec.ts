@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto'
 import { WorkflowPlugin } from 'dsh-plugin-workflow'
 import { executeDesktopWorkflowOp } from '../src/desktop-workflow-controller.ts'
 import { createAwfBridge } from '../src/desktop-awf-bridge.ts'
+import { AWF_SYNC_COLLAB_REJECT_MESSAGE } from '../src/desktop-awf-collab-guard.ts'
 import type { AwfFetch } from '../src/desktop-awf-client.ts'
 
 const tmpDirs: string[] = []
@@ -125,6 +126,32 @@ describe('awf bridge + controller wiring', () => {
     expect(receipt.stage).toBe('preflight')
     expect(receipt.validation?.conflict).toContain('冻结')
     expect(calls.filter((c) => c.url.includes('/api/sync/workflows') && c.method === 'POST')).toHaveLength(0)
+  })
+
+  it('awfSync 含 collab_peer → 本地预检拒绝且不调用平台 validate', async () => {
+    const { bridge, calls, plugin } = await fixture({})
+    const collabYaml = `apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: collab-wf
+  requires:
+    - collab
+spec:
+  steps:
+    - id: peer
+      type: collab_peer
+      peer:
+        kind: session
+        jid: session@desktop.local/ses-1
+        open: false
+`
+    await plugin.createWorkflow(collabYaml)
+    const receipt = await bridge.syncWorkflow({ name: 'collab-wf' })
+    expect(receipt.ok).toBe(false)
+    expect(receipt.stage).toBe('error')
+    expect(receipt.errorKind).toBe('validation')
+    expect(receipt.errorMessage).toBe(AWF_SYNC_COLLAB_REJECT_MESSAGE)
+    expect(calls.filter((c) => c.url.includes('/api/sync/validate'))).toHaveLength(0)
   })
 
   it('awfSync 本地工作流不存在 → not-found 回执', async () => {

@@ -39,6 +39,7 @@ export var StepType;
     StepType["LLM"] = "llm";
     StepType["Approval"] = "approval";
     StepType["SubWorkflow"] = "sub_workflow";
+    StepType["CollabPeer"] = "collab_peer";
 })(StepType || (StepType = {}));
 export var TriggerType;
 (function (TriggerType) {
@@ -192,6 +193,87 @@ function normalizeStep(raw) {
     const ref = optionalString(raw, id, 'ref');
     if (ref !== undefined)
         step.ref = ref;
+    const peer = raw.peer;
+    if (peer !== undefined) {
+        if (peer === null || typeof peer !== 'object' || Array.isArray(peer)) {
+            throw stepFieldError(id, 'peer', 'an object');
+        }
+        const peerRaw = peer;
+        const kind = peerRaw.kind;
+        if (kind !== undefined) {
+            if (typeof kind !== 'string') {
+                throw stepFieldError(id, 'peer.kind', 'a string');
+            }
+            if (kind !== 'session' && kind !== 'agent' && kind !== 'workflow') {
+                throw stepFieldError(id, 'peer.kind', 'session, agent, or workflow');
+            }
+        }
+        const jid = typeof peerRaw.jid === 'string' ? peerRaw.jid : undefined;
+        if (peerRaw.jid !== undefined && jid === undefined) {
+            throw stepFieldError(id, 'peer.jid', 'a string');
+        }
+        const role = typeof peerRaw.role === 'string' ? peerRaw.role : undefined;
+        if (peerRaw.role !== undefined && role === undefined) {
+            throw stepFieldError(id, 'peer.role', 'a string');
+        }
+        const goals = peerRaw.goals;
+        if (goals !== undefined) {
+            if (!Array.isArray(goals) || goals.some((item) => typeof item !== 'string')) {
+                throw stepFieldError(id, 'peer.goals', 'an array of strings');
+            }
+        }
+        const grant = peerRaw.grant;
+        if (grant !== undefined) {
+            if (!Array.isArray(grant) || grant.some((item) => typeof item !== 'string')) {
+                throw stepFieldError(id, 'peer.grant', 'an array of strings');
+            }
+        }
+        const slot = typeof peerRaw.slot === 'string' ? peerRaw.slot : undefined;
+        if (peerRaw.slot !== undefined && slot === undefined) {
+            throw stepFieldError(id, 'peer.slot', 'a string');
+        }
+        const quorum = peerRaw.quorum;
+        if (quorum !== undefined) {
+            if (typeof quorum !== 'number' || !Number.isFinite(quorum) || quorum < 0) {
+                throw stepFieldError(id, 'peer.quorum', 'a non-negative number');
+            }
+        }
+        const heartbeatMs = peerRaw.heartbeatMs;
+        if (heartbeatMs !== undefined) {
+            if (typeof heartbeatMs !== 'number' || !Number.isFinite(heartbeatMs) || heartbeatMs < 0) {
+                throw stepFieldError(id, 'peer.heartbeatMs', 'a non-negative number');
+            }
+        }
+        const offlineGraceMs = peerRaw.offlineGraceMs;
+        if (offlineGraceMs !== undefined) {
+            if (typeof offlineGraceMs !== 'number' || !Number.isFinite(offlineGraceMs) || offlineGraceMs < 0) {
+                throw stepFieldError(id, 'peer.offlineGraceMs', 'a non-negative number');
+            }
+        }
+        const rejoin = peerRaw.rejoin;
+        if (rejoin !== undefined) {
+            if (rejoin !== 'resume' && rejoin !== 'replace' && rejoin !== 'reject') {
+                throw stepFieldError(id, 'peer.rejoin', 'resume, replace, or reject');
+            }
+        }
+        const open = peerRaw.open;
+        if (open !== undefined && typeof open !== 'boolean') {
+            throw stepFieldError(id, 'peer.open', 'a boolean');
+        }
+        step.peer = {
+            ...(kind !== undefined ? { kind: kind } : {}),
+            ...(jid !== undefined ? { jid } : {}),
+            ...(role !== undefined ? { role } : {}),
+            ...(Array.isArray(goals) ? { goals: goals } : {}),
+            ...(Array.isArray(grant) ? { grant: grant } : {}),
+            ...(open !== undefined ? { open } : {}),
+            ...(slot !== undefined ? { slot } : {}),
+            ...(typeof quorum === 'number' ? { quorum } : {}),
+            ...(typeof heartbeatMs === 'number' ? { heartbeatMs } : {}),
+            ...(typeof offlineGraceMs === 'number' ? { offlineGraceMs } : {}),
+            ...(rejoin !== undefined ? { rejoin: rejoin } : {}),
+        };
+    }
     if (raw.ui !== undefined) {
         if (raw.ui === null || typeof raw.ui !== 'object' || Array.isArray(raw.ui)) {
             throw stepFieldError(id, 'ui', 'an object with numeric x/y');
@@ -297,7 +379,7 @@ export function engineCapabilities() {
     return {
         dslVersion: WORKFLOW_API_VERSION,
         stepTypes: Object.values(StepType),
-        features: ['gate', 'compensation', 'sub_workflow', 'triggers'],
+        features: ['gate', 'compensation', 'sub_workflow', 'triggers', 'collab'],
     };
 }
 export function validateWorkflow(workflow) {
@@ -480,6 +562,48 @@ function validateStep(step, errors) {
         case StepType.SubWorkflow:
             if (!step.ref) {
                 errors.push({ path: `${path}.ref`, message: 'Sub-workflow step requires "ref"', severity: 'error' });
+            }
+            break;
+        case StepType.CollabPeer:
+            if (!step.peer) {
+                errors.push({ path: `${path}.peer`, message: 'Collab peer step requires "peer"', severity: 'error' });
+                break;
+            }
+            if (!step.peer.kind) {
+                errors.push({ path: `${path}.peer.kind`, message: 'Collab peer requires "peer.kind"', severity: 'error' });
+            }
+            else if (!['session', 'agent', 'workflow'].includes(step.peer.kind)) {
+                errors.push({
+                    path: `${path}.peer.kind`,
+                    message: 'peer.kind must be session, agent, or workflow',
+                    severity: 'error',
+                });
+            }
+            if (step.peer.open === false) {
+                if (!step.peer.jid) {
+                    errors.push({
+                        path: `${path}.peer.jid`,
+                        message: 'Closed peer (open=false) requires "peer.jid"',
+                        severity: 'error',
+                    });
+                }
+            }
+            else if (!step.peer.slot) {
+                errors.push({
+                    path: `${path}.peer.slot`,
+                    message: 'Open peer requires "peer.slot"',
+                    severity: 'error',
+                });
+            }
+            if (step.peer.rejoin !== undefined
+                && step.peer.rejoin !== 'resume'
+                && step.peer.rejoin !== 'replace'
+                && step.peer.rejoin !== 'reject') {
+                errors.push({
+                    path: `${path}.peer.rejoin`,
+                    message: 'peer.rejoin must be resume, replace, or reject',
+                    severity: 'error',
+                });
             }
             break;
     }

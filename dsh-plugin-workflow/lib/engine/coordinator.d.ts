@@ -102,6 +102,8 @@ export declare class Coordinator extends EventEmitter {
      * Resolve an approval gate (delegates to engine.resolveGate).
      */
     resolveGate(stepId: string, decision: string, resolvedBy: string, token: string): void;
+    /** Resolve a collab join gate (task stays pending until dispatch). */
+    resolveCollabJoinGate(stepId: string, token: string, resolvedBy: string): void;
 }
 /** Per-dispatch wall-clock limit: step.timeout, else script default 600s, else heartbeat ceiling. */
 export declare function resolveDispatchTimeLimitMs(step: Step | undefined, heartbeatTimeoutMs: number): number;

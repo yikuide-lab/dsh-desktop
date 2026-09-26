@@ -16,6 +16,7 @@ export interface DesktopExecutorHooks {
     runSubWorkflow?: (step: Step, context: ExecutionContext, signal: AbortSignal) => Promise<StepOutcome>;
     /** RSI review pass over a workflow YAML (absent → engine's deterministic stub). */
     runRsiReview?: RsiReviewer;
+    runCollabPeer?: (step: Step, context: ExecutionContext, cwd: string, signal: AbortSignal) => Promise<StepOutcome>;
 }
 /** Create an executor that runs script steps in a shell and optional Host hooks. */
 export declare function createDesktopExecutor(options?: {

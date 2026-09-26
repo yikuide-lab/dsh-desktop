@@ -31,7 +31,8 @@ Ordinary users can start with the [user guide](user-guide.en.md) and never need 
 | [Market catalog provider contract](../dsh-community-market/docs/catalog-provider-contract.md) | Schemas, query parameters, multi-source behavior, and adapter rules for the implementation team |
 | [Architecture](architecture.en.md) | Electron, Host, the Web carrier, profiles, and packaging |
 | [AWF client plan](awf-client-plan.md) | Desktop as AWF platform client (channels + integration close-out; zh) |
-| [Collab Loop plan](collab-loop-plan.md) | Cross-session Collab Loop on Desktop Host + AWF remote.workflow alignment (zh) |
+| [Collab Loop plan](collab-loop-plan.en.md) | Cross-session Collab Loop on Desktop Host + AWF `remote.workflow` (EN summary; [full zh](collab-loop-plan.md)) |
+| [Time Master plan](time-master-plan.md) | Token-plan registry + expiry reminders (V1 shipped); V2 orchestration / project planning / cross-session coord (zh) |
 | [Desktop service reference](../dsh-plugin-desktop/docs/plugin-services.md) | Stable `desktopProfiles` and `desktopPnpm` contracts with TypeScript examples |
 | [Package reference](../dsh-plugin-desktop/README.md) | Detailed build, runtime, release, and limitation notes |
 
@@ -49,4 +50,4 @@ The outer repository has two formal product READMEs plus one legacy compatibilit
 
 ## Status convention
 
-These pages distinguish shipped behavior, platform limits, and roadmap items. Compatibility mode keeps the upstream default Web client below an independent Desktop frame; extended mode installs its own Desktop layout/sidebar registration and hosts official occupants in an inverted L; enhanced mode retains a separate root registration with compact internal captions. Desktop frames provide capability-gated native materials. The plugin marketplace now has a documentation scaffold in [`dsh-community-market`](../dsh-community-market/README.md), but no usable page or installer; mobile remote control and Channels also remain separate roadmap items and are not implied to be part of the current installer.
+These pages distinguish shipped behavior, platform limits, and roadmap items. Compatibility mode keeps the upstream default Web client below an independent Desktop frame; extended mode installs its own Desktop layout/sidebar registration and hosts official occupants in an inverted L; enhanced mode retains a separate root registration with compact internal captions. Desktop frames provide capability-gated native materials. The plugin marketplace now has a documentation scaffold in [`dsh-community-market`](../dsh-community-market/README.md), but no usable page or installer; mobile remote control and Channels also remain separate roadmap items and are not implied to be part of the current installer. [Collab Loop](collab-loop-plan.en.md) V1 has landed (engine/Host/UI/AWF alignment; real ASP remains V2). [Time Master](time-master-plan.md) V1+V2 (registry, usage orchestration, project planning, cross-session coordination) has shipped.

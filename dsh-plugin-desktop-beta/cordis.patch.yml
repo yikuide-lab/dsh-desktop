@@ -24,6 +24,8 @@
       name: dsh-plugin-desktop-beta/session-import
     - id: desktop-time-master
       name: dsh-plugin-desktop-beta/time-master
+    - id: desktop-collab
+      name: dsh-plugin-desktop-beta/collab-host
 
 # A desktop launch has no terminal operator waiting for the Web readiness line.
 - id: web-runtime

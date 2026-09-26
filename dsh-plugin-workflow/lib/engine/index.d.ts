@@ -8,4 +8,6 @@ export * from './script-policy.js';
 export * from './workflow-stats.js';
 export * from './rsi-review.js';
 export { WorkflowStore, ensureWorkflowUid } from './store.js';
+export { Coordinator } from './coordinator.js';
+export { buildApprovalGate, buildCollabJoinGate, collabPeerNeedsJoinGate, createRun, computeReady, dispatchTask, resolveGate, resolveCollabJoinGate, } from './engine.js';
 //# sourceMappingURL=index.d.ts.map

@@ -8,13 +8,23 @@ import {
   type DesktopTimeMasterRequest,
 } from './desktop-time-master-contract.ts'
 import {
+  applyCoordSuggestions,
   buildContextSnapshot,
+  buildCoordSnapshot,
+  coordinateTasks,
   deletePlan,
+  deleteProject,
+  deleteSchedule,
+  orchestrateUsage,
+  planProject,
   planUrgency,
   readTimeMasterStore,
   resolveTimeMasterStorePath,
   suggestTokenPlan,
+  taskUrgency,
   upsertPlan,
+  upsertProject,
+  upsertSchedule,
   writeTimeMasterStore,
   localDateString,
 } from './time-master/index.ts'
@@ -22,6 +32,9 @@ import {
 const MAX_BODY_BYTES = 256 * 1024
 const OPS = new Set<DesktopTimeMasterOp>([
   'list', 'upsert', 'delete', 'contextSnapshot', 'aiSuggest',
+  'schedule.list', 'schedule.upsert', 'schedule.delete', 'aiOrchestrateUsage',
+  'project.list', 'project.upsert', 'project.delete', 'aiPlanProject',
+  'coord.snapshot', 'aiCoordinate',
 ])
 
 class BodyTooLargeError extends Error {}
@@ -55,9 +68,18 @@ async function executeOp(ctx: Context, body: DesktopTimeMasterRequest): Promise<
     return {
       ok: true,
       today,
+      version: store.version,
       plans: store.plans.map(plan => ({
         ...plan,
         urgency: planUrgency(plan, today),
+      })),
+      schedules: store.schedules,
+      projects: store.projects.map(project => ({
+        ...project,
+        tasks: project.tasks.map(task => ({
+          ...task,
+          urgency: taskUrgency(task.dueAt, today),
+        })),
       })),
     }
   }
@@ -81,6 +103,64 @@ async function executeOp(ctx: Context, body: DesktopTimeMasterRequest): Promise<
     return { ok: true }
   }
 
+  if (body.op === 'schedule.list') {
+    const store = readTimeMasterStore(path)
+    return { ok: true, schedules: store.schedules }
+  }
+
+  if (body.op === 'schedule.upsert') {
+    if (!body.scheduleDraft) return { ok: false, error: 'scheduleDraft is required' }
+    const store = readTimeMasterStore(path)
+    try {
+      const { store: next, schedule } = upsertSchedule(store, body.scheduleDraft)
+      writeTimeMasterStore(path, next)
+      return { ok: true, schedule }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'schedule upsert failed' }
+    }
+  }
+
+  if (body.op === 'schedule.delete') {
+    if (!body.id) return { ok: false, error: 'id is required' }
+    const store = readTimeMasterStore(path)
+    writeTimeMasterStore(path, deleteSchedule(store, body.id))
+    return { ok: true }
+  }
+
+  if (body.op === 'project.list') {
+    const store = readTimeMasterStore(path)
+    const today = localDateString()
+    return {
+      ok: true,
+      projects: store.projects.map(project => ({
+        ...project,
+        tasks: project.tasks.map(task => ({
+          ...task,
+          urgency: taskUrgency(task.dueAt, today),
+        })),
+      })),
+    }
+  }
+
+  if (body.op === 'project.upsert') {
+    if (!body.projectDraft) return { ok: false, error: 'projectDraft is required' }
+    const store = readTimeMasterStore(path)
+    try {
+      const { store: next, project } = upsertProject(store, body.projectDraft)
+      writeTimeMasterStore(path, next)
+      return { ok: true, project }
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error.message : 'project upsert failed' }
+    }
+  }
+
+  if (body.op === 'project.delete') {
+    if (!body.id) return { ok: false, error: 'id is required' }
+    const store = readTimeMasterStore(path)
+    writeTimeMasterStore(path, deleteProject(store, body.id))
+    return { ok: true }
+  }
+
   if (body.op === 'contextSnapshot') {
     const context = await buildContextSnapshot(ctx)
     return { ok: true, context }
@@ -94,6 +174,84 @@ async function executeOp(ctx: Context, body: DesktopTimeMasterRequest): Promise<
       ...(body.hint ? { hint: body.hint } : {}),
     })
     return { ok: true, draft: result.draft, source: result.source, context }
+  }
+
+  if (body.op === 'aiOrchestrateUsage') {
+    const store = readTimeMasterStore(path)
+    const context = await buildContextSnapshot(ctx)
+    const result = await orchestrateUsage({
+      ctx,
+      plans: store.plans,
+      context,
+      ...(body.hint ? { hint: body.hint } : {}),
+    })
+    return { ok: true, draft: result.draft, source: result.source, context }
+  }
+
+  if (body.op === 'aiPlanProject') {
+    const context = await buildContextSnapshot(ctx)
+    const result = await planProject({
+      ctx,
+      context,
+      ...(body.hint ? { hint: body.hint } : {}),
+    })
+    return { ok: true, draft: result.draft, source: result.source, context }
+  }
+
+  if (body.op === 'coord.snapshot') {
+    const store = readTimeMasterStore(path)
+    const snapshot = buildCoordSnapshot({
+      projects: store.projects,
+      schedules: store.schedules,
+      plans: store.plans,
+    })
+    return { ok: true, snapshot }
+  }
+
+  if (body.op === 'aiCoordinate') {
+    const store = readTimeMasterStore(path)
+    const snapshot = buildCoordSnapshot({
+      projects: store.projects,
+      schedules: store.schedules,
+      plans: store.plans,
+    })
+    const result = await coordinateTasks({
+      ctx,
+      snapshot,
+      projects: store.projects,
+    })
+
+    if (body.applySuggestions && result.suggestions.length > 0) {
+      let next = store
+      for (const project of store.projects) {
+        const updated = applyCoordSuggestions(project, result.suggestions)
+        if (updated !== project) {
+          const upserted = upsertProject(next, updated)
+          next = upserted.store
+        }
+      }
+      writeTimeMasterStore(path, next)
+      const refreshed = buildCoordSnapshot({
+        projects: next.projects,
+        schedules: next.schedules,
+        plans: next.plans,
+      })
+      return {
+        ok: true,
+        suggestions: result.suggestions,
+        source: result.source,
+        snapshot: refreshed,
+        applied: true,
+      }
+    }
+
+    return {
+      ok: true,
+      suggestions: result.suggestions,
+      source: result.source,
+      snapshot,
+      applied: false,
+    }
   }
 
   return { ok: false, error: 'unknown op' }

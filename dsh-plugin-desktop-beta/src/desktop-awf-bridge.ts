@@ -29,6 +29,7 @@ import {
   type AwfAuthStatusView,
 } from './desktop-awf-auth.ts'
 import { createTunnelClient, type TunnelClientHandle } from 'awf-runner'
+import { assertAwfSyncAllowed } from './desktop-awf-collab-guard.ts'
 
 export interface AwfBridgeOptions {
   readonly plugin: WorkflowPlugin
@@ -74,6 +75,25 @@ export interface AwfConnectionResult {
   readonly errorMessage?: string
 }
 
+export interface AwfRemoteRunResult {
+  readonly ok: boolean
+  readonly status?: string
+  readonly resultText?: string
+  readonly errorText?: string
+  /** Platform run_records numeric id (legacy; prefer runnerRunId for gate resolve). */
+  readonly runId?: number
+  /** Runner UUID from createRun; canonical handle for poll + resolveGate. */
+  readonly runnerRunId?: string
+  readonly errorKind?: string
+  readonly errorMessage?: string
+}
+
+const AWF_REMOTE_RUN_TERMINAL = new Set(['finished', 'failed', 'waiting_gate', 'completed'])
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => { setTimeout(resolve, ms) })
+}
+
 export interface AwfBridge {
   getSettings(): Promise<AwfPublicStatus>
   setSettings(input: {
@@ -98,15 +118,12 @@ export interface AwfBridge {
   authPhoneLogin(input: { phone: string; code: string }): Promise<AwfAuthStatusView>
   authLogout(): Promise<{ ok: boolean }>
   /** 远程试运行：对平台工作流发起一次执行（auto_approve=false，轮询由调用方负责）。 */
-  remoteRun(input: { workflowId: number; params?: Record<string, string> }): Promise<{
-    ok: boolean
-    status?: string
-    resultText?: string
-    errorText?: string
-    runId?: number
-    errorKind?: string
-    errorMessage?: string
-  }>
+  remoteRun(input: { workflowId: number; params?: Record<string, string> }): Promise<AwfRemoteRunResult>
+  /** 远程试运行并轮询至 finished | failed | waiting_gate | completed 或超时。 */
+  remoteRunAndWait(
+    input: { workflowId: number; params?: Record<string, string> },
+    options?: { timeoutMs?: number; pollIntervalMs?: number },
+  ): Promise<AwfRemoteRunResult>
   /** 反向隧道：节点外拨 WS 连接 + 本地 OpenAI 兼容 HTTP 出口。 */
   getTunnelStatus(): Promise<{
     connected: boolean
@@ -283,6 +300,19 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
       // a bare "创建失败: <name>". Carry the local metadata through, falling
       // back to the workflow name the way template promotion does.
       const local = await plugin.getWorkflow(name).catch(() => null)
+      const collabGuardInput: import('./desktop-awf-collab-guard.ts').AwfSyncGuardInput = { yaml }
+      if (local?.spec.steps) collabGuardInput.steps = local.spec.steps
+      if (local?.metadata.requires) collabGuardInput.requires = local.metadata.requires
+      const collabGuard = assertAwfSyncAllowed(collabGuardInput)
+      if (!collabGuard.ok) {
+        log(`AWF sync rejected (collab): ${name}`)
+        return {
+          ok: false,
+          stage: 'error' as const,
+          errorKind: 'validation',
+          errorMessage: collabGuard.error,
+        }
+      }
       const item: AwfSyncItem = {
         name,
         yaml_text: yaml,
@@ -341,30 +371,67 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
       }
     },
 
-    async remoteRun(input): Promise<{
-      ok: boolean
-      status?: string
-      resultText?: string
-      errorText?: string
-      runId?: number
-      errorKind?: string
-      errorMessage?: string
-    }> {
+    async remoteRun(input): Promise<AwfRemoteRunResult> {
       const settings = await currentSettings()
       try {
-        const run = await clientFor(settings).createRun(input.workflowId, input.params ?? {})
+        const run = await clientFor(settings).createRun(
+          input.workflowId,
+          input.params ?? {},
+          { autoApprove: false },
+        )
         return {
           ok: true,
           status: run.status,
           ...(run.result_text !== undefined ? { resultText: run.result_text } : {}),
           ...(run.error_text !== undefined ? { errorText: run.error_text } : {}),
           runId: run.id,
+          runnerRunId: run.runner_run_id,
         }
       } catch (error) {
         if (error instanceof AwfError) {
           return { ok: false, errorKind: error.kind, errorMessage: error.message }
         }
         return { ok: false, errorKind: 'network', errorMessage: String(error) }
+      }
+    },
+
+    async remoteRunAndWait(input, options = {}): Promise<AwfRemoteRunResult> {
+      const timeoutMs = options.timeoutMs ?? 300_000
+      const pollIntervalMs = options.pollIntervalMs ?? 2_000
+      const settings = await currentSettings()
+      const client = clientFor(settings)
+      let run
+      try {
+        run = await client.createRun(input.workflowId, input.params ?? {}, { autoApprove: false })
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false, errorKind: error.kind, errorMessage: error.message }
+        }
+        return { ok: false, errorKind: 'network', errorMessage: String(error) }
+      }
+
+      let current = run
+      const deadline = Date.now() + timeoutMs
+      while (!AWF_REMOTE_RUN_TERMINAL.has(current.status) && Date.now() < deadline) {
+        await sleep(pollIntervalMs)
+        try {
+          const runs = await client.listRuns(input.workflowId)
+          const found = runs.find((entry) => (
+            entry.id === run.id || entry.runner_run_id === run.runner_run_id
+          ))
+          if (found) current = found
+        } catch {
+          // Keep last known status on transient poll errors until timeout.
+        }
+      }
+
+      return {
+        ok: true,
+        status: current.status,
+        ...(current.result_text !== undefined ? { resultText: current.result_text } : {}),
+        ...(current.error_text !== undefined ? { errorText: current.error_text } : {}),
+        runId: current.id,
+        runnerRunId: current.runner_run_id,
       }
     },
 

@@ -31,7 +31,8 @@ export declare enum StepType {
     Task = "task",
     LLM = "llm",
     Approval = "approval",
-    SubWorkflow = "sub_workflow"
+    SubWorkflow = "sub_workflow",
+    CollabPeer = "collab_peer"
 }
 export declare enum TriggerType {
     Manual = "manual",
@@ -93,6 +94,19 @@ export interface Step {
      */
     pass?: string[];
     ref?: string;
+    peer?: {
+        kind: 'session' | 'agent' | 'workflow';
+        jid?: string;
+        role?: string;
+        goals?: string[];
+        grant?: string[];
+        open?: boolean;
+        slot?: string;
+        quorum?: number;
+        heartbeatMs?: number;
+        offlineGraceMs?: number;
+        rejoin?: 'resume' | 'replace' | 'reject';
+    };
     /** Optional canvas layout hint preserved across YAML round-trips. */
     ui?: {
         x: number;
@@ -150,6 +164,7 @@ export interface Gate {
     options: string[];
     /** Decisions that mark the gate task completed (see Step.pass). */
     pass?: string[];
+    kind?: 'approval' | 'collab_join';
     resolved?: string;
     resolvedBy?: string;
     resolvedAt?: string;

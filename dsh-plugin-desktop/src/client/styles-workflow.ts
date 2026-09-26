@@ -452,6 +452,64 @@ export const WORKFLOW_STYLES = `
   gap: 10px;
 }
 
+.workflow-collab-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+}
+
+.workflow-collab-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.workflow-collab-head h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.workflow-collab-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.workflow-collab-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.workflow-collab-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.workflow-collab-json {
+  margin: 0;
+  padding: 8px;
+  max-height: 220px;
+  overflow: auto;
+  font-size: 11px;
+  line-height: 1.35;
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  background: var(--bg-secondary, #f8fafc);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.workflow-collab-json-pending {
+  max-height: 140px;
+  border-style: dashed;
+}
+
 /* AI approval advice on a gate card (human still decides). */
 .workflow-gate-advice {
   margin-top: 8px;
@@ -2639,7 +2697,10 @@ export const WORKFLOW_STYLES = `
 .workflow-flow-node.type-task { border-color: #3b82f6; }
 .workflow-flow-node.type-llm { border-color: #10b981; }
 .workflow-flow-node.type-approval { border-color: #f59e0b; }
+.workflow-flow-node.type-collab_peer { border-color: #06b6d4; }
 .workflow-flow-node.type-sub_workflow { border-color: #ec4899; }
+
+.workflow-canvas-palette-item.type-collab_peer { border-left: 3px solid #06b6d4; }
 
 .workflow-flow-node.unsupported {
   opacity: 0.85;

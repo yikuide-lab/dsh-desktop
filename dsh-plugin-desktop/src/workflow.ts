@@ -112,6 +112,17 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
           agentDefaultModel: llmCtx.get('agentDefaultModel') as never,
         }
         services.getWorkflowSettings = () => this.plugin.getSettingsSync()
+        services.awfRemoteRun = (input) => awfBridge.remoteRun(input)
+        services.awfRemoteRunAndWait = (input) => {
+          const runInput: { workflowId: number; params?: Record<string, string> } = {
+            workflowId: input.workflowId,
+          }
+          if (input.params !== undefined) runInput.params = input.params
+          return awfBridge.remoteRunAndWait(
+            runInput,
+            input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined,
+          )
+        }
         hostServicesRef.current = services
         this.plugin.setHostHooks(createDesktopWorkflowHostHooks(services))
         // 宿主执行能力就绪：若执行器开关已打开，补一次启动

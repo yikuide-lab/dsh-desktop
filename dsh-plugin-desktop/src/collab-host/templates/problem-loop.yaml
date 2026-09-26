@@ -1,0 +1,57 @@
+apiVersion: workflow-wise/v1
+kind: Workflow
+metadata:
+  name: problem-loop
+  title: Problem Collab Loop
+  description: Multi-peer loop for analyzing and solving a stated problem (Desktop collab only)
+  requires: [collab]
+spec:
+  steps:
+    - id: frame
+      type: llm
+      role: router
+      prompt: |
+        Frame the problem $PROBLEM into goals, constraints, and success criteria.
+        Output a short markdown plan.
+
+    - id: researcher
+      type: collab_peer
+      deps: [frame]
+      peer:
+        kind: agent
+        open: true
+        slot: researcher
+        role: researcher
+        grant: [vision:read, vision:write, bus:send]
+
+    - id: implement
+      type: task
+      deps: [researcher]
+      role: coding
+      inputs:
+        problem: "$PROBLEM"
+      acceptance:
+        - Delivers a concrete answer or artifact
+
+    - id: reviewer
+      type: collab_peer
+      deps: [implement]
+      peer:
+        kind: agent
+        open: true
+        slot: reviewer
+        role: reviewer
+
+    - id: approve
+      type: approval
+      deps: [reviewer]
+      question: Accept the proposed solution?
+      options: [approved, rejected, needs-changes]
+      pass: [approved]
+
+    - id: summarize
+      type: llm
+      deps: [approve]
+      role: summary-editor
+      prompt: |
+        Summarize the problem, approach, and outcome as markdown for the Collab vision board.

@@ -13,7 +13,7 @@ import { MCPServer } from './mcp/server.js';
 import { listBuiltinTemplates } from './templates.js';
 import { allocateUserTemplateId, loadUserTemplates, removeUserTemplate, writeUserTemplate, } from './user-templates.js';
 import { parseWorkflow, validateWorkflow, serializeWorkflow, WorkflowStatus, TaskStatus, StepType, DispatchStatus, RUN_SCHEMA_VERSION, } from './engine/models.js';
-import { isGatePass, markAborted, isRunComplete, resolveGate } from './engine/engine.js';
+import { isGatePass, markAborted, isRunComplete, resolveGate, resolveCollabJoinGate, } from './engine/engine.js';
 import { truncateTranscriptText } from './engine/transcript.js';
 import { buildWorkflowStatsDetail, buildWorkflowStatsSummaries, summarizeWorkflowRuns, } from './engine/workflow-stats.js';
 /** Internal params key tracking workflow names already on the call stack. */
@@ -738,6 +738,42 @@ export class WorkflowPlugin {
             data: { decision, resolvedBy, live: false, approved },
         });
         // Reattach so the DAG can continue after process restart / detach.
+        if (!isRunComplete(updated)) {
+            const resumeTarget = updated.status === WorkflowStatus.Running
+                ? updated
+                : { ...updated, status: WorkflowStatus.Running };
+            if (resumeTarget !== updated)
+                await this.store.saveRun(resumeTarget);
+            await this.reattachRun(resumeTarget);
+        }
+        return this.getLiveCoordinator(runId)?.getRun() ?? updated;
+    }
+    async resolveCollabJoinGate(runId, stepId, resolvedBy, token) {
+        const coordinator = this.getLiveCoordinator(runId);
+        if (coordinator) {
+            coordinator.resolveCollabJoinGate(stepId, token, resolvedBy);
+            const updated = coordinator.getRun();
+            if (!updated)
+                throw new Error(`Run not found after resolve: ${runId}`);
+            await this.store.saveRun(updated);
+            await this.safeTranscript(runId, {
+                type: 'gate.resolve',
+                stepId,
+                data: { decision: 'joined', resolvedBy, live: true, kind: 'collab_join' },
+            });
+            coordinator.start();
+            return updated;
+        }
+        const run = await this.store.loadRun(runId);
+        if (!run)
+            throw new Error(`Run not found: ${runId}`);
+        const updated = resolveCollabJoinGate(run, stepId, token, resolvedBy);
+        await this.store.saveRun(updated);
+        await this.safeTranscript(runId, {
+            type: 'gate.resolve',
+            stepId,
+            data: { decision: 'joined', resolvedBy, live: false, kind: 'collab_join' },
+        });
         if (!isRunComplete(updated)) {
             const resumeTarget = updated.status === WorkflowStatus.Running
                 ? updated

@@ -61,6 +61,8 @@ function runReminderPass(ctx: Context): void {
   const locale = runtime.locale === 'en' ? 'en' : 'zh'
   const due = collectDueReminders({
     plans: store.plans,
+    projects: store.projects,
+    schedules: store.schedules,
     remindersSent: store.remindersSent,
     locale,
   })
@@ -69,7 +71,7 @@ function runReminderPass(ctx: Context): void {
   for (const item of due) {
     try {
       runtime.notifyAttention({ title: item.title, body: item.body })
-      store = markRemindersSent(store, item.plan.id, [item.key])
+      store = markRemindersSent(store, item.entityId, [item.key])
     } catch {
       // Keep key unsent so the next pass can retry.
     }

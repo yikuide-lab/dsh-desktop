@@ -39,6 +39,7 @@ export default defineConfig([
       workflow: 'src/workflow.ts',
       'session-import-host': 'src/session-import-host.ts',
       'time-master-host': 'src/time-master-host.ts',
+      'collab-host': 'src/collab-host.ts',
       'windows-pwsh-sandbox': 'src/windows-pwsh-sandbox.ts',
       'windows-acl-runner': 'src/windows-acl-runner.ts',
       main: 'src/main.ts',

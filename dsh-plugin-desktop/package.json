@@ -84,7 +84,11 @@
       "types": "./lib/types/updates.d.ts",
       "default": "./lib/updates.js"
     },
-    "./package.json": "./package.json"
+    "./package.json": "./package.json",
+    "./collab-host": {
+      "types": "./lib/types/collab-host.d.ts",
+      "default": "./lib/collab-host.js"
+    }
   },
   "files": [
     "build/app-icon.ico",

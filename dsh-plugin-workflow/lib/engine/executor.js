@@ -134,6 +134,13 @@ async function runStep(step, context, cwd, shell, useShellFlag, hooks, signal) {
             };
         case StepType.Approval:
             return { ok: true, output: { skipped: true } };
+        case StepType.CollabPeer:
+            if (hooks.runCollabPeer)
+                return hooks.runCollabPeer(step, context, cwd, signal);
+            return {
+                ok: false,
+                error: 'Collab peer steps require a Host-bound runCollabPeer hook.',
+            };
         default:
             return { ok: false, error: `Unsupported step type: ${String(step.type)}` };
     }

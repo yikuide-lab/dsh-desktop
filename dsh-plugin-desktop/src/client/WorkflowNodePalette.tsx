@@ -6,6 +6,7 @@ const PALETTE_TYPES: WorkflowStepType[] = [
   'task',
   'llm',
   'approval',
+  'collab_peer',
   'sub_workflow',
 ]
 
@@ -20,6 +21,7 @@ function typeLabel(type: WorkflowStepType, t: (key: WorkflowLocaleKey) => string
     case 'task': return t('stepTask')
     case 'llm': return t('stepLlm')
     case 'approval': return t('stepApproval')
+    case 'collab_peer': return t('stepCollabPeer')
     case 'sub_workflow': return t('stepSubWorkflow')
   }
 }

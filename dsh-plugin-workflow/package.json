@@ -14,6 +14,10 @@
     "./engine": {
       "types": "./lib/engine/index.d.ts",
       "default": "./lib/engine/index.js"
+    },
+    "./collab": {
+      "types": "./lib/collab/index.d.ts",
+      "default": "./lib/collab/index.js"
     }
   },
   "bin": {

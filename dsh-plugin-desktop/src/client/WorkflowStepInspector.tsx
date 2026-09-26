@@ -6,6 +6,7 @@ import type {
   WorkflowLlmProviderPrefView,
   WorkflowProviderGroupView,
   WorkflowStepType,
+  CollabPeerView,
 } from './desktop-workflow-api.js'
 
 type StepPatch = { [K in keyof WorkflowStep]?: WorkflowStep[K] | undefined }
@@ -165,6 +166,7 @@ export function WorkflowStepInspector({
           <option value="task">{t('stepTask')}</option>
           <option value="llm">{t('stepLlm')}</option>
           <option value="approval">{t('stepApproval')}</option>
+          <option value="collab_peer">{t('stepCollabPeer')}</option>
           <option value="sub_workflow">{t('stepSubWorkflow')}</option>
         </select>
       </label>
@@ -398,6 +400,136 @@ export function WorkflowStepInspector({
             />
           </label>
           <p className="workflow-canvas-inspector-empty">{t('stepPassHint')}</p>
+        </>
+      )}
+
+      {step.type === 'collab_peer' && (
+        <>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerKind')}</span>
+            <select className="nodrag nopan nowheel"
+              value={step.peer?.kind ?? 'agent'}
+              onChange={(event) => {
+                const kind = event.target.value as CollabPeerView['kind']
+                patch({
+                  peer: {
+                    kind,
+                    open: step.peer?.open ?? true,
+                    slot: step.peer?.slot ?? 'slot-1',
+                    role: step.peer?.role ?? 'peer',
+                    ...(step.peer?.jid ? { jid: step.peer.jid } : {}),
+                    ...(typeof step.peer?.quorum === 'number' ? { quorum: step.peer.quorum } : {}),
+                  },
+                })
+              }}
+            >
+              <option value="session">session</option>
+              <option value="agent">agent</option>
+              <option value="workflow">workflow</option>
+            </select>
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerOpen')}</span>
+            <input className="nodrag nopan nowheel"
+              type="checkbox"
+              checked={step.peer?.open !== false}
+              onChange={(event) => patch({
+                peer: {
+                  kind: step.peer?.kind ?? 'agent',
+                  open: event.target.checked,
+                  slot: step.peer?.slot ?? 'slot-1',
+                  role: step.peer?.role ?? 'peer',
+                  ...(step.peer?.jid ? { jid: step.peer.jid } : {}),
+                  ...(typeof step.peer?.quorum === 'number' ? { quorum: step.peer.quorum } : {}),
+                },
+              })}
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerSlot')}</span>
+            <input className="nodrag nopan nowheel"
+              type="text"
+              value={step.peer?.slot ?? ''}
+              onChange={(event) => {
+                const slot = event.target.value.trim()
+                patch({
+                  peer: {
+                    kind: step.peer?.kind ?? 'agent',
+                    open: step.peer?.open !== false,
+                    role: step.peer?.role ?? 'peer',
+                    ...(slot ? { slot } : {}),
+                    ...(step.peer?.jid ? { jid: step.peer.jid } : {}),
+                    ...(typeof step.peer?.quorum === 'number' ? { quorum: step.peer.quorum } : {}),
+                  },
+                })
+              }}
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerRole')}</span>
+            <input className="nodrag nopan nowheel"
+              type="text"
+              value={step.peer?.role ?? ''}
+              onChange={(event) => {
+                const role = event.target.value.trim()
+                patch({
+                  peer: {
+                    kind: step.peer?.kind ?? 'agent',
+                    open: step.peer?.open !== false,
+                    slot: step.peer?.slot ?? 'slot-1',
+                    ...(role ? { role } : {}),
+                    ...(step.peer?.jid ? { jid: step.peer.jid } : {}),
+                    ...(typeof step.peer?.quorum === 'number' ? { quorum: step.peer.quorum } : {}),
+                  },
+                })
+              }}
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerJid')}</span>
+            <input className="nodrag nopan nowheel"
+              type="text"
+              value={step.peer?.jid ?? ''}
+              placeholder="session@desktop.local/ses-1"
+              onChange={(event) => {
+                const jid = event.target.value.trim()
+                patch({
+                  peer: {
+                    kind: step.peer?.kind ?? 'agent',
+                    open: step.peer?.open !== false,
+                    slot: step.peer?.slot ?? 'slot-1',
+                    role: step.peer?.role ?? 'peer',
+                    ...(jid ? { jid } : {}),
+                    ...(typeof step.peer?.quorum === 'number' ? { quorum: step.peer.quorum } : {}),
+                  },
+                })
+              }}
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabPeerQuorum')}</span>
+            <input className="nodrag nopan nowheel"
+              type="number"
+              min={1}
+              value={step.peer?.quorum ?? ''}
+              placeholder="1"
+              onChange={(event) => {
+                const raw = event.target.value.trim()
+                const base: CollabPeerView = {
+                  kind: step.peer?.kind ?? 'agent',
+                  open: step.peer?.open !== false,
+                  slot: step.peer?.slot ?? 'slot-1',
+                  role: step.peer?.role ?? 'peer',
+                  ...(step.peer?.jid ? { jid: step.peer.jid } : {}),
+                }
+                patch({
+                  peer: raw === ''
+                    ? base
+                    : { ...base, quorum: Math.max(1, Number(raw) || 1) },
+                })
+              }}
+            />
+          </label>
         </>
       )}
 
