@@ -9,6 +9,13 @@ export declare function applyHealActions(input: {
     vision?: CollabVision;
     nowMs?: number;
 }): HealApplyResult;
-/** Low-risk actions eligible for auto-heal when canHealAuto is enabled. */
+export declare const DEFAULT_HEAL_AUTO_ALLOW: readonly ["nudge_rejoin", "reassign_goal", "invite"];
+export declare const DEFAULT_HEAL_AUTO_DENY: readonly ["isolate", "spawn_repair_branch", "escalate_admin"];
+/** Low-risk actions eligible for auto-heal when canHealAuto is enabled (legacy helper). */
 export declare function isLowRiskHealAction(action: HealAction): boolean;
+/** Filter heal plan actions by admin healAutoAllow when canHealAuto is enabled. */
+export declare function filterHealActionsForAuto(actions: HealAction[], control: {
+    canHealAuto: boolean;
+    healAutoAllow?: readonly string[];
+}): HealAction[];
 //# sourceMappingURL=heal.d.ts.map

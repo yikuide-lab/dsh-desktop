@@ -1,4 +1,4 @@
-/** Admin / grant authorization for Collab HTTP ops. */
+/** Admin / deputy / grant authorization for Collab HTTP ops. */
 
 import {
   ensureSecret,
@@ -6,6 +6,8 @@ import {
   readRosterJson,
   verifyCapToken,
   type CapToken,
+  type DeputyGrant,
+  type LoopAdmin,
 } from 'dsh-plugin-workflow/collab'
 import type { DesktopCollabOp } from '../desktop-collab-contract.ts'
 
@@ -18,26 +20,32 @@ const READ_OPS = new Set<DesktopCollabOp>([
   'network.snapshot',
   'healer.pending',
   'plan.get',
+  'asp.status',
 ])
 
-const ADMIN_WRITE_OPS = new Set<DesktopCollabOp>([
+const ADMIN_ONLY_OPS = new Set<DesktopCollabOp>([
   'loop.start',
   'loop.close',
-  'membership.invite',
-  'membership.kick',
-  'goals.reassign',
-  'peer.pause',
-  'peer.resume',
   'admin.transfer',
-  'healer.apply',
-  'healer.evaluate',
-  'plan.evaluate',
-  'plan.assign',
-  'plan.spawnBranch',
-  'grants.issue',
+  'admin.updateControl',
   'vision.append',
   'bus.send',
+  'grants.issue',
+  'plan.assign',
+  'asp.setMode',
 ])
+
+const OP_TO_GRANT: Partial<Record<DesktopCollabOp, DeputyGrant>> = {
+  'membership.invite': 'invite',
+  'membership.kick': 'kick',
+  'goals.reassign': 'reassign',
+  'peer.pause': 'pause',
+  'peer.resume': 'pause',
+  'plan.spawnBranch': 'spawnBranch',
+  'healer.apply': 'healApply',
+  'healer.evaluate': 'healEvaluate',
+  'plan.evaluate': 'planEvaluate',
+}
 
 const MEMBER_SELF_OPS = new Set<DesktopCollabOp>([
   'membership.join',
@@ -48,6 +56,17 @@ const MEMBER_SELF_OPS = new Set<DesktopCollabOp>([
 
 export function isReadOp(op: DesktopCollabOp): boolean {
   return READ_OPS.has(op)
+}
+
+function defaultDeputyGrants(admin: LoopAdmin, deputyJid: string): DeputyGrant[] {
+  const explicit = admin.deputyGrants?.[deputyJid]
+  if (explicit?.length) return explicit
+  if (admin.deputies?.includes(deputyJid)) return ['read']
+  return []
+}
+
+function deputyHasGrant(admin: LoopAdmin, deputyJid: string, grant: DeputyGrant): boolean {
+  return defaultDeputyGrants(admin, deputyJid).includes(grant)
 }
 
 async function memberEpoch(loopId: string, subjectJid: string): Promise<number> {
@@ -79,6 +98,17 @@ export async function hasAdminControl(input: {
   })
 }
 
+async function hasDeputyGrant(input: {
+  loopId: string
+  actorJid: string
+  grant: DeputyGrant
+}): Promise<boolean> {
+  const admin = await readAdminJson(input.loopId)
+  if (admin.adminJid === input.actorJid) return true
+  if (!admin.deputies?.includes(input.actorJid)) return false
+  return deputyHasGrant(admin, input.actorJid, input.grant)
+}
+
 export async function authorizeCollabOp(input: {
   op: DesktopCollabOp
   loopId?: string
@@ -86,7 +116,27 @@ export async function authorizeCollabOp(input: {
   capToken?: CapToken
   targetJid?: string
 }): Promise<string | undefined> {
-  if (isReadOp(input.op)) return undefined
+  if (input.op === 'asp.status' || input.op === 'asp.setMode') {
+    if (input.op === 'asp.setMode') {
+      if (!input.actorJid || input.actorJid !== DEFAULT_ADMIN_JID) {
+        if (!input.loopId || !(await hasAdminControl(input))) {
+          return 'forbidden: admin control required'
+        }
+      }
+    }
+    return undefined
+  }
+
+  if (isReadOp(input.op)) {
+    if (!input.loopId || !input.actorJid) return undefined
+    const admin = await readAdminJson(input.loopId)
+    if (admin.adminJid === input.actorJid) return undefined
+    if (admin.deputies?.includes(input.actorJid)) {
+      if (deputyHasGrant(admin, input.actorJid, 'read')) return undefined
+      return 'forbidden: deputy read grant required'
+    }
+    return undefined
+  }
 
   if (MEMBER_SELF_OPS.has(input.op)) {
     if (!input.actorJid) return 'actorJid is required'
@@ -96,10 +146,25 @@ export async function authorizeCollabOp(input: {
     return 'forbidden: member self-service requires matching actorJid'
   }
 
-  if (ADMIN_WRITE_OPS.has(input.op)) {
+  if (ADMIN_ONLY_OPS.has(input.op)) {
     if (!input.actorJid && !input.capToken) return 'actorJid or capToken is required'
     if (await hasAdminControl(input)) return undefined
     return 'forbidden: admin control required'
+  }
+
+  const grant = OP_TO_GRANT[input.op]
+  if (grant) {
+    if (!input.loopId) return 'loopId is required'
+    if (!input.actorJid && !input.capToken) return 'actorJid or capToken is required'
+    if (await hasAdminControl(input)) return undefined
+    if (input.actorJid && await hasDeputyGrant({
+      loopId: input.loopId,
+      actorJid: input.actorJid,
+      grant,
+    })) {
+      return undefined
+    }
+    return `forbidden: deputy grant "${grant}" required`
   }
 
   return 'forbidden'

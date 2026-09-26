@@ -20,7 +20,16 @@ import {
 } from 'dsh-plugin-workflow/engine'
 import type { ExecutionContext, Executor, Step } from 'dsh-plugin-workflow/engine'
 import type { WorkflowSettings } from 'dsh-plugin-workflow'
-import { isLocalDesktopJid, parseJid, peerKindFromJid } from 'dsh-plugin-workflow/collab'
+import {
+  isLocalDesktopJid,
+  isRemoteDomainJid,
+  isRemoteNodeHintJid,
+  parseJid,
+  peerKindFromJid,
+  readAdminJson,
+  resolveRemoteSessionAgentPeer,
+} from 'dsh-plugin-workflow/collab'
+import { getAspBridgeStatus } from './collab-host/bus.ts'
 
 interface ModelRoute {
   provider: string
@@ -438,18 +447,6 @@ export async function runTaskStep(
   }
 }
 
-function isRemoteCollabJid(jid: string): boolean {
-  try {
-    const parsed = parseJid(jid)
-    if (parsed.domain !== 'desktop.local') return true
-    const node = parsed.node.toLowerCase()
-    if (node.startsWith('remote.') || node.includes('remote')) return true
-    return false
-  } catch {
-    return true
-  }
-}
-
 function collabParamsFromContext(context: ExecutionContext): Record<string, string> {
   const out: Record<string, string> = {}
   const params = context.params ?? {}
@@ -492,11 +489,46 @@ export async function runCollabPeerStep(
   if (!peer) return { ok: false, error: 'collab_peer step missing peer config' }
 
   const jid = peer.jid?.trim()
-  if (jid && !isLocalDesktopJid(jid)) {
-    return { ok: false, error: `remote collab peer rejected: ${jid} (domain must be desktop.local)` }
-  }
-  if (jid && isRemoteCollabJid(jid)) {
-    return { ok: false, error: `remote collab peer rejected: ${jid}` }
+  const params = collabParamsFromContext(context)
+  const loopId = pickExternalId(params, ['external_loop_id', 'COLLAB_LOOP_ID', 'collab_loop_id'])
+
+  if (jid && (peer.kind === 'session' || peer.kind === 'agent')) {
+    if (isRemoteNodeHintJid(jid)) {
+      return {
+        ok: false,
+        error: `remote collab peer rejected: ${jid}`,
+        output: { code: 'REMOTE_PEER_DISABLED' },
+      }
+    }
+    if (isRemoteDomainJid(jid)) {
+      let allowRemotePeers = false
+      if (loopId) {
+        try {
+          const admin = await readAdminJson(loopId)
+          allowRemotePeers = admin.control.allowRemotePeers ?? false
+        } catch {
+          allowRemotePeers = false
+        }
+      }
+      const decision = resolveRemoteSessionAgentPeer({
+        jid,
+        kind: peer.kind,
+        allowRemotePeers,
+        aspBridgeMode: getAspBridgeStatus().mode,
+      })
+      if (!decision.ok) {
+        return {
+          ok: false,
+          error: decision.error ?? 'remote peer rejected',
+          output: { code: decision.code },
+        }
+      }
+    }
+  } else if (jid && !isLocalDesktopJid(jid)) {
+    return {
+      ok: false,
+      error: `remote collab peer rejected: ${jid} (domain must be desktop.local)`,
+    }
   }
 
   if (peer.kind === 'session') {

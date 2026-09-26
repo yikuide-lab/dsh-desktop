@@ -16,6 +16,7 @@ import {
   parseHealPlan,
   validateHealPlan,
   applyHealActions,
+  filterHealActionsForAuto,
   parseTaskPlan,
   validateTaskPlan,
   applyTaskPlanPriority,
@@ -215,6 +216,25 @@ describe('collab HealPlan schema', () => {
       findings: [],
       actions: [{ type: 'reassign_goal', goalId: 'g1' }],
     }))).toThrow(/toJid or toSlot/)
+  })
+
+  it('filterHealActionsForAuto respects healAutoAllow when canHealAuto is true', () => {
+    const plan = parseHealPlan({
+      loopId: 'l1',
+      at: '2026-01-01T00:00:00.000Z',
+      healthScore: 40,
+      findings: [],
+      actions: [
+        { type: 'nudge_rejoin', jid: 'session@desktop.local/a' },
+        { type: 'invite', slot: 'slot-b', role: 'reviewer', reason: 'need help' },
+        { type: 'isolate', jid: 'session@desktop.local/a', reason: 'bad actor' },
+      ],
+    })
+    const filtered = filterHealActionsForAuto(plan.actions, {
+      canHealAuto: true,
+      healAutoAllow: ['nudge_rejoin'],
+    })
+    expect(filtered.map((action) => action.type)).toEqual(['nudge_rejoin'])
   })
 
   it('applyHealActions returns proposed mutations without auto gating', () => {

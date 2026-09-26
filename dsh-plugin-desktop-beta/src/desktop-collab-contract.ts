@@ -20,6 +20,9 @@ export type DesktopCollabOp =
   | 'peer.pause'
   | 'peer.resume'
   | 'admin.transfer'
+  | 'admin.updateControl'
+  | 'asp.status'
+  | 'asp.setMode'
   | 'healer.evaluate'
   | 'healer.apply'
   | 'healer.pending'
@@ -69,6 +72,24 @@ export interface DesktopCollabRequest {
   readonly to_jid?: string
   readonly payload?: unknown
   readonly ttlMs?: number
+  readonly aspMode?: 'in-process' | 'disconnected' | 'external'
+  readonly aspEndpoint?: string
+  readonly deputies?: string[]
+  readonly deputyGrants?: Record<string, Array<
+    'invite' | 'kick' | 'reassign' | 'pause' | 'spawnBranch'
+    | 'healApply' | 'healEvaluate' | 'planEvaluate' | 'read'
+  >>
+  readonly control?: {
+    canInvite?: boolean
+    canKick?: boolean
+    canReassignGoals?: boolean
+    canSpawnBranch?: boolean
+    canPausePeers?: boolean
+    canHealAuto?: boolean
+    allowRemotePeers?: boolean
+    healAutoAllow?: Array<'nudge_rejoin' | 'reassign_goal' | 'invite'>
+    healAutoDeny?: Array<'isolate' | 'spawn_repair_branch' | 'escalate_admin'>
+  }
 }
 
 export interface DesktopCollabErrorResponse {

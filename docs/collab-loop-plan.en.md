@@ -8,6 +8,8 @@
 
 **V1 implementation landed** (2026-09-26): core, engine `collab_peer`, stability, admin API, healer/planner, UI, AWF remote guard, beta↔desktop sync. See Chinese plan todos (all `completed`).
 
+**V2 slice landed** (2026-09-26): AspBridge in-process loopback + Host `asp.status`/`asp.setMode`; deputy fine-grained ACL; heal auto policy via `admin.updateControl`; controlled remote session/agent gate (`allowRemotePeers`, no fake remote). Still **pending**: real ASP TCP/TLS, DID, Windows packaging.
+
 ## Decisions (locked)
 
 - **ASP-shaped** coordination on Desktop Host (JID, Message/Presence/IQ, CapToken, CollabVision). No Rust ASP / Python SDK in V1; `AspBridge` later.

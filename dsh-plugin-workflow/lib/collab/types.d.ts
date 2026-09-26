@@ -59,10 +59,15 @@ export interface CollabVision {
     }[];
     updatedAt: string;
 }
+export type DeputyGrant = 'invite' | 'kick' | 'reassign' | 'pause' | 'spawnBranch' | 'healApply' | 'healEvaluate' | 'planEvaluate' | 'read';
+export type HealAutoAllowAction = 'nudge_rejoin' | 'reassign_goal' | 'invite';
+export type HealAutoDenyAction = 'isolate' | 'spawn_repair_branch' | 'escalate_admin';
 export interface LoopAdmin {
     loopId: string;
     adminJid: string;
     deputies?: string[];
+    /** Per-deputy grants; deputies listed without an entry default to read-only. */
+    deputyGrants?: Record<string, DeputyGrant[]>;
     control: {
         canInvite: boolean;
         canKick: boolean;
@@ -70,6 +75,12 @@ export interface LoopAdmin {
         canSpawnBranch: boolean;
         canPausePeers: boolean;
         canHealAuto: boolean;
+        /** When true, non-desktop.local session/agent peers may route via AspBridge (V2). */
+        allowRemotePeers?: boolean;
+        /** Low-risk heal actions eligible for auto-apply when canHealAuto is true. */
+        healAutoAllow?: HealAutoAllowAction[];
+        /** High-risk heal actions that remain manual even when canHealAuto is true. */
+        healAutoDeny?: HealAutoDenyAction[];
     };
     healerIntervalMs?: number;
 }

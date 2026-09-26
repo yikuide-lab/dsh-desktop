@@ -140,6 +140,116 @@ describe('collab host ops', () => {
     expect(plan.actions.some((action) => action.type === 'nudge_rejoin')).toBe(true)
   })
 
+  it('asp.status reports in-process bridge by default', async () => {
+    const status = await executeCollabOp({ op: 'asp.status' })
+    expect(status).toMatchObject({
+      ok: true,
+      status: { mode: 'in-process' },
+    })
+  })
+
+  it('asp.setMode switches to disconnected', async () => {
+    const switched = await executeCollabOp({
+      op: 'asp.setMode',
+      actorJid: DEFAULT_ADMIN_JID,
+      aspMode: 'disconnected',
+    })
+    expect(switched).toMatchObject({
+      ok: true,
+      status: { mode: 'disconnected' },
+    })
+    const rejected = await executeCollabOp({
+      op: 'asp.setMode',
+      actorJid: DEFAULT_ADMIN_JID,
+      aspMode: 'external',
+    })
+    expect(rejected).toEqual({
+      ok: false,
+      error: 'ASP external bridge not configured (V2 TCP pending)',
+    })
+  })
+
+  it('deputy with invite grant can invite but not kick', async () => {
+    const started = await executeCollabOp({
+      op: 'loop.start',
+      actorJid: DEFAULT_ADMIN_JID,
+      workflowName: 'deputy-acl',
+    })
+    const loopId = (started as { loop: { loopId: string } }).loop.loopId
+    const deputyJid = 'agent@desktop.local/deputy-1'
+
+    await executeCollabOp({
+      op: 'admin.updateControl',
+      loopId,
+      actorJid: DEFAULT_ADMIN_JID,
+      deputies: [deputyJid],
+      deputyGrants: { [deputyJid]: ['invite', 'read'] },
+    })
+
+    const invited = await executeCollabOp({
+      op: 'membership.invite',
+      loopId,
+      actorJid: deputyJid,
+      slot: 'slot-deputy',
+      role: 'reviewer',
+    })
+    expect((invited as { ok: boolean }).ok).toBe(true)
+
+    await executeCollabOp({
+      op: 'membership.invite',
+      loopId,
+      actorJid: DEFAULT_ADMIN_JID,
+      slot: 'slot-kick',
+      role: 'implementer',
+    })
+    await executeCollabOp({
+      op: 'membership.join',
+      loopId,
+      actorJid: DEFAULT_ADMIN_JID,
+      jid: 'session@desktop.local/ses-kick',
+      slot: 'slot-kick',
+    })
+
+    const deniedKick = await executeCollabOp({
+      op: 'membership.kick',
+      loopId,
+      actorJid: deputyJid,
+      jid: 'session@desktop.local/ses-kick',
+    })
+    expect(deniedKick).toEqual({
+      ok: false,
+      error: 'forbidden: deputy grant "kick" required',
+    })
+  })
+
+  it('admin.updateControl persists healAutoAllow', async () => {
+    const started = await executeCollabOp({
+      op: 'loop.start',
+      actorJid: DEFAULT_ADMIN_JID,
+      workflowName: 'heal-control',
+    })
+    const loopId = (started as { loop: { loopId: string } }).loop.loopId
+
+    const updated = await executeCollabOp({
+      op: 'admin.updateControl',
+      loopId,
+      actorJid: DEFAULT_ADMIN_JID,
+      control: {
+        canHealAuto: true,
+        healAutoAllow: ['nudge_rejoin'],
+      },
+    })
+    expect(updated).toMatchObject({
+      ok: true,
+      admin: {
+        control: {
+          canHealAuto: true,
+          healAutoAllow: ['nudge_rejoin'],
+        },
+      },
+    })
+  })
+
   it('plan.spawnBranch writes branch YAML under DSH_HOME', async () => {
     const started = await executeCollabOp({
       op: 'loop.start',

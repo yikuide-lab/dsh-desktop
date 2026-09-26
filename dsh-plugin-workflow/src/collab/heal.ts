@@ -282,9 +282,34 @@ export function applyHealActions(input: {
   }
 }
 
-/** Low-risk actions eligible for auto-heal when canHealAuto is enabled. */
+export const DEFAULT_HEAL_AUTO_ALLOW = [
+  'nudge_rejoin',
+  'reassign_goal',
+  'invite',
+] as const satisfies readonly HealAction['type'][]
+
+export const DEFAULT_HEAL_AUTO_DENY = [
+  'isolate',
+  'spawn_repair_branch',
+  'escalate_admin',
+] as const satisfies readonly HealAction['type'][]
+
+/** Low-risk actions eligible for auto-heal when canHealAuto is enabled (legacy helper). */
 export function isLowRiskHealAction(action: HealAction): boolean {
-  return action.type === 'nudge_rejoin'
-    || action.type === 'reassign_goal'
-    || action.type === 'invite'
+  return (DEFAULT_HEAL_AUTO_ALLOW as readonly string[]).includes(action.type)
+}
+
+/** Filter heal plan actions by admin healAutoAllow when canHealAuto is enabled. */
+export function filterHealActionsForAuto(
+  actions: HealAction[],
+  control: {
+    canHealAuto: boolean
+    healAutoAllow?: readonly string[]
+  },
+): HealAction[] {
+  if (!control.canHealAuto) return []
+  const allow = control.healAutoAllow?.length
+    ? control.healAutoAllow
+    : DEFAULT_HEAL_AUTO_ALLOW
+  return actions.filter((action) => allow.includes(action.type))
 }

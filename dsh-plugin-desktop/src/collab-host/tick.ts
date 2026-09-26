@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { readdir } from 'node:fs/promises'
 import {
   applyHealActions,
-  isLowRiskHealAction,
+  filterHealActionsForAuto,
   readAdminJson,
   readBranchesIndex,
   readHealPending,
@@ -91,7 +91,7 @@ export async function runHealerPassForLoop(
   await writeHealPending(loopId, plan)
 
   if (admin.control.canHealAuto) {
-    const autoActions = plan.actions.filter(isLowRiskHealAction)
+    const autoActions = filterHealActionsForAuto(plan.actions, admin.control)
     if (autoActions.length > 0) {
       const healInput: Parameters<typeof applyHealActions>[0] = {
         plan: { ...plan, actions: autoActions },

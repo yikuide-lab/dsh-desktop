@@ -54,7 +54,7 @@ import {
   authorizeCollabOp,
   DEFAULT_ADMIN_JID,
 } from './auth.ts'
-import { getCollabBus } from './bus.ts'
+import { getAspBridgeStatus, getCollabBus, setAspBridgeMode } from './bus.ts'
 import {
   evaluateHealWithLlm,
   evaluateTaskPlanWithLlm,
@@ -150,6 +150,20 @@ export async function executeCollabOp(
   const authError = await authorizeCollabOp(authInput)
   if (authError) return { ok: false, error: authError }
 
+  if (body.op === 'asp.status') {
+    return { ok: true, status: getAspBridgeStatus() }
+  }
+
+  if (body.op === 'asp.setMode') {
+    const mode = body.aspMode ?? 'in-process'
+    if (mode !== 'in-process' && mode !== 'disconnected' && mode !== 'external') {
+      return { ok: false, error: 'aspMode must be in-process, disconnected, or external' }
+    }
+    const result = setAspBridgeMode(mode, body.aspEndpoint)
+    if ('error' in result) return { ok: false, error: result.error }
+    return { ok: true, status: result }
+  }
+
   if (body.op === 'loop.start') {
     if (!body.workflowName?.trim()) return { ok: false, error: 'workflowName is required' }
     await ensureCollabRoot()
@@ -174,6 +188,7 @@ export async function executeCollabOp(
         canSpawnBranch: true,
         canPausePeers: true,
         canHealAuto: false,
+        allowRemotePeers: false,
       },
       healerIntervalMs: 60_000,
     }
@@ -387,6 +402,21 @@ export async function executeCollabOp(
     if (!body.jid) return { ok: false, error: 'jid is required' }
     const admin = await readAdminJson(loopId)
     const next = { ...admin, adminJid: body.jid }
+    await writeAdminJson(loopId, next)
+    return { ok: true, admin: next }
+  }
+
+  if (body.op === 'admin.updateControl') {
+    const admin = await readAdminJson(loopId)
+    const next: LoopAdmin = {
+      ...admin,
+      control: {
+        ...admin.control,
+        ...(body.control ?? {}),
+      },
+    }
+    if (body.deputies !== undefined) next.deputies = body.deputies
+    if (body.deputyGrants !== undefined) next.deputyGrants = body.deputyGrants
     await writeAdminJson(loopId, next)
     return { ok: true, admin: next }
   }

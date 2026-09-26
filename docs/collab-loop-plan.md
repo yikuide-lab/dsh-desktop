@@ -21,6 +21,18 @@
 | collab-remote-awf | P7 Remote lifecycle：`auto_approve:false` + 轮询终态 + resolveGate(runnerUUID)；禁 sync `collab_peer`；session/agent remote 拒绝 | completed |
 | collab-sync | beta→desktop 同步 + `check:desktop-variants` | completed |
 
+## 实施 todos（V2）
+
+| ID | 内容 | 状态 |
+|----|------|------|
+| collab-v2-asp-inprocess | AspBridge 接入 CollabBus（in-process loopback）+ `asp.status` / `asp.setMode` Host ops | completed |
+| collab-v2-deputies | LoopAdmin `deputyGrants` 细粒度 ACL + `authorizeCollabOp` 映射 | completed |
+| collab-v2-heal-auto | `healAutoAllow` / `healAutoDeny` + `admin.updateControl` + tick 过滤 | completed |
+| collab-v2-remote-gate | 受控 remote session/agent 门控（`allowRemotePeers`；不伪造远程执行） | completed |
+| collab-v2-asp-tcp | 真 ASP TCP/TLS/Protobuf 外部桥 | pending |
+| collab-v2-did | DID 可选字段与身份联邦 | pending |
+| collab-v2-windows-pack | Windows 打包与分发 | pending |
+
 ## 决策（本版锁定）
 
 - **ASP 用法**：V1 实现 **ASP 形协调层**（JID、Message/Presence/IQ、CapabilityToken、会话共享上下文），字段命名对齐 sibling 仓 `ai-agent-protocol` 的 proto；**不**依赖 Rust ASP Server / Python SDK（无 TS SDK）。预留 `AspBridge`，V2 接 TCP/Protobuf。
@@ -311,7 +323,7 @@ interface CollabVision {
 { id, from_jid, to_jid, timestamp, payload: message | presence | iq }
 ```
 
-IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`AspBridge.send(envelope)`。
+IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`CollabBus.send` 同时 fire-and-forget 调 `AspBridge.send`；Host 默认 `createInProcessAspBridge` loopback；外部 TCP 仍 pending。
 
 ### 7. LoopAdmin
 
@@ -319,8 +331,8 @@ IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`
 interface LoopAdmin {
   loopId: string
   adminJid: string          // 默认 admin@desktop.local/control
-  // V1 不做副管细粒度；deputies 仅只读观察（可选）
   deputies?: string[]
+  deputyGrants?: Record<string, Array<'invite'|'kick'|'reassign'|'pause'|'spawnBranch'|'healApply'|'healEvaluate'|'planEvaluate'|'read'>>
   control: {
     canInvite: boolean
     canKick: boolean
@@ -328,6 +340,9 @@ interface LoopAdmin {
     canSpawnBranch: boolean
     canPausePeers: boolean
     canHealAuto: boolean    // 默认 false
+    allowRemotePeers?: boolean  // 默认 false；非 desktop.local session/agent 需 external AspBridge
+    healAutoAllow?: Array<'nudge_rejoin'|'reassign_goal'|'invite'>  // 默认三者
+    healAutoDeny?: Array<'isolate'|'spawn_repair_branch'|'escalate_admin'>  // 信息性；仍不自动
   }
   healerIntervalMs?: number // 默认 60_000；0 = 关
 }
@@ -456,10 +471,11 @@ interface TaskPlan {
 | Loop   | `loop.start` `loop.close` `loop.get`                                            |
 | Vision | `vision.get` `vision.append`                                                    |
 | Roster | `roster.get` `membership.join` `leave` `heartbeat` `rejoin` `invite` `kick`     |
-| Admin  | `network.snapshot` `goals.reassign` `peer.pause` `peer.resume` `admin.transfer` |
+| Admin  | `network.snapshot` `goals.reassign` `peer.pause` `peer.resume` `admin.transfer` `admin.updateControl` |
 | Heal   | `healer.evaluate` `healer.apply` `healer.pending`                               |
 | Plan   | `plan.evaluate` `plan.assign` `plan.spawnBranch` `plan.get`                     |
 | Bus    | `bus.send`（调试/高级）                                                               |
+| ASP    | `asp.status` `asp.setMode`（`in-process` \| `disconnected`；`external` 需 endpoint，TCP pending） |
 | Grants | `grants.issue`                                                                  |
 
 

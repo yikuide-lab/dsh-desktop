@@ -1,4 +1,11 @@
-export { getCollabBus, resetCollabBusForTests } from './bus.ts'
+export {
+  getAspBridgeStatus,
+  getCollabBus,
+  recordAspBridgeError,
+  resetCollabBusForTests,
+  setAspBridgeMode,
+  setExternalAspBridge,
+} from './bus.ts'
 export { authorizeCollabOp, DEFAULT_ADMIN_JID, hasAdminControl, isReadOp } from './auth.ts'
 export { executeCollabOp } from './ops.ts'
 export {
