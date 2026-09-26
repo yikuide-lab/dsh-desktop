@@ -65,15 +65,22 @@ function normalizeRemindersSent(raw: unknown): Record<string, string[]> {
 export function readTimeMasterStore(path: string): TimeMasterStoreFile {
   if (!existsSync(path)) return emptyStore()
   try {
-    const raw = JSON.parse(readFileSync(path, 'utf8')) as Partial<TimeMasterStoreFile> & { version?: number }
-    if (raw.version !== 1 && raw.version !== 2) return emptyStore()
+    const raw = JSON.parse(readFileSync(path, 'utf8')) as {
+      version?: number
+      plans?: unknown
+      schedules?: unknown
+      projects?: unknown
+      remindersSent?: unknown
+    }
+    const version = typeof raw.version === 'number' ? raw.version : 0
+    if (version !== 1 && version !== 2) return emptyStore()
     const plans = (Array.isArray(raw.plans) ? raw.plans : [])
       .map(normalizePlan)
       .filter((plan): plan is TokenPlan => plan !== null)
-    const schedules = raw.version === 2 && Array.isArray(raw.schedules)
+    const schedules = version === 2 && Array.isArray(raw.schedules)
       ? raw.schedules.map(normalizeSchedule).filter((s): s is UsageSchedule => s !== null)
       : []
-    const projects = raw.version === 2 && Array.isArray(raw.projects)
+    const projects = version === 2 && Array.isArray(raw.projects)
       ? raw.projects.map(normalizeProject).filter((p): p is ProjectPlan => p !== null)
       : []
     return {
@@ -376,15 +383,13 @@ export function upsertProject(
   const now = new Date().toISOString()
   const existing = draft.id ? store.projects.find(p => p.id === draft.id) : undefined
   const tasks = draft.tasks
-    ? draft.tasks.map((task, index) => {
+    ? draft.tasks.map((task) => {
       const existingTask = task.id
         ? existing?.tasks.find(t => t.id === task.id)
         : undefined
-      const normalized = normalizeTaskDraft({
-        ...task,
-        id: existingTask?.id ?? task.id,
-      })
-      return normalized
+      const taskId = existingTask?.id ?? task.id
+      const { id: _dropId, ...rest } = task
+      return normalizeTaskDraft(taskId ? { ...rest, id: taskId } : rest)
     })
     : existing?.tasks ?? []
 

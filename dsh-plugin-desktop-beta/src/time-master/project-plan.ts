@@ -18,7 +18,7 @@ title, goal, status (active|paused|done), tasks (array of { title, status (todo|
 Provide 3–6 actionable tasks with realistic due dates anchored to today.
 No markdown fences.`
 
-function parseProjectJson(raw: string, today: string): ProjectPlanDraft | null {
+function parseProjectJson(raw: string, _today: string): ProjectPlanDraft | null {
   const trimmed = raw.trim()
   const start = trimmed.indexOf('{')
   const end = trimmed.lastIndexOf('}')
@@ -35,15 +35,16 @@ function parseProjectJson(raw: string, today: string): ProjectPlanDraft | null {
         const task = entry as Record<string, unknown>
         const taskTitle = typeof task.title === 'string' ? task.title.trim() : ''
         if (!taskTitle) continue
-        tasks.push({
+        const draft: ProjectTaskDraft = {
           title: taskTitle,
           status: isProjectTaskStatus(task.status) ? task.status : 'todo',
-          dueAt: typeof task.dueAt === 'string' ? task.dueAt : undefined,
+          ...(typeof task.dueAt === 'string' && task.dueAt.trim() ? { dueAt: task.dueAt.trim() } : {}),
           ...(typeof task.estimateHours === 'number' ? { estimateHours: task.estimateHours } : {}),
           ...(typeof task.notes === 'string' ? { notes: task.notes } : {}),
           ...(typeof task.workflowName === 'string' ? { workflowName: task.workflowName } : {}),
           ...(typeof task.sessionId === 'string' ? { sessionId: task.sessionId } : {}),
-        })
+        }
+        tasks.push(draft)
       }
     }
     if (tasks.length === 0) return null

@@ -31,7 +31,11 @@ export function applyTimeMasterClient(ctx: ClientContext): void {
     view.actions.setPanelOpen(true)
   }
 
-  ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, ko }), 'dsh-plugin-desktop/time-master: dictionaries')
+  ctx.effect(() => ctx.locale.addLanguage({ id: 'ja', label: '日本語', fallback: 'en' }), 'dsh-plugin-desktop/time-master: language ja')
+  ctx.effect(() => ctx.locale.addLanguage({ id: 'ko', label: '한국어', fallback: 'en' }), 'dsh-plugin-desktop/time-master: language ko')
+  ctx.effect(() => ctx.locale.register(NS, { zh, en }), 'dsh-plugin-desktop/time-master: dictionaries zh/en')
+  ctx.effect(() => ctx.locale.register(NS, 'ja', ja), 'dsh-plugin-desktop/time-master: dictionary ja')
+  ctx.effect(() => ctx.locale.register(NS, 'ko', ko), 'dsh-plugin-desktop/time-master: dictionary ko')
   ctx.effect(() => installTimeMasterStyles(), 'dsh-plugin-desktop/time-master: styles')
 
   ctx.slots.inject('sidebar.footer.action', () => ctx.slots.register({

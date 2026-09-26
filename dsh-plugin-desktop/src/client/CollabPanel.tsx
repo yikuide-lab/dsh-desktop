@@ -337,7 +337,7 @@ export function CollabPanel({
           ? '—'
           : JSON.stringify(payload, null, 2)}
       </pre>
-      {tab === 'heal' && healPlan && (
+      {tab === 'heal' && healPlan != null && (
         <pre className="workflow-collab-json workflow-collab-json-pending">
           pending heal:
           {'\n'}

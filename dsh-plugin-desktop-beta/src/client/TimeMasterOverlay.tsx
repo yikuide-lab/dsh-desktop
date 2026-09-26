@@ -16,11 +16,11 @@ import type {
   ProjectPlanDraft,
   ProjectPlanStatus,
   ProjectTaskDraft,
-  ProjectTaskStatus,
   TokenPlanCycle,
   TokenPlanDraft,
   UsageSchedule,
   UsageScheduleDraft,
+  UsageScheduleItem,
 } from '../time-master/types.js'
 import { DEFAULT_REMIND_DAYS } from '../time-master/types.js'
 import { DESKTOP_COLLAB_PATH } from './collab-api.js'
@@ -156,10 +156,10 @@ function draftToScheduleForm(draft: UsageScheduleDraft, id?: string): ScheduleFo
 }
 
 function formToScheduleDraft(form: ScheduleFormState): UsageScheduleDraft & { id?: string } {
-  let items: UsageScheduleDraft['items'] = []
+  let items: UsageScheduleItem[] = []
   try {
     const parsed = JSON.parse(form.itemsJson) as unknown
-    if (Array.isArray(parsed)) items = parsed as UsageScheduleDraft['items']
+    if (Array.isArray(parsed)) items = parsed as UsageScheduleItem[]
   } catch {
     items = []
   }

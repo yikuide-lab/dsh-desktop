@@ -91,7 +91,7 @@ export function heuristicOrchestrateUsage(input: {
       windowStart: slotStart,
       windowEnd: cappedEnd,
       dailyBudgetHint: role === 'primary' ? 'normal' : 'reduced',
-      notes: remaining <= 7 ? `Expires in ${remaining}d — backup tier` : undefined,
+      ...(remaining <= 7 ? { notes: `Expires in ${remaining}d — backup tier` } : {}),
     })
     slotStart = addDays(cappedEnd, 1) ?? cappedEnd
     const pastHorizon = daysBetween(slotStart, windowEnd)

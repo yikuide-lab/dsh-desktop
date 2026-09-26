@@ -4,8 +4,8 @@ import type { Context } from '@deepseek-ai/cordis'
 import { createUserMessage, BlockAssembler } from '@deepseek-ai/dsh-llm'
 import type { GenerateOptions, Message } from '@deepseek-ai/dsh-llm'
 import { hostServicesFromContext } from '../desktop-workflow-executor.ts'
-import type { CoordSnapshot, CoordSuggestion } from './types.js'
-import { heuristicCoordinate } from './coord.js'
+import type { CoordSuggestion } from './types.js'
+import { heuristicCoordinate, type CoordSnapshot } from './coord.js'
 import type { ProjectPlan } from './types.js'
 
 const SYSTEM = `You resolve scheduling conflicts for DSH Desktop Time Master.
