@@ -157,10 +157,13 @@ describe('awf client', () => {
       const url = String(input)
       calls.push({ method: (init?.method ?? 'GET').toUpperCase(), url, body: init?.body ? JSON.parse(String(init.body)) : undefined })
       if (url.endsWith('/api/workflows/9/runs') && init?.method === 'POST') {
-        return new Response(JSON.stringify({ id: 31, runner_run_id: 'run_x', status: 'completed', result_text: 'ok' }), { status: 200 })
+        return new Response(JSON.stringify({ id: 31, runner_run_id: 'run_x', run_id: 'run_x', status: 'completed', result_text: 'ok' }), { status: 200 })
       }
       if (url.includes('/gates/')) {
         return new Response(JSON.stringify({ id: 31, runner_run_id: 'run_x', status: 'completed' }), { status: 200 })
+      }
+      if (url.includes('/api/workflows/runs/run_uuid')) {
+        return new Response(JSON.stringify({ id: 31, runner_run_id: 'run_uuid', run_id: 'run_uuid', status: 'waiting_gate', gates: [{ token: 't1', resolved: false }] }), { status: 200 })
       }
       return new Response(JSON.stringify([]), { status: 200 })
     }) as AwfFetch
@@ -169,13 +172,26 @@ describe('awf client', () => {
     expect(run.status).toBe('completed')
     // 默认 auto_approve=false：与本地引擎「审批等待人工」对齐（双跑一致）
     expect(calls[0]?.body).toMatchObject({ auto_approve: false })
-    await client.createRun(9, {}, { autoApprove: true })
-    expect(calls[1]?.body).toMatchObject({ auto_approve: true })
+    await client.createRun(9, {}, {
+      autoApprove: true,
+      externalLoopId: 'loop-1',
+      externalBranchId: 'br-1',
+    })
+    expect(calls[1]?.body).toMatchObject({
+      auto_approve: true,
+      external_loop_id: 'loop-1',
+      external_branch_id: 'br-1',
+    })
     await client.resolveGate(31, 'gate-token', 'approved')
     expect(calls[2]?.url).toBe('http://awf.test/api/workflows/runs/31/gates/gate-token')
     expect(calls[2]?.body).toMatchObject({ decision: 'approved' })
     // 保留字符必须被编码，防路径注入/语义改变
     await client.resolveGate(31, 'a/b?c=d', 'approved')
     expect(calls[3]?.url).toBe('http://awf.test/api/workflows/runs/31/gates/a%2Fb%3Fc%3Dd')
+    const got = await client.getRun('run_uuid')
+    expect(got.status).toBe('waiting_gate')
+    expect(calls[4]?.url).toBe('http://awf.test/api/workflows/runs/run_uuid')
+    await client.resolveGate('run_uuid', 't1', 'approved')
+    expect(calls[5]?.url).toBe('http://awf.test/api/workflows/runs/run_uuid/gates/t1')
   })
 })

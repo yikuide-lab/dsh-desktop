@@ -504,6 +504,7 @@ interface TaskPlan {
 - 单测：TaskPlan 优先序 assign>invite>branch；spawn 深度/环拒绝  
 - 单测：JID 解析；epoch 吊销后旧 token 失效  
 - 单测：sync 预检拒绝/剥离 `collab_peer`；remoteRun 路径强制 `auto_approve:false`  
+- **P7 hard-close（2026-09-26）**：`getRun(runner UUID)` 轮询；CreateRun/telemetry 传 `external_loop_id`/`external_branch_id`；`waiting_gate` 可经 `AWF_GATE_DECISION` + JWT `resolveAwfGate` 后续轮询；失败信息含 gate token  
 - 手工：拆大任务 → 两 agent + 一本地分支 → 一 `awf@` 远程 → kick → AI 待批自愈 → 重联完成；远程门由本机 JWT 属主 resolve
 
 ## 评审修订摘要（相对前稿）
