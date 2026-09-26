@@ -39,7 +39,9 @@ export interface AwfSyncItem {
 export interface AwfValidateResult {
   readonly name: string
   readonly ok: boolean
-  readonly errors: Array<{ path: string; code: string; msg: string }>
+  /** Platform may return string messages or structured {path,code,msg}. */
+  readonly errors: ReadonlyArray<string | { path: string; code: string; msg: string }>
+  readonly warnings?: readonly string[]
   readonly conflict: string | null
 }
 
@@ -59,16 +61,36 @@ export interface AwfCapabilities {
   readonly features: { gate: boolean; sub_workflow: boolean; compensation: boolean }
 }
 
+export interface AwfRunGate {
+  readonly step_id?: string
+  readonly token: string
+  readonly resolved?: boolean
+  readonly question?: string
+  readonly options?: readonly string[]
+}
+
 export interface AwfRun {
   readonly id: number
+  /** Runner UUID; CreateRun also returns as run_id. Prefer for poll + resolveGate. */
   readonly runner_run_id: string
+  /** Alias of runner_run_id when present on CreateRun / GetRun responses. */
+  readonly run_id?: string
   readonly status: string
   readonly result_text?: string
   readonly error_text?: string
-  readonly gates?: Array<{ step_id: string; token: string; resolved: boolean }>
+  readonly auto_approve?: boolean
+  readonly external_loop_id?: string | null
+  readonly external_branch_id?: string | null
+  readonly gates?: readonly AwfRunGate[]
 }
 
 export type AwfFetch = typeof fetch
+
+export interface AwfCreateRunOptions {
+  readonly autoApprove?: boolean
+  readonly externalLoopId?: string
+  readonly externalBranchId?: string
+}
 
 export interface AwfClient {
   checkConnection(): Promise<{ ok: boolean; email: string | null }>
@@ -76,9 +98,12 @@ export interface AwfClient {
   syncValidate(items: readonly AwfSyncItem[]): Promise<readonly AwfValidateResult[]>
   syncPush(items: readonly AwfSyncItem[]): Promise<readonly AwfWorkflowSummary[]>
   syncPull(): Promise<readonly AwfWorkflowSummary[]>
-  createRun(workflowId: number, params: Record<string, string>, options?: { autoApprove?: boolean }): Promise<AwfRun>
+  createRun(workflowId: number, params: Record<string, string>, options?: AwfCreateRunOptions): Promise<AwfRun>
   listRuns(workflowId: number): Promise<readonly AwfRun[]>
-  resolveGate(runDbId: number, token: string, decision: string): Promise<AwfRun>
+  /** GET single run by runner UUID or run_records numeric id (AWF A1). */
+  getRun(runId: string | number): Promise<AwfRun>
+  /** Path run id: runner UUID preferred; numeric id still accepted for legacy. */
+  resolveGate(runId: string | number, token: string, decision: string): Promise<AwfRun>
   publish(workflowId: number, note?: string): Promise<AwfWorkflowSummary>
   /** 摘要级遥测上报（C-P4）：只含名称/状态/步骤状态/token 估算/耗时。 */
   telemetryRun(summary: AwfTelemetrySummary): Promise<{ ok: boolean; id: number }>
@@ -94,6 +119,19 @@ export interface AwfTelemetrySummary {
   readonly token_estimate?: number
   readonly duration_ms?: number
   readonly finished_at?: string
+  readonly external_loop_id?: string
+  readonly external_branch_id?: string
+}
+
+/** Normalize CreateRun/GetRun shapes: platform may return run_id without runner_run_id. */
+function normalizeAwfRun(run: AwfRun): AwfRun {
+  const runner = run.runner_run_id || run.run_id || ''
+  if (!runner) return run
+  return {
+    ...run,
+    runner_run_id: runner,
+    run_id: run.run_id || runner,
+  }
 }
 
 export function createAwfClient(
@@ -215,20 +253,31 @@ export function createAwfClient(
     },
     createRun(workflowId, params, options = {}) {
       // 默认 auto_approve=false：与本地引擎对齐（审批门等待人工 resolve），双跑语义一致
+      const body: Record<string, unknown> = {
+        params,
+        auto_approve: options.autoApprove ?? false,
+      }
+      if (options.externalLoopId) body.external_loop_id = options.externalLoopId
+      if (options.externalBranchId) body.external_branch_id = options.externalBranchId
       return request<AwfRun>(`/api/workflows/${workflowId}/runs`, {
         method: 'POST',
-        body: JSON.stringify({ params, auto_approve: options.autoApprove ?? false }),
-      })
+        body: JSON.stringify(body),
+      }).then(normalizeAwfRun)
     },
     listRuns(workflowId) {
-      return request<readonly AwfRun[]>(`/api/workflows/${workflowId}/runs`)
+      return request<readonly AwfRun[]>(`/api/workflows/${workflowId}/runs`).then((rows) =>
+        rows.map(normalizeAwfRun),
+      )
     },
-    resolveGate(runDbId, gateToken, decision) {
-      // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义
-      return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runDbId))}/gates/${encodeURIComponent(gateToken)}`, {
+    getRun(runId) {
+      return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runId))}`).then(normalizeAwfRun)
+    },
+    resolveGate(runId, gateToken, decision) {
+      // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义；runId 可为 runner UUID
+      return request<AwfRun>(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gates/${encodeURIComponent(gateToken)}`, {
         method: 'POST',
         body: JSON.stringify({ decision }),
-      })
+      }).then(normalizeAwfRun)
     },
     publish(workflowId, note = 'dsh sync') {
       return request<AwfWorkflowSummary>(`/api/workflows/${workflowId}/publish`, {

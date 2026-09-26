@@ -114,15 +114,27 @@ export class DesktopWorkflowService extends Service implements DesktopWorkflow {
         services.getWorkflowSettings = () => this.plugin.getSettingsSync()
         services.awfRemoteRun = (input) => awfBridge.remoteRun(input)
         services.awfRemoteRunAndWait = (input) => {
-          const runInput: { workflowId: number; params?: Record<string, string> } = {
+          const runInput: {
+            workflowId: number
+            params?: Record<string, string>
+            externalLoopId?: string
+            externalBranchId?: string
+          } = {
             workflowId: input.workflowId,
           }
           if (input.params !== undefined) runInput.params = input.params
+          if (input.externalLoopId !== undefined) runInput.externalLoopId = input.externalLoopId
+          if (input.externalBranchId !== undefined) runInput.externalBranchId = input.externalBranchId
           return awfBridge.remoteRunAndWait(
             runInput,
             input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined,
           )
         }
+        services.awfResolveGate = (input) => awfBridge.resolveAwfGate(input)
+        services.awfPollRun = (input) => awfBridge.pollAwfRun(
+          input.runnerRunId,
+          input.timeoutMs !== undefined ? { timeoutMs: input.timeoutMs } : undefined,
+        )
         hostServicesRef.current = services
         this.plugin.setHostHooks(createDesktopWorkflowHostHooks(services))
         // 宿主执行能力就绪：若执行器开关已打开，补一次启动

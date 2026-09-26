@@ -20,6 +20,17 @@ export class AwfError extends Error {
         this.detail = detail;
     }
 }
+/** Normalize CreateRun/GetRun shapes: platform may return run_id without runner_run_id. */
+function normalizeAwfRun(run) {
+    const runner = run.runner_run_id || run.run_id || '';
+    if (!runner)
+        return run;
+    return {
+        ...run,
+        runner_run_id: runner,
+        run_id: run.run_id || runner,
+    };
+}
 export function createAwfClient(settings, options = {}) {
     const doFetch = options.fetchImpl ?? fetch;
     const token = options.token ?? resolveAwfToken(settings, options.env);
@@ -125,20 +136,31 @@ export function createAwfClient(settings, options = {}) {
         },
         createRun(workflowId, params, options = {}) {
             // 默认 auto_approve=false：与本地引擎对齐（审批门等待人工 resolve），双跑语义一致
+            const body = {
+                params,
+                auto_approve: options.autoApprove ?? false,
+            };
+            if (options.externalLoopId)
+                body.external_loop_id = options.externalLoopId;
+            if (options.externalBranchId)
+                body.external_branch_id = options.externalBranchId;
             return request(`/api/workflows/${workflowId}/runs`, {
                 method: 'POST',
-                body: JSON.stringify({ params, auto_approve: options.autoApprove ?? false }),
-            });
+                body: JSON.stringify(body),
+            }).then(normalizeAwfRun);
         },
         listRuns(workflowId) {
-            return request(`/api/workflows/${workflowId}/runs`);
+            return request(`/api/workflows/${workflowId}/runs`).then((rows) => rows.map(normalizeAwfRun));
         },
-        resolveGate(runDbId, gateToken, decision) {
-            // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义
-            return request(`/api/workflows/runs/${encodeURIComponent(String(runDbId))}/gates/${encodeURIComponent(gateToken)}`, {
+        getRun(runId) {
+            return request(`/api/workflows/runs/${encodeURIComponent(String(runId))}`).then(normalizeAwfRun);
+        },
+        resolveGate(runId, gateToken, decision) {
+            // 路径段编码：防 token 中保留字符（/ ? # 等）改变路径语义；runId 可为 runner UUID
+            return request(`/api/workflows/runs/${encodeURIComponent(String(runId))}/gates/${encodeURIComponent(gateToken)}`, {
                 method: 'POST',
                 body: JSON.stringify({ decision }),
-            });
+            }).then(normalizeAwfRun);
         },
         publish(workflowId, note = 'dsh sync') {
             return request(`/api/workflows/${workflowId}/publish`, {

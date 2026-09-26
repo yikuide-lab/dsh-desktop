@@ -51,6 +51,8 @@ export interface DesktopWorkflowHostServices {
   awfRemoteRunAndWait?: (input: {
     workflowId: number
     params?: Record<string, string>
+    externalLoopId?: string
+    externalBranchId?: string
     timeoutMs?: number
     signal?: AbortSignal
   }) => Promise<{
@@ -60,12 +62,15 @@ export interface DesktopWorkflowHostServices {
     errorText?: string
     runId?: number
     runnerRunId?: string
+    gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
     errorKind?: string
     errorMessage?: string
   }>
   awfRemoteRun?: (input: {
     workflowId: number
     params?: Record<string, string>
+    externalLoopId?: string
+    externalBranchId?: string
   }) => Promise<{
     ok: boolean
     status?: string
@@ -73,6 +78,37 @@ export interface DesktopWorkflowHostServices {
     errorText?: string
     runId?: number
     runnerRunId?: string
+    gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
+    errorKind?: string
+    errorMessage?: string
+  }>
+  awfResolveGate?: (input: {
+    runnerRunId: string
+    token: string
+    decision: string
+  }) => Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    runnerRunId?: string
+    gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
+    errorKind?: string
+    errorMessage?: string
+  }>
+  awfPollRun?: (input: {
+    runnerRunId: string
+    timeoutMs?: number
+    signal?: AbortSignal
+  }) => Promise<{
+    ok: boolean
+    status?: string
+    resultText?: string
+    errorText?: string
+    runId?: number
+    runnerRunId?: string
+    gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
     errorKind?: string
     errorMessage?: string
   }>
@@ -427,6 +463,22 @@ function collabParamsFromContext(context: ExecutionContext): Record<string, stri
   return out
 }
 
+function pickExternalId(params: Record<string, string>, keys: readonly string[]): string | undefined {
+  for (const key of keys) {
+    const value = params[key]?.trim()
+    if (value) return value
+  }
+  return undefined
+}
+
+function firstUnresolvedGateToken(
+  gates: ReadonlyArray<{ token: string; resolved?: boolean }> | undefined,
+): string | undefined {
+  if (!gates?.length) return undefined
+  const open = gates.find((g) => g.token && g.resolved !== true)
+  return open?.token ?? gates[0]?.token
+}
+
 /** Validate peer JID and dispatch local attach or AWF remote.workflow (P7). */
 export async function runCollabPeerStep(
   services: DesktopWorkflowHostServices,
@@ -492,16 +544,22 @@ export async function runCollabPeerStep(
         return { ok: false, error: 'AWF remote run unavailable (Host AWF bridge not wired)' }
       }
       signal.throwIfAborted()
-      const remote = services.awfRemoteRunAndWait
+      const params = collabParamsFromContext(context)
+      const externalLoopId = pickExternalId(params, ['external_loop_id', 'COLLAB_LOOP_ID', 'collab_loop_id'])
+      const externalBranchId = pickExternalId(params, ['external_branch_id', 'COLLAB_BRANCH_ID', 'collab_branch_id'])
+      const gateDecision = pickExternalId(params, ['AWF_GATE_DECISION', 'awf_gate_decision'])
+      const remoteInput = {
+        workflowId,
+        params,
+        ...(externalLoopId ? { externalLoopId } : {}),
+        ...(externalBranchId ? { externalBranchId } : {}),
+      }
+      let remote = services.awfRemoteRunAndWait
         ? await services.awfRemoteRunAndWait({
-          workflowId,
-          params: collabParamsFromContext(context),
+          ...remoteInput,
           signal,
         })
-        : await services.awfRemoteRun!({
-          workflowId,
-          params: collabParamsFromContext(context),
-        })
+        : await services.awfRemoteRun!(remoteInput)
       if (!remote.ok) {
         return {
           ok: false,
@@ -509,9 +567,47 @@ export async function runCollabPeerStep(
         }
       }
       if (remote.status === 'waiting_gate') {
-        return {
-          ok: false,
-          error: `AWF run waiting_gate (runnerRunId=${remote.runnerRunId ?? remote.runId ?? '?'}); resolve as JWT owner`,
+        const token = firstUnresolvedGateToken(remote.gates)
+        const runnerRunId = remote.runnerRunId
+        if (gateDecision && token && runnerRunId && services.awfResolveGate) {
+          signal.throwIfAborted()
+          const resolved = await services.awfResolveGate({
+            runnerRunId,
+            token,
+            decision: gateDecision,
+          })
+          if (!resolved.ok) {
+            return {
+              ok: false,
+              error: resolved.errorMessage
+                ?? `AWF resolveGate failed (runnerRunId=${runnerRunId}, token=${token})`,
+            }
+          }
+          if (services.awfPollRun && !['finished', 'failed', 'completed', 'waiting_gate'].includes(resolved.status ?? '')) {
+            signal.throwIfAborted()
+            remote = await services.awfPollRun({ runnerRunId, signal })
+            if (!remote.ok) {
+              return {
+                ok: false,
+                error: remote.errorMessage ?? 'AWF poll after resolveGate failed',
+              }
+            }
+          } else {
+            remote = resolved
+          }
+          if (remote.status === 'waiting_gate') {
+            const nextToken = firstUnresolvedGateToken(remote.gates) ?? token
+            return {
+              ok: false,
+              error: `AWF run still waiting_gate after resolve (runnerRunId=${runnerRunId}, token=${nextToken}); set AWF_GATE_DECISION and retry`,
+            }
+          }
+        } else {
+          const tokenHint = token ? `, token=${token}` : ''
+          return {
+            ok: false,
+            error: `AWF run waiting_gate (runnerRunId=${runnerRunId ?? remote.runId ?? '?'}${tokenHint}); resolve as JWT owner or set AWF_GATE_DECISION`,
+          }
         }
       }
       if (remote.status === 'failed') {

@@ -53,8 +53,9 @@ export interface AwfPublicStatus {
 export interface AwfPreflightEntry {
   readonly name: string
   readonly ok: boolean
-  readonly errors: ReadonlyArray<{ path: string; code: string; msg: string }>
+  readonly errors: ReadonlyArray<{ path: string; code: string; msg: string } | string>
   readonly conflict: string | null
+  readonly warnings?: readonly string[]
 }
 
 export interface AwfSyncReceipt {
@@ -84,6 +85,7 @@ export interface AwfRemoteRunResult {
   readonly runId?: number
   /** Runner UUID from createRun; canonical handle for poll + resolveGate. */
   readonly runnerRunId?: string
+  readonly gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
   readonly errorKind?: string
   readonly errorMessage?: string
 }
@@ -92,6 +94,38 @@ const AWF_REMOTE_RUN_TERMINAL = new Set(['finished', 'failed', 'waiting_gate', '
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => { setTimeout(resolve, ms) })
+}
+
+function runnerIdOf(run: { runner_run_id?: string; run_id?: string; id?: number }): string {
+  return run.runner_run_id || run.run_id || (run.id !== undefined ? String(run.id) : '')
+}
+
+function toRemoteRunResult(run: {
+  id: number
+  runner_run_id?: string
+  run_id?: string
+  status: string
+  result_text?: string
+  error_text?: string
+  gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
+}): AwfRemoteRunResult {
+  const runnerRunId = runnerIdOf(run)
+  return {
+    ok: true,
+    status: run.status,
+    runId: run.id,
+    ...(run.result_text !== undefined ? { resultText: run.result_text } : {}),
+    ...(run.error_text !== undefined ? { errorText: run.error_text } : {}),
+    ...(runnerRunId ? { runnerRunId } : {}),
+    ...(run.gates !== undefined ? { gates: run.gates } : {}),
+  }
+}
+
+export type AwfRemoteRunInput = {
+  workflowId: number
+  params?: Record<string, string>
+  externalLoopId?: string
+  externalBranchId?: string
 }
 
 export interface AwfBridge {
@@ -118,10 +152,21 @@ export interface AwfBridge {
   authPhoneLogin(input: { phone: string; code: string }): Promise<AwfAuthStatusView>
   authLogout(): Promise<{ ok: boolean }>
   /** 远程试运行：对平台工作流发起一次执行（auto_approve=false，轮询由调用方负责）。 */
-  remoteRun(input: { workflowId: number; params?: Record<string, string> }): Promise<AwfRemoteRunResult>
+  remoteRun(input: AwfRemoteRunInput): Promise<AwfRemoteRunResult>
   /** 远程试运行并轮询至 finished | failed | waiting_gate | completed 或超时。 */
   remoteRunAndWait(
-    input: { workflowId: number; params?: Record<string, string> },
+    input: AwfRemoteRunInput,
+    options?: { timeoutMs?: number; pollIntervalMs?: number },
+  ): Promise<AwfRemoteRunResult>
+  /** JWT 属主 resolve 平台 approval gate（run id = runner UUID）。 */
+  resolveAwfGate(input: {
+    runnerRunId: string
+    token: string
+    decision: string
+  }): Promise<AwfRemoteRunResult>
+  /** 按 runner UUID 轮询至终态 / waiting_gate / 超时。 */
+  pollAwfRun(
+    runnerRunId: string,
     options?: { timeoutMs?: number; pollIntervalMs?: number },
   ): Promise<AwfRemoteRunResult>
   /** 反向隧道：节点外拨 WS 连接 + 本地 OpenAI 兼容 HTTP 出口。 */
@@ -377,16 +422,13 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
         const run = await clientFor(settings).createRun(
           input.workflowId,
           input.params ?? {},
-          { autoApprove: false },
+          {
+            autoApprove: false,
+            ...(input.externalLoopId ? { externalLoopId: input.externalLoopId } : {}),
+            ...(input.externalBranchId ? { externalBranchId: input.externalBranchId } : {}),
+          },
         )
-        return {
-          ok: true,
-          status: run.status,
-          ...(run.result_text !== undefined ? { resultText: run.result_text } : {}),
-          ...(run.error_text !== undefined ? { errorText: run.error_text } : {}),
-          runId: run.id,
-          runnerRunId: run.runner_run_id,
-        }
+        return toRemoteRunResult(run)
       } catch (error) {
         if (error instanceof AwfError) {
           return { ok: false, errorKind: error.kind, errorMessage: error.message }
@@ -402,7 +444,15 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
       const client = clientFor(settings)
       let run
       try {
-        run = await client.createRun(input.workflowId, input.params ?? {}, { autoApprove: false })
+        run = await client.createRun(
+          input.workflowId,
+          input.params ?? {},
+          {
+            autoApprove: false,
+            ...(input.externalLoopId ? { externalLoopId: input.externalLoopId } : {}),
+            ...(input.externalBranchId ? { externalBranchId: input.externalBranchId } : {}),
+          },
+        )
       } catch (error) {
         if (error instanceof AwfError) {
           return { ok: false, errorKind: error.kind, errorMessage: error.message }
@@ -411,28 +461,77 @@ export function createAwfBridge(options: AwfBridgeOptions): AwfBridge {
       }
 
       let current = run
+      const pollKey = runnerIdOf(run)
       const deadline = Date.now() + timeoutMs
       while (!AWF_REMOTE_RUN_TERMINAL.has(current.status) && Date.now() < deadline) {
         await sleep(pollIntervalMs)
+        if (!pollKey) break
         try {
-          const runs = await client.listRuns(input.workflowId)
-          const found = runs.find((entry) => (
-            entry.id === run.id || entry.runner_run_id === run.runner_run_id
-          ))
-          if (found) current = found
+          current = await client.getRun(pollKey)
         } catch {
           // Keep last known status on transient poll errors until timeout.
         }
       }
 
-      return {
-        ok: true,
-        status: current.status,
-        ...(current.result_text !== undefined ? { resultText: current.result_text } : {}),
-        ...(current.error_text !== undefined ? { errorText: current.error_text } : {}),
-        runId: current.id,
-        runnerRunId: current.runner_run_id,
+      return toRemoteRunResult(current)
+    },
+
+    async resolveAwfGate(input): Promise<AwfRemoteRunResult> {
+      const settings = await currentSettings()
+      try {
+        const run = await clientFor(settings).resolveGate(input.runnerRunId, input.token, input.decision)
+        // ResolveGate may return stateOut shape (run_id) without numeric id — normalize.
+        const normalized: {
+          id: number
+          runner_run_id?: string
+          run_id?: string
+          status: string
+          result_text?: string
+          error_text?: string
+          gates?: ReadonlyArray<{ token: string; step_id?: string; resolved?: boolean }>
+        } = {
+          id: typeof (run as { id?: number }).id === 'number' ? (run as { id: number }).id : 0,
+          status: run.status,
+          runner_run_id: runnerIdOf(run) || input.runnerRunId,
+        }
+        const runIdAlias = (run as { run_id?: string }).run_id
+        if (runIdAlias !== undefined) normalized.run_id = runIdAlias
+        if (run.result_text !== undefined) normalized.result_text = run.result_text
+        if (run.error_text !== undefined) normalized.error_text = run.error_text
+        if (run.gates !== undefined) normalized.gates = run.gates
+        return toRemoteRunResult(normalized)
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false, errorKind: error.kind, errorMessage: error.message }
+        }
+        return { ok: false, errorKind: 'network', errorMessage: String(error) }
       }
+    },
+
+    async pollAwfRun(runnerRunId, options = {}): Promise<AwfRemoteRunResult> {
+      const timeoutMs = options.timeoutMs ?? 300_000
+      const pollIntervalMs = options.pollIntervalMs ?? 2_000
+      const settings = await currentSettings()
+      const client = clientFor(settings)
+      let current
+      try {
+        current = await client.getRun(runnerRunId)
+      } catch (error) {
+        if (error instanceof AwfError) {
+          return { ok: false, errorKind: error.kind, errorMessage: error.message }
+        }
+        return { ok: false, errorKind: 'network', errorMessage: String(error) }
+      }
+      const deadline = Date.now() + timeoutMs
+      while (!AWF_REMOTE_RUN_TERMINAL.has(current.status) && Date.now() < deadline) {
+        await sleep(pollIntervalMs)
+        try {
+          current = await client.getRun(runnerRunId)
+        } catch {
+          // keep last
+        }
+      }
+      return toRemoteRunResult(current)
     },
 
     async pullWorkflows() {
