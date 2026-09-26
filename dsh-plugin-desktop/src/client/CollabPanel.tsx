@@ -42,7 +42,7 @@ export function CollabPanel({
   const [inviteDid, setInviteDid] = useState('')
   const [kickJid, setKickJid] = useState('')
   const [planHint, setPlanHint] = useState('')
-  const [aspEndpoint, setAspEndpoint] = useState('127.0.0.1:9700')
+  const [aspEndpoint, setAspEndpoint] = useState('tls://127.0.0.1:5222')
   const [allowRemotePeers, setAllowRemotePeers] = useState(false)
   const [canHealAuto, setCanHealAuto] = useState(false)
   const [healAutoAllow, setHealAutoAllow] = useState<string[]>([...HEAL_AUTO_OPTIONS])
@@ -422,7 +422,7 @@ export function CollabPanel({
               className="workflow-input"
               value={aspEndpoint}
               onChange={(event) => setAspEndpoint(event.target.value)}
-              placeholder="127.0.0.1:9700"
+              placeholder="tls://127.0.0.1:5222"
             />
           </label>
           <label className="workflow-form-group">

@@ -4,6 +4,7 @@ export * from './did.js';
 export * from './paths.js';
 export * from './store.js';
 export * from './tokens.js';
+export * from './asp-proto.js';
 export * from './bus.js';
 export * from './remote-peer.js';
 export * from './membership.js';

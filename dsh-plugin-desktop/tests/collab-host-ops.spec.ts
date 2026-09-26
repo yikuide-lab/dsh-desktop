@@ -165,7 +165,7 @@ describe('collab host ops', () => {
     })
     expect(rejected).toEqual({
       ok: false,
-      error: 'ASP external bridge requires endpoint (host:port)',
+      error: 'ASP external bridge requires endpoint ([tls://]host:port)',
     })
     const external = await executeCollabOp({
       op: 'asp.setMode',
@@ -175,7 +175,7 @@ describe('collab host ops', () => {
     })
     expect(external).toMatchObject({
       ok: true,
-      status: { mode: 'external', endpoint: '127.0.0.1:9700' },
+      status: { mode: 'external', endpoint: '127.0.0.1:9700', codec: 'protobuf' },
     })
     await executeCollabOp({
       op: 'asp.setMode',

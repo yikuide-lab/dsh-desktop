@@ -1,4 +1,4 @@
-/** In-process CollabBus pub/sub — V2 bridges to AspBridge (in-process loopback or external TCP) */
+/** In-process CollabBus pub/sub — V2 bridges to AspBridge (in-process / external TCP|TLS + ASP protobuf) */
 import type { CollabEnvelope, CollabPayload } from './types.js';
 export type CollabBusHandler = (envelope: CollabEnvelope) => void;
 export interface AspBridge {
@@ -10,6 +10,32 @@ export interface AspBridgeStatus {
     mode: AspBridgeMode;
     endpoint?: string;
     lastError?: string;
+    tls?: boolean;
+    codec?: AspWireCodec;
+    authenticated?: boolean;
+}
+export type AspWireCodec = 'protobuf' | 'json';
+export interface AspTlsOptions {
+    /** PEM CA bundle path or inline PEM; omit for system trust store. */
+    ca?: string | Buffer;
+    cert?: string | Buffer;
+    key?: string | Buffer;
+    servername?: string;
+    rejectUnauthorized?: boolean;
+}
+export interface AspAuthOptions {
+    jid: string;
+    password: string;
+    mechanism?: 'PLAIN';
+}
+export interface AspBridgeOptions {
+    onError?: (message: string) => void;
+    /** Deliver inbound ASP envelopes (after auth) to Host/bus. */
+    onInbound?: (envelope: CollabEnvelope) => void;
+    /** Default `protobuf` (ASP AgentStreamMessage). `json` kept for interim tests. */
+    codec?: AspWireCodec;
+    tls?: boolean | AspTlsOptions;
+    auth?: AspAuthOptions;
 }
 export declare class CollabBus {
     private handlers;
@@ -36,26 +62,39 @@ export declare class StubAspBridge implements AspBridge {
     readonly sent: CollabEnvelope[];
     send(envelope: CollabEnvelope): Promise<void>;
 }
-export declare function parseAspTcpEndpoint(endpoint: string): {
+export interface ParsedAspEndpoint {
     host: string;
     port: number;
-};
+    tls: boolean;
+}
+export declare function parseAspTcpEndpoint(endpoint: string): ParsedAspEndpoint;
 /**
- * Interim external AspBridge: length-prefixed (u32 BE) JSON CollabEnvelope over TCP.
- * Protobuf ASP wire remains a follow-up; this unblocks Host `external` mode + endpoint tests.
+ * External AspBridge: length-prefixed ASP AgentStreamMessage (protobuf) over TCP or TLS.
+ * Optional PLAIN auth handshake matches Python AgentClient / Rust ASP server.
  */
 export declare class TcpFramedAspBridge implements AspBridge {
     readonly endpoint: string;
-    private readonly onError?;
+    readonly codec: AspWireCodec;
+    readonly useTls: boolean;
+    private readonly options;
     private socket;
     private connecting;
     private buffer;
+    private awaitingAuth;
+    private authResolve;
+    private authReject;
     lastError: string | undefined;
-    constructor(endpoint: string, onError?: (message: string) => void);
+    authenticated: boolean;
+    constructor(endpoint: string, options?: AspBridgeOptions | ((message: string) => void));
     private fail;
+    private writeFrame;
+    private handleFrame;
+    private onData;
+    private openSocket;
+    private authenticate;
     connect(): Promise<void>;
     send(envelope: CollabEnvelope): Promise<void>;
     close(): Promise<void>;
 }
-export declare function createTcpFramedAspBridge(endpoint: string, onError?: (message: string) => void): TcpFramedAspBridge;
+export declare function createTcpFramedAspBridge(endpoint: string, options?: AspBridgeOptions | ((message: string) => void)): TcpFramedAspBridge;
 //# sourceMappingURL=bus.d.ts.map

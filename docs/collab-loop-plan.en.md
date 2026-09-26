@@ -10,7 +10,7 @@
 
 **V2 slice landed** (2026-09-26): AspBridge in-process loopback + Host `asp.status`/`asp.setMode`; deputy fine-grained ACL; heal auto policy via `admin.updateControl`; controlled remote session/agent gate (`allowRemotePeers`, no fake remote).
 
-**V2 follow-up** (2026-09-26): optional DID fields (`RosterMember.did`, CapToken `issuer_did`/`subject_did`, envelope `sender_did`); CollabPanel Control tab; interim `TcpFramedAspBridge` (length-prefixed JSON over TCP). Still **pending**: ASP Protobuf/TLS codec, Windows packaging.
+**V2 follow-up** (2026-09-26): optional DID fields; CollabPanel Control tab; `TcpFramedAspBridge` with ASP protobuf framing (`AgentStreamMessage`), `tls://` endpoints, optional PLAIN auth (`DSH_COLLAB_ASP_*`). Still **pending**: Windows packaging.
 
 ## Decisions (locked)
 

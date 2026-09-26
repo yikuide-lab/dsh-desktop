@@ -29,7 +29,7 @@
 | collab-v2-deputies | LoopAdmin `deputyGrants` 细粒度 ACL + `authorizeCollabOp` 映射 | completed |
 | collab-v2-heal-auto | `healAutoAllow` / `healAutoDeny` + `admin.updateControl` + tick 过滤 | completed |
 | collab-v2-remote-gate | 受控 remote session/agent 门控（`allowRemotePeers`；不伪造远程执行） | completed |
-| collab-v2-asp-tcp | 真 ASP TCP/TLS/Protobuf 外部桥 | pending（已落 interim：`TcpFramedAspBridge` length-prefixed JSON；Protobuf/TLS 仍 pending） |
+| collab-v2-asp-tcp | 真 ASP TCP/TLS/Protobuf 外部桥 | completed（`TcpFramedAspBridge`：u32 BE + AgentStreamMessage protobuf；`tls://` + PLAIN auth；env `DSH_COLLAB_ASP_*`） |
 | collab-v2-did | DID 可选字段与身份联邦 | completed |
 | collab-v2-windows-pack | Windows 打包与分发 | pending |
 
@@ -324,7 +324,7 @@ interface CollabVision {
 { id, from_jid, to_jid, timestamp, payload: message | presence | iq }
 ```
 
-IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`CollabBus.send` 同时 fire-and-forget 调 `AspBridge.send`；Host 默认 `createInProcessAspBridge` loopback；`external` 模式用 interim `TcpFramedAspBridge`（u32 BE length + JSON）；Protobuf/TLS 仍 pending。
+IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`CollabBus.send` 同时 fire-and-forget 调 `AspBridge.send`；Host 默认 `createInProcessAspBridge` loopback；`external` 模式用 `TcpFramedAspBridge`（u32 BE length + ASP `AgentStreamMessage` protobuf；`tls://host:port` 可选 TLS；PLAIN auth via `DSH_COLLAB_ASP_JID`/`PASSWORD`）。
 
 ### 7. LoopAdmin
 
@@ -476,7 +476,7 @@ interface TaskPlan {
 | Heal   | `healer.evaluate` `healer.apply` `healer.pending`                               |
 | Plan   | `plan.evaluate` `plan.assign` `plan.spawnBranch` `plan.get`                     |
 | Bus    | `bus.send`（调试/高级）                                                               |
-| ASP    | `asp.status` `asp.setMode`（`in-process` \| `disconnected` \| `external`+endpoint；Protobuf/TLS pending） |
+| ASP    | `asp.status` `asp.setMode`（`in-process` \| `disconnected` \| `external`+`[tls://]host:port`；protobuf + 可选 TLS/PLAIN） |
 | Grants | `grants.issue`                                                                  |
 
 
@@ -505,10 +505,10 @@ interface TaskPlan {
 ## 明确不做（V1）
 
 - 改 `deepseek-harness/`
-- 真 ASP TCP/TLS/Protobuf 客户端
-- 远程 session/agent
+- 真 ASP TCP/TLS/Protobuf 客户端（→ V2 `TcpFramedAspBridge` 已落地）
+- 远程 session/agent（→ V2 受控门控，仍不伪造远程执行）
 - 新执行沙箱 / 跨 loop 服务发现市场
-- 副管细粒度授权
+- 副管细粒度授权（→ V2 `deputyGrants`）
 - 破坏性自愈默认自动执行
 - 与 run 内 `Run.shared` 合并为同一存储
 - 把 Collab 状态机搬进 AWF；用 Tunnel/Executor 冒充 remoteRun；sync 含 `collab_peer` 的 YAML

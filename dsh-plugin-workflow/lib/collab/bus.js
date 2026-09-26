@@ -1,6 +1,8 @@
-/** In-process CollabBus pub/sub — V2 bridges to AspBridge (in-process loopback or external TCP) */
-import { createConnection } from 'node:net';
+/** In-process CollabBus pub/sub — V2 bridges to AspBridge (in-process / external TCP|TLS + ASP protobuf) */
 import { randomUUID } from 'node:crypto';
+import { createConnection } from 'node:net';
+import { connect as tlsConnect } from 'node:tls';
+import { decodeAgentStreamMessage, decodeAuthResponseMessage, encodeAgentStreamMessage, encodeAuthRequestMessage, frameAspPayload, } from './asp-proto.js';
 export class CollabBus {
     handlers = new Set();
     aspBridge;
@@ -61,94 +63,69 @@ export class StubAspBridge {
 }
 export function parseAspTcpEndpoint(endpoint) {
     const trimmed = endpoint.trim();
-    const withoutScheme = trimmed.replace(/^tcp:\/\//i, '');
-    const hostPort = withoutScheme.includes('/')
-        ? withoutScheme.slice(0, withoutScheme.indexOf('/'))
-        : withoutScheme;
+    let tls = false;
+    let rest = trimmed;
+    if (/^tls:\/\//i.test(rest)) {
+        tls = true;
+        rest = rest.replace(/^tls:\/\//i, '');
+    }
+    else if (/^tcp:\/\//i.test(rest)) {
+        rest = rest.replace(/^tcp:\/\//i, '');
+    }
+    else if (/^ssl:\/\//i.test(rest)) {
+        tls = true;
+        rest = rest.replace(/^ssl:\/\//i, '');
+    }
+    const hostPort = rest.includes('/') ? rest.slice(0, rest.indexOf('/')) : rest;
     const lastColon = hostPort.lastIndexOf(':');
     if (lastColon <= 0) {
-        throw new Error(`Invalid ASP TCP endpoint (expected host:port): ${endpoint}`);
+        throw new Error(`Invalid ASP TCP endpoint (expected [tls://]host:port): ${endpoint}`);
     }
     const host = hostPort.slice(0, lastColon);
     const port = Number(hostPort.slice(lastColon + 1));
     if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-        throw new Error(`Invalid ASP TCP endpoint (expected host:port): ${endpoint}`);
+        throw new Error(`Invalid ASP TCP endpoint (expected [tls://]host:port): ${endpoint}`);
     }
-    return { host, port };
+    return { host, port, tls };
 }
 /**
- * Interim external AspBridge: length-prefixed (u32 BE) JSON CollabEnvelope over TCP.
- * Protobuf ASP wire remains a follow-up; this unblocks Host `external` mode + endpoint tests.
+ * External AspBridge: length-prefixed ASP AgentStreamMessage (protobuf) over TCP or TLS.
+ * Optional PLAIN auth handshake matches Python AgentClient / Rust ASP server.
  */
 export class TcpFramedAspBridge {
     endpoint;
-    onError;
+    codec;
+    useTls;
+    options;
     socket;
     connecting;
     buffer = Buffer.alloc(0);
+    awaitingAuth = false;
+    authResolve;
+    authReject;
     lastError;
-    constructor(endpoint, onError) {
+    authenticated = false;
+    constructor(endpoint, options = {}) {
         this.endpoint = endpoint;
-        this.onError = onError;
+        this.options = typeof options === 'function' ? { onError: options } : options;
+        this.codec = this.options.codec ?? 'protobuf';
+        const parsed = parseAspTcpEndpoint(endpoint);
+        this.useTls = Boolean(this.options.tls) || parsed.tls;
     }
     fail(message) {
         this.lastError = message;
-        this.onError?.(message);
+        this.options.onError?.(message);
     }
-    async connect() {
-        if (this.socket && !this.socket.destroyed)
-            return;
-        if (this.connecting)
-            return this.connecting;
-        const { host, port } = parseAspTcpEndpoint(this.endpoint);
-        this.connecting = new Promise((resolve, reject) => {
-            const socket = createConnection({ host, port }, () => {
-                this.socket = socket;
-                this.lastError = undefined;
-                this.connecting = undefined;
-                resolve();
-            });
-            socket.on('data', (chunk) => {
-                this.buffer = Buffer.concat([this.buffer, chunk]);
-                // Receiver side reserved for inbound ASP; drain frames without interpreting yet.
-                while (this.buffer.length >= 4) {
-                    const len = this.buffer.readUInt32BE(0);
-                    if (this.buffer.length < 4 + len)
-                        break;
-                    this.buffer = this.buffer.subarray(4 + len);
-                }
-            });
-            socket.on('error', (err) => {
-                this.fail(err.message);
-                this.connecting = undefined;
-                reject(err);
-            });
-            socket.on('close', () => {
-                this.socket = undefined;
-            });
-        });
-        return this.connecting;
-    }
-    async send(envelope) {
-        try {
-            await this.connect();
-        }
-        catch (err) {
-            const message = err instanceof Error ? err.message : String(err);
-            this.fail(message);
-            throw err instanceof Error ? err : new Error(message);
-        }
+    writeFrame(payload) {
         const socket = this.socket;
         if (!socket || socket.destroyed) {
-            const message = `ASP TCP bridge disconnected: ${this.endpoint}`;
+            const message = `ASP bridge disconnected: ${this.endpoint}`;
             this.fail(message);
-            throw new Error(message);
+            return Promise.reject(new Error(message));
         }
-        const body = Buffer.from(JSON.stringify(envelope), 'utf8');
-        const header = Buffer.alloc(4);
-        header.writeUInt32BE(body.length, 0);
-        await new Promise((resolve, reject) => {
-            socket.write(Buffer.concat([header, body]), (err) => {
+        const frame = frameAspPayload(payload);
+        return new Promise((resolve, reject) => {
+            socket.write(frame, (err) => {
                 if (err) {
                     this.fail(err.message);
                     reject(err);
@@ -158,10 +135,169 @@ export class TcpFramedAspBridge {
             });
         });
     }
+    handleFrame(payload) {
+        if (this.awaitingAuth) {
+            const auth = decodeAuthResponseMessage(payload);
+            this.awaitingAuth = false;
+            if (auth?.success) {
+                this.authenticated = true;
+                this.authResolve?.(true);
+            }
+            else {
+                const message = auth?.error_message ?? 'ASP authentication failed';
+                this.fail(message);
+                this.authReject?.(new Error(message));
+            }
+            this.authResolve = undefined;
+            this.authReject = undefined;
+            return;
+        }
+        if (this.codec === 'json') {
+            try {
+                const envelope = JSON.parse(payload.toString('utf8'));
+                this.options.onInbound?.(envelope);
+            }
+            catch (err) {
+                this.fail(err instanceof Error ? err.message : String(err));
+            }
+            return;
+        }
+        try {
+            const envelope = decodeAgentStreamMessage(payload);
+            if (envelope)
+                this.options.onInbound?.(envelope);
+        }
+        catch (err) {
+            this.fail(err instanceof Error ? err.message : String(err));
+        }
+    }
+    onData(chunk) {
+        this.buffer = Buffer.concat([this.buffer, chunk]);
+        while (this.buffer.length >= 4) {
+            const len = this.buffer.readUInt32BE(0);
+            if (len > 16 * 1024 * 1024) {
+                this.fail(`ASP frame too large: ${len}`);
+                this.buffer = Buffer.alloc(0);
+                break;
+            }
+            if (this.buffer.length < 4 + len)
+                break;
+            const payload = this.buffer.subarray(4, 4 + len);
+            this.buffer = this.buffer.subarray(4 + len);
+            this.handleFrame(payload);
+        }
+    }
+    async openSocket() {
+        const { host, port, tls: endpointTls } = parseAspTcpEndpoint(this.endpoint);
+        const wantTls = this.useTls || endpointTls;
+        if (!wantTls) {
+            return new Promise((resolve, reject) => {
+                const socket = createConnection({ host, port }, () => resolve(socket));
+                socket.once('error', reject);
+            });
+        }
+        const tlsOpt = typeof this.options.tls === 'object' ? this.options.tls : {};
+        const tlsOptions = {
+            host,
+            port,
+            servername: tlsOpt.servername ?? host,
+            rejectUnauthorized: tlsOpt.rejectUnauthorized ?? true,
+        };
+        if (tlsOpt.ca !== undefined)
+            tlsOptions.ca = tlsOpt.ca;
+        if (tlsOpt.cert !== undefined)
+            tlsOptions.cert = tlsOpt.cert;
+        if (tlsOpt.key !== undefined)
+            tlsOptions.key = tlsOpt.key;
+        return new Promise((resolve, reject) => {
+            const socket = tlsConnect(tlsOptions, () => resolve(socket));
+            socket.once('error', reject);
+        });
+    }
+    async authenticate() {
+        const auth = this.options.auth;
+        if (!auth) {
+            this.authenticated = false;
+            return;
+        }
+        if ((auth.mechanism ?? 'PLAIN') !== 'PLAIN') {
+            throw new Error(`Unsupported ASP auth mechanism: ${auth.mechanism}`);
+        }
+        this.awaitingAuth = true;
+        const authWait = new Promise((resolve, reject) => {
+            this.authResolve = resolve;
+            this.authReject = reject;
+        });
+        const payload = encodeAuthRequestMessage({
+            id: randomUUID(),
+            from_jid: auth.jid,
+            password: auth.password,
+        });
+        await this.writeFrame(payload);
+        const ok = await Promise.race([
+            authWait,
+            new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('ASP authentication timed out')), 10_000);
+            }),
+        ]);
+        if (!ok)
+            throw new Error('ASP authentication failed');
+    }
+    async connect() {
+        if (this.socket && !this.socket.destroyed)
+            return;
+        if (this.connecting)
+            return this.connecting;
+        this.connecting = (async () => {
+            try {
+                const socket = await this.openSocket();
+                this.socket = socket;
+                this.buffer = Buffer.alloc(0);
+                this.lastError = undefined;
+                this.authenticated = false;
+                socket.on('data', (chunk) => this.onData(chunk));
+                socket.on('error', (err) => {
+                    this.fail(err.message);
+                });
+                socket.on('close', () => {
+                    this.socket = undefined;
+                    this.authenticated = false;
+                });
+                await this.authenticate();
+            }
+            catch (err) {
+                const message = err instanceof Error ? err.message : String(err);
+                this.fail(message);
+                try {
+                    this.socket?.destroy();
+                }
+                catch {
+                    // ignore
+                }
+                this.socket = undefined;
+                throw err instanceof Error ? err : new Error(message);
+            }
+            finally {
+                this.connecting = undefined;
+            }
+        })();
+        return this.connecting;
+    }
+    async send(envelope) {
+        await this.connect();
+        const payload = this.codec === 'json'
+            ? Buffer.from(JSON.stringify(envelope), 'utf8')
+            : encodeAgentStreamMessage(envelope);
+        await this.writeFrame(payload);
+    }
     async close() {
         const socket = this.socket;
         this.socket = undefined;
         this.connecting = undefined;
+        this.authenticated = false;
+        this.awaitingAuth = false;
+        this.authResolve = undefined;
+        this.authReject = undefined;
         if (!socket || socket.destroyed)
             return;
         await new Promise((resolve) => {
@@ -169,7 +305,7 @@ export class TcpFramedAspBridge {
         });
     }
 }
-export function createTcpFramedAspBridge(endpoint, onError) {
-    return new TcpFramedAspBridge(endpoint, onError);
+export function createTcpFramedAspBridge(endpoint, options) {
+    return new TcpFramedAspBridge(endpoint, options);
 }
 //# sourceMappingURL=bus.js.map
