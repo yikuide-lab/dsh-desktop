@@ -218,7 +218,8 @@ export async function executeCollabOp(
 
   if (body.op === 'loop.get') {
     const loop = await readLoopJson(loopId)
-    return { ok: true, loop }
+    const admin = await readAdminJson(loopId)
+    return { ok: true, loop, admin }
   }
 
   if (body.op === 'loop.close') {
@@ -294,6 +295,7 @@ export async function executeCollabOp(
     }
     if (vision !== undefined) joinInput.vision = vision
     if (body.boundStepId !== undefined) joinInput.boundStepId = body.boundStepId
+    if (body.did !== undefined) joinInput.did = body.did
     const result = joinMember(joinInput)
     await persistMembershipResult(loopId, result.roster, result.vision)
     return { ok: true, ...result }

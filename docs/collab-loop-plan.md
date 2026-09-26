@@ -29,8 +29,8 @@
 | collab-v2-deputies | LoopAdmin `deputyGrants` 细粒度 ACL + `authorizeCollabOp` 映射 | completed |
 | collab-v2-heal-auto | `healAutoAllow` / `healAutoDeny` + `admin.updateControl` + tick 过滤 | completed |
 | collab-v2-remote-gate | 受控 remote session/agent 门控（`allowRemotePeers`；不伪造远程执行） | completed |
-| collab-v2-asp-tcp | 真 ASP TCP/TLS/Protobuf 外部桥 | pending |
-| collab-v2-did | DID 可选字段与身份联邦 | pending |
+| collab-v2-asp-tcp | 真 ASP TCP/TLS/Protobuf 外部桥 | pending（已落 interim：`TcpFramedAspBridge` length-prefixed JSON；Protobuf/TLS 仍 pending） |
+| collab-v2-did | DID 可选字段与身份联邦 | completed |
 | collab-v2-windows-pack | Windows 打包与分发 | pending |
 
 ## 决策（本版锁定）
@@ -264,6 +264,7 @@ type AspShow = 'ONLINE' | 'AWAY' | 'DND' | 'XA' | 'OFFLINE'
 
 interface RosterMember {
   jid?: string              // vacant 时缺省
+  did?: string              // 可选 W3C DID（ASP SecureEnvelope.sender_did）；V2
   kind: 'session' | 'agent' | 'workflow'
   slot?: string
   role?: string
@@ -309,7 +310,7 @@ interface CollabVision {
 
 ### 5. CapToken
 
-对齐 ASP `CapabilityToken`：`subject_jid`, `permissions[]`, `issued_at`, `expires_at`, `signature`；V1 本机 HMAC（`$DSH_HOME/collab/secret`）。另绑 `loopId` + `epoch`（epoch 不匹配即失效）。
+对齐 ASP `CapabilityToken`：`subject_jid`, `permissions[]`, `issued_at`, `expires_at`, `signature`；可选 `issuer_did` / `subject_did`（V2）；V1 本机 HMAC（`$DSH_HOME/collab/secret`）。另绑 `loopId` + `epoch`（epoch 不匹配即失效）。
 
 - join 签发；leave / kick / offline 吊销当前 epoch。
 - 写 vision / 执行 peer 动作前验 token；失败 → approval 或拒绝。
@@ -323,7 +324,7 @@ interface CollabVision {
 { id, from_jid, to_jid, timestamp, payload: message | presence | iq }
 ```
 
-IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`CollabBus.send` 同时 fire-and-forget 调 `AspBridge.send`；Host 默认 `createInProcessAspBridge` loopback；外部 TCP 仍 pending。
+IQ：`vision.get|append`、`goal.claim|release`、`membership.*`、`step.result`、`branch.complete`。V2：`CollabBus.send` 同时 fire-and-forget 调 `AspBridge.send`；Host 默认 `createInProcessAspBridge` loopback；`external` 模式用 interim `TcpFramedAspBridge`（u32 BE length + JSON）；Protobuf/TLS 仍 pending。
 
 ### 7. LoopAdmin
 
@@ -475,7 +476,7 @@ interface TaskPlan {
 | Heal   | `healer.evaluate` `healer.apply` `healer.pending`                               |
 | Plan   | `plan.evaluate` `plan.assign` `plan.spawnBranch` `plan.get`                     |
 | Bus    | `bus.send`（调试/高级）                                                               |
-| ASP    | `asp.status` `asp.setMode`（`in-process` \| `disconnected`；`external` 需 endpoint，TCP pending） |
+| ASP    | `asp.status` `asp.setMode`（`in-process` \| `disconnected` \| `external`+endpoint；Protobuf/TLS pending） |
 | Grants | `grants.issue`                                                                  |
 
 

@@ -5,7 +5,7 @@ import {
   DEFAULT_COLLAB_ACTOR_JID,
 } from './collab-api.js'
 
-type CollabTab = 'vision' | 'roster' | 'network' | 'heal' | 'plan'
+type CollabTab = 'vision' | 'roster' | 'network' | 'heal' | 'plan' | 'control'
 
 interface CollabPanelProps {
   loopId?: string
@@ -20,10 +20,13 @@ function tabLabel(tab: CollabTab, t: (key: WorkflowLocaleKey) => string): string
     case 'network': return t('collabTabNetwork')
     case 'heal': return t('collabTabHeal')
     case 'plan': return t('collabTabPlan')
+    case 'control': return t('collabTabControl')
   }
 }
 
-/** Minimal Collab Loop control surface (Vision / Roster / Network / Heal / Task Plan). */
+const HEAL_AUTO_OPTIONS = ['nudge_rejoin', 'reassign_goal', 'invite'] as const
+
+/** Minimal Collab Loop control surface (Vision / Roster / Network / Heal / Task Plan / Control). */
 export function CollabPanel({
   loopId: initialLoopId = '',
   actorJid = DEFAULT_COLLAB_ACTOR_JID,
@@ -36,8 +39,15 @@ export function CollabPanel({
   const [healPlan, setHealPlan] = useState<unknown>(null)
   const [inviteJid, setInviteJid] = useState('')
   const [inviteSlot, setInviteSlot] = useState('')
+  const [inviteDid, setInviteDid] = useState('')
   const [kickJid, setKickJid] = useState('')
   const [planHint, setPlanHint] = useState('')
+  const [aspEndpoint, setAspEndpoint] = useState('127.0.0.1:9700')
+  const [allowRemotePeers, setAllowRemotePeers] = useState(false)
+  const [canHealAuto, setCanHealAuto] = useState(false)
+  const [healAutoAllow, setHealAutoAllow] = useState<string[]>([...HEAL_AUTO_OPTIONS])
+  const [deputyJid, setDeputyJid] = useState('')
+  const [deputyGrantsText, setDeputyGrantsText] = useState('read,invite')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -88,6 +98,30 @@ export function CollabPanel({
         ])
         setHealPlan(pending.pending)
         setPayload(snapshot.snapshot)
+      } else if (tab === 'control') {
+        const [asp, loop] = await Promise.all([
+          api.call<{ status: unknown }>({ op: 'asp.status', actorJid }),
+          api.call<{ loop?: unknown; admin?: unknown }>({ op: 'loop.get', loopId: id, actorJid }),
+        ])
+        const admin = (loop as { admin?: {
+          control?: {
+            allowRemotePeers?: boolean
+            canHealAuto?: boolean
+            healAutoAllow?: string[]
+          }
+          deputies?: string[]
+          deputyGrants?: Record<string, string[]>
+        } }).admin
+        if (admin?.control?.allowRemotePeers !== undefined) {
+          setAllowRemotePeers(Boolean(admin.control.allowRemotePeers))
+        }
+        if (admin?.control?.canHealAuto !== undefined) {
+          setCanHealAuto(Boolean(admin.control.canHealAuto))
+        }
+        if (admin?.control?.healAutoAllow) {
+          setHealAutoAllow([...admin.control.healAutoAllow])
+        }
+        setPayload({ asp: asp.status, admin: admin ?? null })
       } else {
         const result = await api.call<{ plan: unknown }>({
           op: 'plan.get',
@@ -122,7 +156,7 @@ export function CollabPanel({
     }
   }
 
-  const tabs: CollabTab[] = ['vision', 'roster', 'network', 'heal', 'plan']
+  const tabs: CollabTab[] = ['vision', 'roster', 'network', 'heal', 'plan', 'control']
 
   return (
     <section className="workflow-collab-panel">
@@ -183,6 +217,16 @@ export function CollabPanel({
             onChange={(event) => setInviteSlot(event.target.value)}
           />
         </label>
+        <label className="workflow-form-group">
+          <span>{t('collabPeerDid')}</span>
+          <input
+            type="text"
+            className="workflow-input"
+            value={inviteDid}
+            onChange={(event) => setInviteDid(event.target.value)}
+            placeholder="did:dsh:… (optional)"
+          />
+        </label>
         <div className="workflow-collab-action-row">
           <button
             type="button"
@@ -198,6 +242,7 @@ export function CollabPanel({
                 actorJid,
                 jid: inviteJid.trim(),
                 slot: inviteSlot.trim(),
+                ...(inviteDid.trim() ? { did: inviteDid.trim() } : {}),
               })
             })}
           >
@@ -328,6 +373,172 @@ export function CollabPanel({
             {t('collabEvaluatePlan')}
           </button>
         </>
+      )}
+
+      {tab === 'control' && (
+        <div className="workflow-collab-control">
+          <div className="workflow-collab-action-row">
+            <button
+              type="button"
+              className="workflow-btn small"
+              disabled={busy}
+              onClick={() => void runOp(async (id) => {
+                await api.call({ op: 'asp.setMode', loopId: id, actorJid, aspMode: 'in-process' })
+              })}
+            >
+              {t('collabAspInProcess')}
+            </button>
+            <button
+              type="button"
+              className="workflow-btn small"
+              disabled={busy}
+              onClick={() => void runOp(async (id) => {
+                await api.call({ op: 'asp.setMode', loopId: id, actorJid, aspMode: 'disconnected' })
+              })}
+            >
+              {t('collabAspDisconnected')}
+            </button>
+            <button
+              type="button"
+              className="workflow-btn small"
+              disabled={busy || !aspEndpoint.trim()}
+              onClick={() => void runOp(async (id) => {
+                await api.call({
+                  op: 'asp.setMode',
+                  loopId: id,
+                  actorJid,
+                  aspMode: 'external',
+                  aspEndpoint: aspEndpoint.trim(),
+                })
+              })}
+            >
+              {t('collabAspExternal')}
+            </button>
+          </div>
+          <label className="workflow-form-group">
+            <span>{t('collabAspEndpoint')}</span>
+            <input
+              type="text"
+              className="workflow-input"
+              value={aspEndpoint}
+              onChange={(event) => setAspEndpoint(event.target.value)}
+              placeholder="127.0.0.1:9700"
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>
+              <input
+                type="checkbox"
+                checked={allowRemotePeers}
+                onChange={(event) => setAllowRemotePeers(event.target.checked)}
+              />
+              {' '}
+              {t('collabAllowRemotePeers')}
+            </span>
+          </label>
+          <label className="workflow-form-group">
+            <span>
+              <input
+                type="checkbox"
+                checked={canHealAuto}
+                onChange={(event) => setCanHealAuto(event.target.checked)}
+              />
+              {' '}
+              {t('collabHealAuto')}
+            </span>
+          </label>
+          <fieldset className="workflow-form-group">
+            <legend>{t('collabHealAutoAllow')}</legend>
+            {HEAL_AUTO_OPTIONS.map((action) => (
+              <label key={action} style={{ display: 'block' }}>
+                <input
+                  type="checkbox"
+                  checked={healAutoAllow.includes(action)}
+                  onChange={(event) => {
+                    setHealAutoAllow((prev) => (
+                      event.target.checked
+                        ? [...new Set([...prev, action])]
+                        : prev.filter((entry) => entry !== action)
+                    ))
+                  }}
+                />
+                {' '}
+                {action}
+              </label>
+            ))}
+          </fieldset>
+          <button
+            type="button"
+            className="workflow-btn small primary"
+            disabled={busy}
+            onClick={() => void runOp(async (id) => {
+              await api.call({
+                op: 'admin.updateControl',
+                loopId: id,
+                actorJid,
+                control: {
+                  allowRemotePeers,
+                  canHealAuto,
+                  healAutoAllow: healAutoAllow as Array<'nudge_rejoin' | 'reassign_goal' | 'invite'>,
+                },
+              })
+            })}
+          >
+            {t('collabSaveControl')}
+          </button>
+          <label className="workflow-form-group">
+            <span>{t('collabDeputyJid')}</span>
+            <input
+              type="text"
+              className="workflow-input"
+              value={deputyJid}
+              onChange={(event) => setDeputyJid(event.target.value)}
+              placeholder="deputy@desktop.local/control"
+            />
+          </label>
+          <label className="workflow-form-group">
+            <span>{t('collabDeputyGrants')}</span>
+            <input
+              type="text"
+              className="workflow-input"
+              value={deputyGrantsText}
+              onChange={(event) => setDeputyGrantsText(event.target.value)}
+              placeholder="read,invite,kick"
+            />
+          </label>
+          <button
+            type="button"
+            className="workflow-btn small"
+            disabled={busy || !deputyJid.trim()}
+            onClick={() => void runOp(async (id) => {
+              const grants = deputyGrantsText
+                .split(/[,\s]+/)
+                .map((entry) => entry.trim())
+                .filter(Boolean) as Array<
+                'invite' | 'kick' | 'reassign' | 'pause' | 'spawnBranch'
+                | 'healApply' | 'healEvaluate' | 'planEvaluate' | 'read'
+              >
+              const loop = await api.call<{ admin?: {
+                deputies?: string[]
+                deputyGrants?: Record<string, string[]>
+              } }>({ op: 'loop.get', loopId: id, actorJid })
+              const deputies = [...new Set([...(loop.admin?.deputies ?? []), deputyJid.trim()])]
+              const deputyGrants = {
+                ...(loop.admin?.deputyGrants ?? {}),
+                [deputyJid.trim()]: grants.length > 0 ? grants : ['read'],
+              }
+              await api.call({
+                op: 'admin.updateControl',
+                loopId: id,
+                actorJid,
+                deputies,
+                deputyGrants,
+              })
+            })}
+          >
+            {t('collabSaveDeputy')}
+          </button>
+        </div>
       )}
 
       {error && <p className="workflow-error">{error}</p>}

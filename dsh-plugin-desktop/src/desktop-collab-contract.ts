@@ -43,6 +43,7 @@ export interface DesktopCollabRequest {
   readonly jid?: string
   readonly slot?: string
   readonly role?: string
+  readonly did?: string
   readonly boundStepId?: string
   readonly mode?: 'resume' | 'replace'
   readonly kind?: 'session' | 'agent' | 'workflow'
@@ -58,6 +59,8 @@ export interface DesktopCollabRequest {
   readonly capToken?: {
     loopId: string
     subject_jid: string
+    issuer_did?: string
+    subject_did?: string
     permissions: string[]
     issued_at: string
     expires_at: string

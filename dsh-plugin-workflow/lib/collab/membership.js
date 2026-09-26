@@ -1,4 +1,5 @@
 /** Pure membership mutations for LoopRoster + CollabVision */
+import { didBindsJid, normalizeDid } from './did.js';
 import { parseJid, rosterPeerKindFromJid } from './jid.js';
 function isoNow(nowMs) {
     return new Date(nowMs).toISOString();
@@ -57,6 +58,13 @@ export function joinMember(input) {
     if (existing.lifecycle !== 'vacant' && existing.lifecycle !== 'left') {
         throw new Error(`Slot ${input.slot} is not vacant`);
     }
+    let memberDid;
+    if (input.did !== undefined) {
+        memberDid = normalizeDid(input.did);
+        if (!didBindsJid(memberDid, input.jid)) {
+            throw new Error(`DID does not bind JID: ${input.did}`);
+        }
+    }
     const epoch = (existing.epoch ?? 0) + 1;
     members[idx] = {
         ...existing,
@@ -71,6 +79,7 @@ export function joinMember(input) {
         epoch,
         boundStepId: input.boundStepId,
         paused: false,
+        ...(memberDid !== undefined ? { did: memberDid } : { did: undefined }),
     };
     events.push({
         type: 'member.joined',

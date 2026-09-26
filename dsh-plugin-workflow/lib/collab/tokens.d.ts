@@ -8,6 +8,8 @@ export declare function issueCapToken(input: {
     secret: Buffer;
     ttlMs?: number;
     nowMs?: number;
+    issuer_did?: string;
+    subject_did?: string;
 }): CapToken;
 export interface VerifyCapTokenOptions {
     token: CapToken;
@@ -17,6 +19,8 @@ export interface VerifyCapTokenOptions {
     requiredPermissions?: string[];
     expectedEpoch: number;
     nowMs?: number;
+    /** When set, token.subject_did must match (federation check). */
+    subject_did?: string;
 }
 export declare function verifyCapToken(options: VerifyCapTokenOptions): boolean;
 /** Epoch bump invalidates all tokens for the prior epoch — no persistent revoke list needed. */

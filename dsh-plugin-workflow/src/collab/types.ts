@@ -20,6 +20,8 @@ export type AspShow = 'ONLINE' | 'AWAY' | 'DND' | 'XA' | 'OFFLINE'
 
 export interface RosterMember {
   jid?: string
+  /** Optional W3C DID (ASP SecureEnvelope.sender_did); V2 identity federation stub. */
+  did?: string
   kind: PeerKind
   slot?: string
   role?: string
@@ -114,6 +116,10 @@ export interface BranchRecord {
 export interface CapToken {
   loopId: string
   subject_jid: string
+  /** Optional ASP CapabilityToken.issuer_did */
+  issuer_did?: string
+  /** Optional subject DID when federated identity is present */
+  subject_did?: string
   permissions: string[]
   issued_at: string
   expires_at: string
@@ -156,13 +162,15 @@ export interface TaskPlan {
   subtasks: TaskPlanSubtask[]
 }
 
-/** Bus envelope aligned with AgentStreamMessage */
+/** Bus envelope aligned with AgentStreamMessage (+ optional SecureEnvelope.sender_did) */
 export interface CollabEnvelope {
   id: string
   from_jid: string
   to_jid: string
   timestamp: string
   payload: CollabPayload
+  /** Optional W3C DID of sender (ASP SecureEnvelope.sender_did) */
+  sender_did?: string
 }
 
 export type CollabPayload =

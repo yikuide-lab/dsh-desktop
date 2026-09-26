@@ -1,5 +1,6 @@
 export * from './types.js'
 export * from './jid.js'
+export * from './did.js'
 export * from './paths.js'
 export * from './store.js'
 export * from './tokens.js'

@@ -6,6 +6,8 @@ export declare function joinMember(input: {
     jid: string;
     slot: string;
     boundStepId?: string;
+    /** Optional W3C DID; validated when provided. */
+    did?: string;
     nowMs?: number;
 }): MembershipResult;
 export declare function leaveMember(input: {

@@ -6,6 +6,8 @@ function canonicalPayload(input) {
         v: TOKEN_VERSION,
         loopId: input.loopId,
         subject_jid: input.subject_jid,
+        issuer_did: input.issuer_did ?? null,
+        subject_did: input.subject_did ?? null,
         permissions: [...input.permissions].sort(),
         issued_at: input.issued_at,
         expires_at: input.expires_at,
@@ -26,6 +28,8 @@ export function issueCapToken(input) {
         issued_at,
         expires_at,
         epoch: input.epoch,
+        ...(input.issuer_did !== undefined ? { issuer_did: input.issuer_did } : {}),
+        ...(input.subject_did !== undefined ? { subject_did: input.subject_did } : {}),
     };
     const signature = signPayload(canonicalPayload(body), input.secret);
     return { ...body, signature };
@@ -38,6 +42,10 @@ export function verifyCapToken(options) {
         return false;
     if (token.epoch !== expectedEpoch)
         return false;
+    if (options.subject_did !== undefined) {
+        if (token.subject_did !== options.subject_did)
+            return false;
+    }
     const nowMs = options.nowMs ?? Date.now();
     if (Date.parse(token.expires_at) <= nowMs)
         return false;
@@ -48,6 +56,8 @@ export function verifyCapToken(options) {
         issued_at: token.issued_at,
         expires_at: token.expires_at,
         epoch: token.epoch,
+        ...(token.issuer_did !== undefined ? { issuer_did: token.issuer_did } : {}),
+        ...(token.subject_did !== undefined ? { subject_did: token.subject_did } : {}),
     }), secret);
     const a = Buffer.from(token.signature);
     const b = Buffer.from(expectedSig);

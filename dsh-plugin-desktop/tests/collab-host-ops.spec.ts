@@ -165,7 +165,22 @@ describe('collab host ops', () => {
     })
     expect(rejected).toEqual({
       ok: false,
-      error: 'ASP external bridge not configured (V2 TCP pending)',
+      error: 'ASP external bridge requires endpoint (host:port)',
+    })
+    const external = await executeCollabOp({
+      op: 'asp.setMode',
+      actorJid: DEFAULT_ADMIN_JID,
+      aspMode: 'external',
+      aspEndpoint: '127.0.0.1:9700',
+    })
+    expect(external).toMatchObject({
+      ok: true,
+      status: { mode: 'external', endpoint: '127.0.0.1:9700' },
+    })
+    await executeCollabOp({
+      op: 'asp.setMode',
+      actorJid: DEFAULT_ADMIN_JID,
+      aspMode: 'in-process',
     })
   })
 

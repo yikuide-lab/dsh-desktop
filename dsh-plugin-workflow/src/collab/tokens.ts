@@ -12,11 +12,15 @@ function canonicalPayload(input: {
   issued_at: string
   expires_at: string
   epoch: number
+  issuer_did?: string
+  subject_did?: string
 }): string {
   return JSON.stringify({
     v: TOKEN_VERSION,
     loopId: input.loopId,
     subject_jid: input.subject_jid,
+    issuer_did: input.issuer_did ?? null,
+    subject_did: input.subject_did ?? null,
     permissions: [...input.permissions].sort(),
     issued_at: input.issued_at,
     expires_at: input.expires_at,
@@ -36,6 +40,8 @@ export function issueCapToken(input: {
   secret: Buffer
   ttlMs?: number
   nowMs?: number
+  issuer_did?: string
+  subject_did?: string
 }): CapToken {
   const nowMs = input.nowMs ?? Date.now()
   const issued_at = new Date(nowMs).toISOString()
@@ -47,6 +53,8 @@ export function issueCapToken(input: {
     issued_at,
     expires_at,
     epoch: input.epoch,
+    ...(input.issuer_did !== undefined ? { issuer_did: input.issuer_did } : {}),
+    ...(input.subject_did !== undefined ? { subject_did: input.subject_did } : {}),
   }
   const signature = signPayload(canonicalPayload(body), input.secret)
   return { ...body, signature }
@@ -60,6 +68,8 @@ export interface VerifyCapTokenOptions {
   requiredPermissions?: string[]
   expectedEpoch: number
   nowMs?: number
+  /** When set, token.subject_did must match (federation check). */
+  subject_did?: string
 }
 
 export function verifyCapToken(options: VerifyCapTokenOptions): boolean {
@@ -67,6 +77,9 @@ export function verifyCapToken(options: VerifyCapTokenOptions): boolean {
   if (token.loopId !== loopId) return false
   if (token.subject_jid !== subject_jid) return false
   if (token.epoch !== expectedEpoch) return false
+  if (options.subject_did !== undefined) {
+    if (token.subject_did !== options.subject_did) return false
+  }
 
   const nowMs = options.nowMs ?? Date.now()
   if (Date.parse(token.expires_at) <= nowMs) return false
@@ -79,6 +92,8 @@ export function verifyCapToken(options: VerifyCapTokenOptions): boolean {
       issued_at: token.issued_at,
       expires_at: token.expires_at,
       epoch: token.epoch,
+      ...(token.issuer_did !== undefined ? { issuer_did: token.issuer_did } : {}),
+      ...(token.subject_did !== undefined ? { subject_did: token.subject_did } : {}),
     }),
     secret,
   )

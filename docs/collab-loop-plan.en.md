@@ -8,7 +8,9 @@
 
 **V1 implementation landed** (2026-09-26): core, engine `collab_peer`, stability, admin API, healer/planner, UI, AWF remote guard, beta↔desktop sync. See Chinese plan todos (all `completed`).
 
-**V2 slice landed** (2026-09-26): AspBridge in-process loopback + Host `asp.status`/`asp.setMode`; deputy fine-grained ACL; heal auto policy via `admin.updateControl`; controlled remote session/agent gate (`allowRemotePeers`, no fake remote). Still **pending**: real ASP TCP/TLS, DID, Windows packaging.
+**V2 slice landed** (2026-09-26): AspBridge in-process loopback + Host `asp.status`/`asp.setMode`; deputy fine-grained ACL; heal auto policy via `admin.updateControl`; controlled remote session/agent gate (`allowRemotePeers`, no fake remote).
+
+**V2 follow-up** (2026-09-26): optional DID fields (`RosterMember.did`, CapToken `issuer_did`/`subject_did`, envelope `sender_did`); CollabPanel Control tab; interim `TcpFramedAspBridge` (length-prefixed JSON over TCP). Still **pending**: ASP Protobuf/TLS codec, Windows packaging.
 
 ## Decisions (locked)
 
